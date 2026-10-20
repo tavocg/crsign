@@ -34,6 +34,10 @@ endif()
 
 add_executable(sign ${SIGN_SOURCES})
 
+target_include_directories(sign PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+
 if(NOT HEADLESS)
     target_link_libraries(sign PRIVATE
         PkgConfig::GTK4
