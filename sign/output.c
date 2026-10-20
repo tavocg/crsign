@@ -45,6 +45,8 @@ static void verify_json(
 		json_hex(signer->cert_der, signer->cert_der_len);
 		fputs(",\"timestamp\":", stdout);
 		timestamp_json(&signer->timestamp);
+		fputs(",\"archive\":", stdout);
+		timestamp_json(&signer->archive);
 		putchar('}');
 	}
 	puts("]}");
@@ -74,6 +76,12 @@ void verify_output(
 			    result->signers[i].timestamp.time
 			);
 		}
+		if (result->signers[i].archive.present) {
+			printf(
+			    "Archive timestamp valid and trusted: %s\n",
+			    result->signers[i].archive.time
+			);
+		}
 	}
 }
 
@@ -83,13 +91,20 @@ void operation_output(const sign_args* args, bool ok, size_t len) {
 	if (args->json) {
 		printf("{\"command\":\"%s\",\"ok\":%s", command, json_bool(ok));
 		if (ok) {
+			const char* levels[] = {"B-LTA", "B-B", "B-T", "B-LT"};
+			fputs(",\"level\":", stdout);
+			json_string(levels[args->level]);
+			fputs(",\"format\":", stdout);
+			json_string(
+			    args->format == LIBSSIG_FORMAT_PADES ? "pades" : "cades"
+			);
 			fputs(",\"output\":", stdout);
 			json_string(args->output);
 			printf(
 			    ",\"len\":%zu,\"detached\":%s,\"timestamped\":%s",
 			    len,
 			    json_bool(args->detached),
-			    json_bool(args->authority != NULL)
+			    json_bool(args->level != LIBSSIG_LEVEL_B_B)
 			);
 		} else {
 			fputs(",\"error\":\"Operation failed; see stderr\"", stdout);

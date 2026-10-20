@@ -2,6 +2,7 @@
 #include <argp.h>
 #include <sign/arg.h>
 #include <string.h>
+#include <strings.h>
 
 const char* argp_program_version = "Sign " SIGN_VERSION;
 enum {
@@ -35,6 +36,8 @@ static const struct argp_option options[] = {
     {"token", 't', "URI", 0, "Exact PKCS#11 token URI", 0},
     {"key", 'k', "ID_HEX", 0, "Certificate ID in hexadecimal", 0},
     {"algorithm", 'a', "ALGORITHM", 0, "rsa-pkcs (default), rsa-pss, ecdsa", 0},
+    {"level", 'l', "LEVEL", 0, "B-LTA (default), B-LT, B-T, B-B", 0},
+    {"format", 'f', "FORMAT", 0, "cades or pades (default: pades for PDF)", 0},
     {"hash", 'H', "HASH", 0, "sha256 (default), sha384, sha512", 0},
     {"authority", 'A', "URL", 0, "RFC 3161 TSA (HTTP/HTTPS)", 0},
     {
@@ -85,10 +88,11 @@ static const struct argp_option options[] = {
 static unsigned int choice_parse(
     struct argp_state* state,
     const char*        arg,
-    const char* const* choices
+    const char* const* choices,
+    unsigned int       count
 ) {
-	for (unsigned int i = 0; i < 3; ++i) {
-		if (!strcmp(arg, choices[i])) {
+	for (unsigned int i = 0; i < count; ++i) {
+		if (!strcasecmp(arg, choices[i])) {
 			return i;
 		}
 	}
@@ -129,13 +133,17 @@ static void args_validate(struct argp_state* state, const sign_args* args) {
 		argp_error(state, "--all and --content require tokens");
 	}
 
-	if (!verify && (args->ca_file || args->intermediates)) {
-		argp_error(state, "--ca-file and --intermediates require verify");
+	if (!verify && !tokens && args->level != LIBSSIG_LEVEL_B_B &&
+	    !args->authority) {
+		argp_error(
+		    state,
+		    "The selected level requires -A TSA_URL; use -l B-B for an offline "
+		    "signature"
+		);
 	}
-
-	if (!verify && !args->authority &&
-	    (args->tsa_ca_file || args->tsa_intermediates)) {
-		argp_error(state, "TSA certificates require -A URL when signing");
+	if (!verify && !tokens && args->format == LIBSSIG_FORMAT_PADES &&
+	    args->detached) {
+		argp_error(state, "PAdES cannot use --detached");
 	}
 }
 
@@ -170,8 +178,11 @@ static error_t parse_option(int key, char* arg, struct argp_state* state) {
 	sign_args*        args = state->input;
 	const char* const algorithms[] = {"rsa-pkcs", "rsa-pss", "ecdsa"};
 	const char* const hashes[] = {"sha256", "sha384", "sha512"};
+	const char* const levels[] = {"B-LTA", "B-B", "B-T", "B-LT"};
+	const char* const formats[] = {"cades", "cms", "pades"};
 	if (key == 'o' || key == 't' || key == 'k' || key == 'a' || key == 'H' ||
-	    key == 'A' || key == DETACHED || key == MIME_TYPE) {
+	    key == 'A' || key == 'l' || key == 'f' || key == DETACHED ||
+	    key == MIME_TYPE) {
 		args->signing_options = true;
 	}
 	switch (key) {
@@ -194,10 +205,25 @@ static error_t parse_option(int key, char* arg, struct argp_state* state) {
 		args->id = arg;
 		break;
 	case 'a':
-		args->algo = (libssig_algo)choice_parse(state, arg, algorithms);
+		args->algo = (libssig_algo)choice_parse(
+		    state,
+		    !strcasecmp(arg, "rsa") ? "rsa-pkcs" : arg,
+		    algorithms,
+		    3
+		);
 		break;
 	case 'H':
-		args->hash = (libssig_hash)choice_parse(state, arg, hashes);
+		args->hash = (libssig_hash)choice_parse(state, arg, hashes, 3);
+		break;
+	case 'l':
+		args->level = (libssig_level)choice_parse(state, arg, levels, 4);
+		break;
+	case 'f':
+		args->format = (libssig_format)choice_parse(state, arg, formats, 3);
+		if (args->format == LIBSSIG_FORMAT_CMS) {
+			argp_error(state, "Use cades or pades");
+		}
+		args->format_explicit = true;
 		break;
 	case 'A':
 		args->authority = arg;

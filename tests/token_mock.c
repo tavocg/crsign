@@ -117,5 +117,21 @@ libssig_status libssig_sign(
 	}
 	signature->data = bytes.data;
 	signature->len = bytes.len;
+	if (params->level != LIBSSIG_LEVEL_B_B) {
+		libssig_extend_params extend = {
+		    .data = bytes.data,
+		    .data_len = bytes.len,
+		    .level = params->level,
+		    .hash = params->hash,
+		    .services = params->services
+		};
+		libssig_signature output = {0};
+		libssig_status    status = libssig_extend(&extend, &output);
+		libssig_signature_free(signature);
+		if (status == LIBSSIG_OK) {
+			*signature = output;
+		}
+		return status;
+	}
 	return LIBSSIG_OK;
 }

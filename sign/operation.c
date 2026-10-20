@@ -96,6 +96,7 @@ static libssig_status token_sign(
     const sign_args*           args,
     const sign_buffer*         input,
     const libssig_context*     ctx,
+    const sign_trust*          trust,
     const libssig_token*       token,
     const libssig_certificate* cert,
     libssig_signature*         signature
@@ -114,6 +115,13 @@ static libssig_status token_sign(
 			return LIBSSIG_ERROR_ARGUMENT;
 		}
 	}
+	libssig_verify_params validation = {0};
+	trust_verify_params(trust, &validation);
+	libssig_sign_services services = {
+	    .exchange = http_exchange,
+	    .tsa_url = args->authority,
+	    .trust = &validation
+	};
 	size_t              pin_len = pin ? strlen(pin) : 0;
 	libssig_sign_params params = {
 	    .token = token,
@@ -122,6 +130,9 @@ static libssig_status token_sign(
 	    .data_len = input->len,
 	    .pin = (const unsigned char*)pin,
 	    .pin_len = pin_len,
+	    .level = args->level,
+	    .format = args->format,
+	    .services = &services,
 	    .algo = args->algo,
 	    .hash = args->hash,
 	    .mime_type = args->mime_type,
@@ -138,6 +149,7 @@ static libssig_status token_sign(
 static bool signature_create(
     const sign_args*   args,
     const sign_buffer* input,
+    const sign_trust*  trust,
     libssig_signature* signature
 ) {
 	libssig_context          ctx = {0};
@@ -157,7 +169,7 @@ static bool signature_create(
 	                                      ? certificate_find(args, &certs)
 	                                      : NULL;
 	if (cert) {
-		status = token_sign(args, input, &ctx, token, cert, signature);
+		status = token_sign(args, input, &ctx, trust, token, cert, signature);
 	}
 	bool ok = cert && status == LIBSSIG_OK;
 	if (!ok) {
@@ -220,10 +232,12 @@ int operation_run(const sign_args* args) {
 		ok = signature_verify(args, &input, &trust);
 		reported = true;
 	} else if (ok) {
-		ok = signature_create(args, &input, &signature);
-		if (ok && args->authority) {
-			ok = timestamp_apply(args, &trust, &signature);
+		if (!args->format_explicit && input.len >= 5 &&
+		    !memcmp(input.data, "%PDF-", 5)) {
+			resolved.format = LIBSSIG_FORMAT_PADES;
 		}
+		ok = signature_create(args, &input, &trust, &signature);
+
 		if (ok) {
 			ok = file_write(args->output, signature.data, signature.len);
 		}

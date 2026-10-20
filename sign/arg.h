@@ -13,12 +13,15 @@ typedef enum {
 
 typedef struct {
 	bool gui, detached, json, all_certificates, content, signing_options;
-	sign_command command;
-	const char * input, *output, *uri, *id, *authority;
-	const char * ca_file, *intermediates, *tsa_ca_file, *tsa_intermediates;
-	const char*  mime_type;
-	libssig_algo algo;
-	libssig_hash hash;
+	sign_command   command;
+	const char *   input, *output, *uri, *id, *authority;
+	const char *   ca_file, *intermediates, *tsa_ca_file, *tsa_intermediates;
+	const char*    mime_type;
+	libssig_algo   algo;
+	libssig_hash   hash;
+	libssig_level  level;
+	libssig_format format;
+	bool           format_explicit;
 } sign_args;
 
 sign_args arg_parse(int argc, char** argv);

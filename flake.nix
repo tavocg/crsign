@@ -26,7 +26,7 @@
 
             packages = with pkgs; [ gcc clang-tools cmake ];
             nativeBuildInputs = with pkgs; [ pkg-config ];
-            buildInputs = with pkgs; [ gtk4 curl openssl p11-kit file ];
+            buildInputs = with pkgs; [ gtk4 curl openssl p11-kit file qpdf ];
 
             shellHook = ''
               export CMAKE_PREFIX_PATH="$HOME/Projects/libssig/build''${CMAKE_PREFIX_PATH:+:$CMAKE_PREFIX_PATH}"

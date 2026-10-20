@@ -17,7 +17,7 @@ static size_t response_collect(
 		return 0;
 	}
 	size_t len = size * count;
-	if (!len || len > 1024 * 1024 - bytes->len) {
+	if (!len || len > 16 * 1024 * 1024 - bytes->len) {
 		return 0;
 	}
 	unsigned char* items = realloc(bytes->data, bytes->len + len);
@@ -30,26 +30,34 @@ static size_t response_collect(
 	return len;
 }
 
-static bool response_fetch(
-    const char*              url,
-    const libssig_signature* request,
-    sign_buffer*             response
+libssig_status http_exchange(
+    void*                user,
+    libssig_fetch_kind   kind,
+    const char*          url,
+    const unsigned char* request,
+    size_t               request_len,
+    libssig_signature*   response
 ) {
+	(void)user;
+	sign_buffer bytes = {0};
 	if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK) {
-		return false;
+		return LIBSSIG_ERROR_CRYPTO;
 	}
 	CURL*              curl = curl_easy_init();
 	struct curl_slist* headers = curl_slist_append(
 	    NULL,
-	    "Content-Type: application/timestamp-query"
+	    kind == LIBSSIG_FETCH_OCSP ? "Content-Type: application/ocsp-request"
+	                               : "Content-Type: application/timestamp-query"
 	);
-	struct curl_slist* items = headers
-	                               ? curl_slist_append(
-	                                     headers,
-	                                     "Accept: application/timestamp-reply"
-	                                 )
-	                               : NULL;
-	bool               ok = curl && items;
+	struct curl_slist*
+	     items = headers ? curl_slist_append(
+                              headers,
+                              kind == LIBSSIG_FETCH_OCSP
+	                               ? "Accept: application/ocsp-response"
+	                               : "Accept: application/timestamp-reply"
+                          )
+	                     : NULL;
+	bool ok = curl && items;
 	if (items) {
 		headers = items;
 	}
@@ -62,13 +70,15 @@ static bool response_fetch(
 	SET(CURLOPT_URL, url);
 	SET(CURLOPT_PROTOCOLS_STR, "http,https");
 	SET(CURLOPT_HTTPHEADER, headers);
-	SET(CURLOPT_POSTFIELDS, request->data);
-	SET(CURLOPT_POSTFIELDSIZE_LARGE, (curl_off_t)request->len);
+	if (request) {
+		SET(CURLOPT_POSTFIELDS, request);
+		SET(CURLOPT_POSTFIELDSIZE_LARGE, (curl_off_t)request_len);
+	}
 	SET(CURLOPT_CONNECTTIMEOUT, 10L);
 	SET(CURLOPT_TIMEOUT, 45L);
 	SET(CURLOPT_NOSIGNAL, 1L);
 	SET(CURLOPT_WRITEFUNCTION, response_collect);
-	SET(CURLOPT_WRITEDATA, response);
+	SET(CURLOPT_WRITEDATA, &bytes);
 #undef SET
 	CURLcode code = ok ? curl_easy_perform(curl) : CURLE_FAILED_INIT;
 	long     status = 0;
@@ -86,7 +96,34 @@ static bool response_fetch(
 	curl_slist_free_all(headers);
 	curl_easy_cleanup(curl);
 	curl_global_cleanup();
-	return ok;
+	if (ok) {
+		response->data = bytes.data;
+		response->len = bytes.len;
+	} else {
+		free(bytes.data);
+	}
+	return ok ? LIBSSIG_OK : LIBSSIG_ERROR_TIMESTAMP;
+}
+
+static bool response_fetch(
+    const char*              url,
+    const libssig_signature* request,
+    sign_buffer*             response
+) {
+	libssig_signature output = {0};
+	if (http_exchange(
+	        NULL,
+	        LIBSSIG_FETCH_TIMESTAMP,
+	        url,
+	        request->data,
+	        request->len,
+	        &output
+	    ) != LIBSSIG_OK) {
+		return false;
+	}
+	response->data = output.data;
+	response->len = output.len;
+	return true;
 }
 
 bool timestamp_apply(

@@ -16,7 +16,7 @@ with tempfile.TemporaryDirectory(prefix='sign-commands-') as directory:
     env['SIGN_MOCK_DATA'] = str(source)
 
     def run(*args, success=True, structured=False):
-        result = subprocess.run([sign, *map(str, args)], cwd=root, env=env,
+        result = subprocess.run([sign, *(['-l', 'B-B'] if args and str(args[0]) not in ('tokens', 'verify', '--json', '--gui') and '--help' not in args else []), *map(str, args)], cwd=root, env=env,
                                 capture_output=True, text=True, timeout=10)
         assert (result.returncode == 0) == success, (args, result.stdout, result.stderr)
         return json.loads(result.stdout) if structured else result
@@ -24,6 +24,16 @@ with tempfile.TemporaryDirectory(prefix='sign-commands-') as directory:
     def output(*args, success=True):
         return run(*args, '--json', success=success, structured=True)
 
+    missing_tsa = subprocess.run([sign, str(source), '--json'], cwd=root, env=env,
+                                 capture_output=True, text=True)
+    assert missing_tsa.returncode != 0 and 'B-B' in missing_tsa.stderr
+    for level in ['B-B', 'b-b']:
+        args = [sign, str(source), '-l', level, '-a', 'RSA', '-H', 'SHA256', '--json']
+        target = root / 'sample-signed.txt'
+        if target.exists(): target.unlink()
+        result = subprocess.run(args, cwd=root, env=env, capture_output=True, text=True)
+        assert result.returncode == 0 and json.loads(result.stdout)['level'] == 'B-B'
+        target.unlink()
     tokens = output('tokens')
     assert tokens['command'] == 'tokens' and tokens['ok']
     assert tokens['count'] == len(tokens['tokens']) == 1

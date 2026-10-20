@@ -26,3 +26,10 @@ y el ejecutable `openssl`; pueden omitirse con `-DBUILD_TESTING=OFF`.
 ./build/sign verify documento.p7m --json
 ctest --test-dir build --output-on-failure
 ```
+
+La firma usa B-LTA por defecto y requiere `-A URL`. `-l B-B` permite firmar
+sin red; también se admiten `-l B-T` y `-l B-LT`. Los valores no distinguen
+mayúsculas. PDF usa PAdES automáticamente; `-f cades|pades` permite elegir
+el formato. Para LT/LTA se pueden aportar `--ca-file`, `--intermediates`,
+`--tsa-ca-file` y `--tsa-intermediates`; la confianza del sistema sigue activa.
+Si faltan evidencias o falla un sello, no se guarda la salida.
