@@ -1,8 +1,28 @@
+/*
+ * crsign - Digital signing application.
+ * Copyright (C) 2026 Gustavo Calvo <tavo@tavo.cr>
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ * See the LICENSE file in the project root for the full license text.
+ */
+
 #include <argp.h>
 #include <stdbool.h>
 
 #ifdef SIGN_WITH_GUI
-#include <gtk/gtk.h>
+#include "gui.h"
 #else
 #include <stdio.h>
 #include <stdlib.h>
@@ -38,16 +58,6 @@ static const struct argp parser = {
     .doc = "crsign: digital signing application."
 };
 
-#ifdef SIGN_WITH_GUI
-static void activate(GtkApplication* app, gpointer user_data) {
-	(void)user_data;
-	GtkWidget* window = gtk_application_window_new(app);
-	gtk_window_set_title(GTK_WINDOW(window), "sign");
-	gtk_window_set_default_size(GTK_WINDOW(window), 320, 160);
-	gtk_window_set_child(GTK_WINDOW(window), gtk_label_new("Hello, world!"));
-	gtk_window_present(GTK_WINDOW(window));
-}
-#endif
 
 int main(int argc, char** argv) {
 	bool gui = false;
@@ -59,14 +69,7 @@ int main(int argc, char** argv) {
 	}
 
 #ifdef SIGN_WITH_GUI
-	GtkApplication* app = gtk_application_new(
-	    "org.crsign.Sign",
-	    G_APPLICATION_DEFAULT_FLAGS
-	);
-	g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
-	int status = g_application_run(G_APPLICATION(app), 1, argv);
-	g_object_unref(app);
-	return status;
+	return gui_run(argv[0]);
 #else
 	fprintf(stderr, "sign: GUI unavailable in this headless build\n");
 	return EXIT_FAILURE;

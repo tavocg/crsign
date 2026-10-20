@@ -1,19 +1,55 @@
+# This file is part of crsign.
+# Copyright (C) 2026 Gustavo Calvo <tavo@tavo.cr>
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# See sign/main.c for the full copyright and warranty notice.
+# See LICENSE in the project root for the GNU General Public License.
+
 cmake_minimum_required(VERSION 3.16)
+
 project(crsign VERSION 0.1.0 LANGUAGES C)
 
+set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_C_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-option(HEADLESS "Build without the GTK graphical interface" OFF)
+include(GNUInstallDirs)
 
-add_executable(sign sign/main.c)
-target_compile_features(sign PRIVATE c_std_99)
-target_compile_definitions(sign PRIVATE SIGN_VERSION="${PROJECT_VERSION}")
+option(HEADLESS "Build without the GTK graphical interface" OFF)
 
 if(NOT HEADLESS)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(GTK4 REQUIRED IMPORTED_TARGET gtk4)
-    target_compile_definitions(sign PRIVATE SIGN_WITH_GUI)
-    target_link_libraries(sign PRIVATE PkgConfig::GTK4)
 endif()
 
-install(TARGETS sign RUNTIME DESTINATION bin)
+add_executable(sign sign/main.c)
+
+if(NOT HEADLESS)
+    target_sources(sign PRIVATE
+        sign/gui.c
+    )
+
+    target_link_libraries(sign PRIVATE
+        PkgConfig::GTK4
+    )
+
+    target_compile_definitions(sign PRIVATE
+        SIGN_WITH_GUI
+    )
+endif()
+
+target_compile_definitions(sign PRIVATE
+    SIGN_VERSION="${PROJECT_VERSION}"
+)
+
+target_compile_options(sign PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Werror
+)
+
+install(TARGETS sign
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
