@@ -50,6 +50,13 @@ libssig_status libssig_certificates(
 	if (getenv("SIGN_MOCK_CERT_FAIL")) {
 		return LIBSSIG_ERROR_PKCS11;
 	}
+	static const char* signing_usages[] = {"1.3.6.1.5.5.7.3.4", "1.2.3.999"};
+	static const char* authentication_usages[] = {
+	    "1.3.6.1.5.5.7.3.2",
+	    "1.3.6.1.4.1.311.20.2.2"
+	};
+	static const char* signing_policies[] = {"2.16.188.1.1.1.1.2", "1.2.3.998"};
+	static const char* authentication_policies[] = {"2.16.188.1.1.1.1.3"};
 	static unsigned char id[] = {0, 0xff};
 	static char          label[] = "Firma\0ñ";
 	static char          invalid[] = {'x', (char)0xff};
@@ -61,6 +68,12 @@ libssig_status libssig_certificates(
 	}
 	for (size_t i = 0; i < certs->count; ++i) {
 		certs->items[i] = (libssig_certificate){
+		    .extended_key_usage_present = true,
+		    .certificate_policies_present = true,
+		    .extended_key_usage =
+		        {i ? authentication_usages : signing_usages, 2},
+		    .certificate_policies =
+		        {i ? authentication_policies : signing_policies, i ? 1 : 2},
 		    .id = id,
 		    .id_len = sizeof(id),
 		    .label = i ? invalid : label,

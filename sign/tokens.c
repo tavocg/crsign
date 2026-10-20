@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include <sign/json.h>
+#include <sign/oid.h>
 #include <sign/tokens.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,13 +27,13 @@ static void certificate_json(const libssig_certificate* cert, bool content) {
 	json_string(statuses[cert->metadata_status]);
 	fputs(",\"extended_key_usage\":", stdout);
 	if (cert->extended_key_usage_present) {
-		json_strings(&cert->extended_key_usage);
+		oid_names_print(&cert->extended_key_usage, true);
 	} else {
 		fputs("null", stdout);
 	}
 	fputs(",\"certificate_policies\":", stdout);
 	if (cert->certificate_policies_present) {
-		json_strings(&cert->certificate_policies);
+		oid_names_print(&cert->certificate_policies, true);
 	} else {
 		fputs("null", stdout);
 	}
@@ -94,6 +95,16 @@ static void token_text(
 			printf("%02x", cert->id[j]);
 		}
 		putchar('\n');
+		if (cert->extended_key_usage_present) {
+			fputs("    Extended key usage: ", stdout);
+			oid_names_print(&cert->extended_key_usage, false);
+			putchar('\n');
+		}
+		if (cert->certificate_policies_present) {
+			fputs("    Certificate policies: ", stdout);
+			oid_names_print(&cert->certificate_policies, false);
+			putchar('\n');
+		}
 		if (content) {
 			fputs("    DER hex: ", stdout);
 			json_hex(cert->der, cert->der_len);

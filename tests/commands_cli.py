@@ -31,6 +31,9 @@ with tempfile.TemporaryDirectory(prefix='sign-commands-') as directory:
     assert token['label'] == 'Tarjeta ñ "prueba"\n'
     cert = token['certificates'][0]
     assert cert['id_hex'] == '00ff' and cert['label'] == 'Firma\0ñ'
+    assert cert['extended_key_usage'] == ['emailProtection', '1.2.3.999']
+    assert cert['certificate_policies'] == ['cr-persona-fisica-firma', '1.2.3.998']
+
     assert 'der_hex' not in cert and 'content' not in cert
     content = output('tokens', '--content')['tokens'][0]['certificates'][0]
     assert content['der_hex'] is None and 'content' not in content
@@ -52,6 +55,17 @@ with tempfile.TemporaryDirectory(prefix='sign-commands-') as directory:
     del env['SIGN_MOCK_DER']
     all_certs = output('--json', 'tokens', '--all')
     assert len(all_certs['tokens'][0]['certificates']) == 2
+    authentication = all_certs['tokens'][0]['certificates'][1]
+    assert authentication['extended_key_usage'] == ['clientAuth', 'msSmartcardLogin']
+    assert authentication['certificate_policies'] == ['cr-persona-fisica-autenticacion']
+    text = subprocess.run([sign, 'tokens', '--all'], cwd=root, env=env,
+                          capture_output=True, text=True, errors='replace',
+                          check=True).stdout
+    for name in ['clientAuth', 'msSmartcardLogin', 'emailProtection',
+                 'cr-persona-fisica-firma', 'cr-persona-fisica-autenticacion',
+                 '1.2.3.999', '1.2.3.998']:
+        assert name in text
+
     assert all_certs['tokens'][0]['certificates'][1]['label'] == 'xÿ'
     assert '00ff' in run('tokens').stdout
     assert run('tokens', '--help').returncode == 0
