@@ -29,8 +29,10 @@ int gui_run(char* program_name) {
 	    APPLICATION_ID,
 	    G_APPLICATION_DEFAULT_FLAGS
 	);
+
 	g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
 	int status = g_application_run(G_APPLICATION(app), 1, argv);
 	g_object_unref(app);
+
 	return status;
 }
