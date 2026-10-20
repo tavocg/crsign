@@ -24,7 +24,7 @@ static void activate(GtkApplication* app, gpointer user_data) {
 }
 
 int gui_run(char* program_name) {
-	char* argv[] = {program_name, NULL};
+	char*           argv[] = {program_name, NULL};
 	GtkApplication* app = gtk_application_new(
 	    APPLICATION_ID,
 	    G_APPLICATION_DEFAULT_FLAGS

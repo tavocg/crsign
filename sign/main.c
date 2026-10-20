@@ -58,7 +58,6 @@ static const struct argp parser = {
     .doc = "crsign: digital signing application."
 };
 
-
 int main(int argc, char** argv) {
 	bool gui = false;
 	argp_parse(&parser, argc, argv, 0, 0, &gui);
