@@ -18,8 +18,7 @@
  * See the LICENSE file in the project root for the full license text.
  */
 
-#include <argp.h>
-#include <stdbool.h>
+#include "arg.h"
 
 #ifdef SIGN_WITH_GUI
 #include "gui.h"
@@ -28,42 +27,11 @@
 #include <stdlib.h>
 #endif
 
-const char* argp_program_version = "sign " SIGN_VERSION;
-
-static const struct argp_option options[] = {
-    {"gui", 'g', 0, 0, "Open the graphical interface", 0},
-    {"help", 'h', 0, 0, "Show this help message", 0},
-    {0}
-};
-
-static error_t parse_option(int key, char* arg, struct argp_state* state) {
-	(void)arg;
-	bool* gui = state->input;
-
-	switch (key) {
-	case 'g':
-		*gui = true;
-		return 0;
-	case 'h':
-		argp_state_help(state, stdout, ARGP_HELP_STD_HELP);
-		return 0;
-	default:
-		return ARGP_ERR_UNKNOWN;
-	}
-}
-
-static const struct argp parser = {
-    .options = options,
-    .parser = parse_option,
-    .doc = "crsign: digital signing application."
-};
-
 int main(int argc, char** argv) {
-	bool gui = false;
-	argp_parse(&parser, argc, argv, 0, 0, &gui);
+	bool gui = arg_parse(argc, argv);
 
 	if (!gui) {
-		argp_help(&parser, stdout, ARGP_HELP_STD_HELP, argv[0]);
+		arg_help(argv[0]);
 		return 0;
 	}
 
