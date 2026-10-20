@@ -3,7 +3,7 @@ project(crsign VERSION 0.1.0 LANGUAGES C)
 
 option(HEADLESS "Build without the GTK graphical interface" OFF)
 
-add_executable(sign main.c)
+add_executable(sign sign/main.c)
 target_compile_features(sign PRIVATE c_std_99)
 target_compile_definitions(sign PRIVATE SIGN_VERSION="${PROJECT_VERSION}")
 
