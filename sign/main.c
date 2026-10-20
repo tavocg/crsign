@@ -21,7 +21,7 @@
 #include "arg.h"
 
 #ifdef SIGN_WITH_GUI
-#include "gui.h"
+#include "gui/gui.h"
 #else
 #include <stdio.h>
 #include <stdlib.h>

@@ -29,7 +29,7 @@ file(GLOB_RECURSE SIGN_SOURCES CONFIGURE_DEPENDS
 list(FILTER SIGN_SOURCES EXCLUDE REGEX "_test\\.c$")
 
 if(HEADLESS)
-    list(FILTER SIGN_SOURCES EXCLUDE REGEX "/gui\\.c$")
+    list(FILTER SIGN_SOURCES EXCLUDE REGEX "/sign/gui/")
 endif()
 
 add_executable(sign ${SIGN_SOURCES})
