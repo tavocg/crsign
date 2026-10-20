@@ -10,12 +10,28 @@ enum {
 	TSA_CA_FILE,
 	TSA_INTERMEDIATES,
 	DETACHED,
-	MIME_TYPE
+	MIME_TYPE,
+	JSON,
+	ALL_CERTIFICATES,
+	CONTENT
 };
 static const struct argp_option options[] = {
+    {"content",
+     CONTENT,
+     0,
+     0,
+     "Show decoded X.509 certificates (tokens only)",
+     0},
     {"gui", 'g', 0, 0, "Open the graphical interface", 0},
-    {"verify", 'v', 0, 0, "Verify an attached CMS/CAdES file", 0},
-    {"output", 'o', "FILE", 0, "Signed output (never overwrite)", 0},
+    {"verify", 'v', 0, OPTION_HIDDEN, "Alias for verify", 0},
+    {"json", JSON, 0, 0, "Print operation results as JSON", 0},
+    {"all", ALL_CERTIFICATES, 0, 0, "List all certificates (tokens only)", 0},
+    {"output",
+     'o',
+     "FILE",
+     0,
+     "Output (default: basename-signed.ext; never overwrite)",
+     0},
     {"token", 't', "URI", 0, "Exact PKCS#11 token URI", 0},
     {"key", 'k', "ID_HEX", 0, "Certificate ID in hexadecimal", 0},
     {"algorithm", 'a', "ALGORITHM", 0, "rsa-pkcs (default), rsa-pss, ecdsa", 0},
@@ -81,42 +97,92 @@ static unsigned int choice_parse(
 }
 
 static void args_validate(struct argp_state* state, const sign_args* args) {
-	if (!args->input && !args->gui) {
+	bool verify = args->command == SIGN_COMMAND_VERIFY;
+	bool tokens = args->command == SIGN_COMMAND_TOKENS;
+	if (args->gui) {
+		if (state->argc > 2) {
+			argp_error(state, "--gui cannot be combined with CLI operations");
+		}
+		return;
+	}
+
+	if (!args->input && !tokens) {
 		if (state->argc > 1) {
 			argp_error(state, "A file is required");
 		}
 		return;
 	}
-	if (args->gui && (args->input || state->argc > 2)) {
-		argp_error(state, "--gui cannot be combined with CLI operations");
+
+	if ((verify || tokens) && args->signing_options) {
+		argp_error(
+		    state,
+		    "Signing options require the default signing command"
+		);
 	}
-	if (args->verify &&
-	    (args->output || args->uri || args->id || args->authority ||
-	     args->detached || args->mime_type || args->algo || args->hash)) {
-		argp_error(state, "Signing options cannot be used with --verify");
+
+	if (tokens && (args->input || args->ca_file || args->intermediates ||
+	               args->tsa_ca_file || args->tsa_intermediates)) {
+		argp_error(state, "tokens accepts no file or trust options");
 	}
-	if (!args->verify && args->input && !args->output) {
-		argp_error(state, "Signing requires -o FILE");
+
+	if (!tokens && (args->all_certificates || args->content)) {
+		argp_error(state, "--all and --content require tokens");
 	}
-	if (!args->verify && (args->ca_file || args->intermediates)) {
-		argp_error(state, "--ca-file and --intermediates require --verify");
+
+	if (!verify && (args->ca_file || args->intermediates)) {
+		argp_error(state, "--ca-file and --intermediates require verify");
 	}
-	if (!args->verify && !args->authority &&
+
+	if (!verify && !args->authority &&
 	    (args->tsa_ca_file || args->tsa_intermediates)) {
 		argp_error(state, "TSA certificates require -A URL when signing");
 	}
+}
+
+static void positional_parse(
+    struct argp_state* state,
+    sign_args*         args,
+    char*              arg
+) {
+	if (state->arg_num == 0 && !strcmp(arg, "verify")) {
+		if (args->command != SIGN_COMMAND_SIGN) {
+			argp_error(state, "Conflicting commands");
+		}
+		args->command = SIGN_COMMAND_VERIFY;
+		return;
+	}
+
+	if (state->arg_num == 0 && !strcmp(arg, "tokens")) {
+		if (args->command != SIGN_COMMAND_SIGN) {
+			argp_error(state, "Conflicting commands");
+		}
+		args->command = SIGN_COMMAND_TOKENS;
+		return;
+	}
+
+	if (args->input) {
+		argp_error(state, "Only one input file is supported");
+	}
+	args->input = arg;
 }
 
 static error_t parse_option(int key, char* arg, struct argp_state* state) {
 	sign_args*        args = state->input;
 	const char* const algorithms[] = {"rsa-pkcs", "rsa-pss", "ecdsa"};
 	const char* const hashes[] = {"sha256", "sha384", "sha512"};
+	if (key == 'o' || key == 't' || key == 'k' || key == 'a' || key == 'H' ||
+	    key == 'A' || key == DETACHED || key == MIME_TYPE) {
+		args->signing_options = true;
+	}
 	switch (key) {
 	case 'g':
 		args->gui = true;
 		break;
 	case 'v':
-		args->verify = true;
+		if (args->command == SIGN_COMMAND_TOKENS) {
+			argp_error(state, "Conflicting commands");
+		}
+		args->command = SIGN_COMMAND_VERIFY;
 		break;
 	case 'o':
 		args->output = arg;
@@ -157,11 +223,17 @@ static error_t parse_option(int key, char* arg, struct argp_state* state) {
 	case 'h':
 		argp_state_help(state, stdout, ARGP_HELP_STD_HELP);
 		break;
+	case JSON:
+		args->json = true;
+		break;
+	case CONTENT:
+		args->content = true;
+		break;
+	case ALL_CERTIFICATES:
+		args->all_certificates = true;
+		break;
 	case ARGP_KEY_ARG:
-		if (state->arg_num != 0) {
-			argp_error(state, "Only one input file is supported");
-		}
-		args->input = arg;
+		positional_parse(state, args, arg);
 		break;
 	case ARGP_KEY_END:
 		args_validate(state, args);
@@ -175,7 +247,7 @@ static error_t parse_option(int key, char* arg, struct argp_state* state) {
 static const struct argp parser = {
     .options = options,
     .parser = parse_option,
-    .args_doc = "[FILE]",
+    .args_doc = "FILE [-o OUTPUT]\nverify FILE\ntokens",
     .doc = "Sign: CAdES signing and verification. System trust is used by "
            "default."
 };

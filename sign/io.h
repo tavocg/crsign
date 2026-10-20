@@ -10,7 +10,8 @@ typedef struct {
 	size_t         len;
 } sign_buffer;
 
-bool file_read(const char* path, sign_buffer* bytes);
+char* file_signed_path(const char* input);
+bool  file_read(const char* path, sign_buffer* bytes);
 
 bool file_write(const char* path, const unsigned char* data, size_t len);
 

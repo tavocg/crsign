@@ -20,6 +20,9 @@ y el ejecutable `openssl`; pueden omitirse con `-DBUILD_TESTING=OFF`.
   -t 'pkcs11:...' -k ID_HEX \
   -A 'http://tsa.sinpe.fi.cr/tsaHttp/'
 
-./build/sign --verify documento.p7m
+./build/sign verify documento.p7m
+./build/sign tokens
+./build/sign tokens --json
+./build/sign verify documento.p7m --json
 ctest --test-dir build --output-on-failure
 ```

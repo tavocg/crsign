@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Offline integration: system/custom trust, HTTP TSA and failure preservation."""
 import http.server
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -8,7 +9,7 @@ import sys
 import tempfile
 import threading
 
-sign, driver, openssl = sys.argv[1:]
+sign, driver, openssl, mock_sign = sys.argv[1:]
 
 with tempfile.TemporaryDirectory(prefix='sign-trust-') as directory:
     root = Path(directory)
@@ -56,14 +57,18 @@ with tempfile.TemporaryDirectory(prefix='sign-trust-') as directory:
            '-in', 'input.txt', '-signer', 'signer.pem', '-inkey', 'signer.key',
            '-outform', 'DER', '-out', 'input.p7m')
     env['SSL_CERT_FILE'] = str(root / 'document-root.pem')
-    run(sign, '--verify', 'input.p7m')
+    run(sign, 'verify', 'input.p7m')
+    result = json.loads(run(sign, 'verify', '--json', 'input.p7m').stdout)
+    assert result['ok'] and result['signature_valid'] and result['trusted']
+    assert result['count'] == 1 and not result['signers'][0]['timestamp']['present']
     env['SSL_CERT_FILE'] = str(root / 'tsa-root.pem')
-    run(sign, '--verify', 'input.p7m', success=False)
-    run(sign, '--verify', '--ca-file', 'document-root.pem', 'input.p7m')
-    run(sign, '--verify', '--ca-file', 'missing.pem', 'input.p7m', success=False)
+    run(sign, 'verify', 'input.p7m', success=False)
+    result = json.loads(run(sign, '--json', 'verify', 'input.p7m', success=False).stdout)
+    assert not result['ok'] and result['signature_valid'] and not result['trusted']
+    run(sign, 'verify', '--ca-file', 'document-root.pem', 'input.p7m')
+    run(sign, 'verify', '--ca-file', 'missing.pem', 'input.p7m', success=False)
     run(sign, '--tsa-system-trust', success=False)
-    run(sign, '--verify', '-A', 'http://127.0.0.1/', 'input.p7m', success=False)
-    run(sign, 'input.p7m', success=False)  # Output must be explicit.
+    run(sign, 'verify', '-A', 'http://127.0.0.1/', 'input.p7m', success=False)
 
     (root / 'serial').write_text('01\n')
     (root / 'tsa.cnf').write_text(f'''
@@ -123,18 +128,34 @@ ess_cert_id_alg = sha256
         # Custom TSA root adds to (rather than replaces) the system document root.
         env['SSL_CERT_FILE'] = str(root / 'document-root.pem')
         run(driver, 'input.p7m', 'custom-stamped.p7m', url, 'tsa-root.pem', 'tsa-inter.pem')
-        run(sign, '--verify', '--tsa-ca-file', 'tsa-root.pem',
+        run(sign, 'verify', '--tsa-ca-file', 'tsa-root.pem',
             '--tsa-intermediates', 'tsa-inter.pem', 'custom-stamped.p7m')
+        result = json.loads(run(sign, 'verify', '--json', '--tsa-ca-file', 'tsa-root.pem',
+            '--tsa-intermediates', 'tsa-inter.pem', 'custom-stamped.p7m').stdout)
+        stamp = result['signers'][0]['timestamp']
+        assert stamp['present'] and stamp['valid'] and stamp['trusted'] and stamp['time']
+        env['SIGN_MOCK_DATA'] = str(root / 'input.p7m')
+        result = json.loads(run(mock_sign, 'input.txt', '-o', 'signed-stamped.p7m',
+            '-A', url, '--tsa-ca-file', 'tsa-root.pem', '--tsa-intermediates',
+            'tsa-inter.pem', '--json').stdout)
+        assert result['command'] == 'sign' and result['ok'] and result['timestamped']
+        run(sign, 'verify', '--tsa-ca-file', 'tsa-root.pem',
+            '--tsa-intermediates', 'tsa-inter.pem', 'signed-stamped.p7m')
         # Check system TSA trust without supplying a TSA CA file.
         env['SSL_CERT_FILE'] = str(root / 'tsa-root.pem')
-        run(sign, '--verify', '--ca-file', 'document-root.pem',
+        run(sign, 'verify', '--ca-file', 'document-root.pem',
             '--tsa-intermediates', 'tsa-inter.pem', 'stamped.p7m')
-        run(sign, '--verify', '--ca-file', 'document-root.pem', 'stamped.p7m', success=False)
+        run(sign, 'verify', '--ca-file', 'document-root.pem', 'stamped.p7m', success=False)
         for mode in ('corrupt', 'oversize', 'unavailable'):
             Handler.mode = mode
             output = f'{mode}.p7m'
             run(driver, 'input.p7m', output, url, 'tsa-root.pem', 'tsa-inter.pem', success=False)
             assert not (root / output).exists()
+            output = f'sign-{mode}.p7m'
+            result = json.loads(run(mock_sign, 'input.txt', '-o', output, '-A', url,
+                '--tsa-ca-file', 'tsa-root.pem', '--tsa-intermediates',
+                'tsa-inter.pem', '--json', success=False).stdout)
+            assert not result['ok'] and not (root / output).exists()
         Handler.mode = 'valid'
         before = (root / 'stamped.p7m').read_bytes()
         run(driver, 'input.p7m', 'stamped.p7m', url, 'tsa-root.pem', 'tsa-inter.pem', success=False)

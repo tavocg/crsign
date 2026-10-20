@@ -5,8 +5,15 @@
 #include <libssig/libssig.h>
 #include <stdbool.h>
 
+typedef enum {
+	SIGN_COMMAND_SIGN,
+	SIGN_COMMAND_VERIFY,
+	SIGN_COMMAND_TOKENS
+} sign_command;
+
 typedef struct {
-	bool         gui, verify, detached;
+	bool gui, detached, json, all_certificates, content, signing_options;
+	sign_command command;
 	const char * input, *output, *uri, *id, *authority;
 	const char * ca_file, *intermediates, *tsa_ca_file, *tsa_intermediates;
 	const char*  mime_type;

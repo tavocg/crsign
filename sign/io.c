@@ -3,8 +3,10 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <sign/io.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 bool file_read(const char* path, sign_buffer* bytes) {
@@ -69,4 +71,25 @@ bool file_write(const char* path, const unsigned char* data, size_t len) {
 	}
 
 	return ok;
+}
+
+char* file_signed_path(const char* input) {
+	size_t len = strlen(input);
+	if (len > SIZE_MAX - sizeof("-signed")) {
+		return NULL;
+	}
+	const char* base = strrchr(input, '/');
+	base = base ? base + 1 : input;
+	const char* ext = strrchr(base, '.');
+	if (!ext || ext == base) {
+		ext = input + len;
+	}
+	size_t stem_len = (size_t)(ext - input);
+	char*  output = malloc(len + sizeof("-signed"));
+	if (output) {
+		memcpy(output, input, stem_len);
+		memcpy(output + stem_len, "-signed", sizeof("-signed") - 1);
+		memcpy(output + stem_len + sizeof("-signed") - 1, ext, strlen(ext) + 1);
+	}
+	return output;
 }

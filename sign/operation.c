@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #define _DEFAULT_SOURCE
 #include <sign/operation.h>
+#include <sign/output.h>
 #include <sign/timestamp.h>
+#include <sign/tokens.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -173,6 +175,7 @@ static bool signature_create(
 }
 
 static bool signature_verify(
+    const sign_args*   args,
     const sign_buffer* input,
     const sign_trust*  trust
 ) {
@@ -183,20 +186,8 @@ static bool signature_verify(
 	trust_verify_params(trust, &params);
 	libssig_verify_result result = {0};
 	libssig_status        status = libssig_verify(&params, &result);
-	if (status == LIBSSIG_OK) {
-		printf(
-		    "Signature and certificate chain valid (%zu signer(s)).\n",
-		    result.count
-		);
-		for (size_t i = 0; i < result.count; ++i) {
-			if (result.signers[i].timestamp.present) {
-				printf(
-				    "Timestamp valid and trusted: %s\n",
-				    result.signers[i].timestamp.time
-				);
-			}
-		}
-	} else {
+	verify_output(args, status, &result);
+	if (status != LIBSSIG_OK) {
 		fprintf(stderr, "sign: verification failed (status=%d)\n", (int)status);
 	}
 	libssig_verify_free(&result);
@@ -204,12 +195,30 @@ static bool signature_verify(
 }
 
 int operation_run(const sign_args* args) {
+	if (args->command == SIGN_COMMAND_TOKENS) {
+		return tokens_run(args);
+	}
+	sign_args resolved = *args;
+	char*     default_output = NULL;
+	if (args->command == SIGN_COMMAND_SIGN && !args->output) {
+		default_output = file_signed_path(args->input);
+		if (!default_output) {
+			fputs("sign: cannot allocate output path\n", stderr);
+			operation_output(args, false, 0);
+			return EXIT_FAILURE;
+		}
+		resolved.output = default_output;
+	}
+	args = &resolved;
+
 	sign_buffer       input = {0};
 	sign_trust        trust = {0};
 	libssig_signature signature = {0};
 	bool ok = trust_load(args, &trust) && file_read(args->input, &input);
-	if (ok && args->verify) {
-		ok = signature_verify(&input, &trust);
+	bool reported = false;
+	if (ok && args->command == SIGN_COMMAND_VERIFY) {
+		ok = signature_verify(args, &input, &trust);
+		reported = true;
 	} else if (ok) {
 		ok = signature_create(args, &input, &signature);
 		if (ok && args->authority) {
@@ -219,8 +228,12 @@ int operation_run(const sign_args* args) {
 			ok = file_write(args->output, signature.data, signature.len);
 		}
 	}
+	if (!reported) {
+		operation_output(args, ok, signature.len);
+	}
 	libssig_signature_free(&signature);
 	trust_free(&trust);
 	free(input.data);
+	free(default_output);
 	return ok ? EXIT_SUCCESS : EXIT_FAILURE;
 }
