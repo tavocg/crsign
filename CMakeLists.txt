@@ -23,13 +23,18 @@ if(NOT HEADLESS)
     pkg_check_modules(GTK4 REQUIRED IMPORTED_TARGET gtk4)
 endif()
 
-add_executable(sign sign/main.c)
+file(GLOB_RECURSE SIGN_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/sign/*.c"
+)
+list(FILTER SIGN_SOURCES EXCLUDE REGEX "_test\\.c$")
+
+if(HEADLESS)
+    list(FILTER SIGN_SOURCES EXCLUDE REGEX "/gui\\.c$")
+endif()
+
+add_executable(sign ${SIGN_SOURCES})
 
 if(NOT HEADLESS)
-    target_sources(sign PRIVATE
-        sign/gui.c
-    )
-
     target_link_libraries(sign PRIVATE
         PkgConfig::GTK4
     )
