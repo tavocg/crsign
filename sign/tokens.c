@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-#include <sign/certificate.h>
 #include <sign/json.h>
 #include <sign/tokens.h>
 #include <stdio.h>
@@ -10,9 +9,11 @@ static void certificate_json(const libssig_certificate* cert, bool content) {
 	json_hex(cert->id, cert->id_len);
 	printf(",\"id_len\":%zu,\"label\":", cert->id_len);
 	json_text((const unsigned char*)cert->label, cert->label_len);
-	printf(",\"label_len\":%zu,\"der_hex\":", cert->label_len);
-	json_hex(cert->der, cert->der_len);
-	printf(",\"der_len\":%zu,\"key_usage\":", cert->der_len);
+	printf(
+	    ",\"label_len\":%zu,\"der_len\":%zu,\"key_usage\":",
+	    cert->label_len,
+	    cert->der_len
+	);
 	if (cert->key_usage_present) {
 		printf("%u", cert->key_usage);
 	} else {
@@ -36,8 +37,8 @@ static void certificate_json(const libssig_certificate* cert, bool content) {
 		fputs("null", stdout);
 	}
 	if (content) {
-		fputs(",\"content\":", stdout);
-		certificate_content(cert, true);
+		fputs(",\"der_hex\":", stdout);
+		json_hex(cert->der, cert->der_len);
 	}
 	putchar('}');
 }
@@ -94,7 +95,9 @@ static void token_text(
 		}
 		putchar('\n');
 		if (content) {
-			certificate_content(cert, false);
+			fputs("    DER hex: ", stdout);
+			json_hex(cert->der, cert->der_len);
+			putchar('\n');
 		}
 	}
 }

@@ -26,3 +26,10 @@ y el ejecutable `openssl`; pueden omitirse con `-DBUILD_TESTING=OFF`.
 ./build/sign verify documento.p7m --json
 ctest --test-dir build --output-on-failure
 ```
+
+El listado omite `der_hex` y el contenido decodificado por defecto; ambos
+se incluyen únicamente con `--content`.
+
+`sign tokens --content` muestra el certificado DER en hexadecimal.
+Con `--json`, añade `der_hex` a cada certificado (`null` si no está
+disponible). Sin `--content`, ese campo se omite. Se combina con `--all`.

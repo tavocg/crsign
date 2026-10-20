@@ -22,7 +22,7 @@ set_tests_properties(trust_cli PROPERTIES TIMEOUT 90)
 # Exercise the real CLI without a card, PIN or installed PKCS#11 module.
 add_executable(sign_mock ${SIGN_SOURCES} token_mock.c)
 target_include_directories(sign_mock PRIVATE "${PROJECT_SOURCE_DIR}")
-target_link_libraries(sign_mock PRIVATE libssig::ssig CURL::libcurl OpenSSL::Crypto)
+target_link_libraries(sign_mock PRIVATE libssig::ssig CURL::libcurl)
 target_compile_definitions(sign_mock PRIVATE SIGN_VERSION="${PROJECT_VERSION}")
 target_compile_options(sign_mock PRIVATE -Wall -Wextra -Wpedantic -Werror)
 if(NOT HEADLESS)

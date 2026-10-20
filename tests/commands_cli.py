@@ -31,11 +31,9 @@ with tempfile.TemporaryDirectory(prefix='sign-commands-') as directory:
     assert token['label'] == 'Tarjeta ñ "prueba"\n'
     cert = token['certificates'][0]
     assert cert['id_hex'] == '00ff' and cert['label'] == 'Firma\0ñ'
-    assert cert['der_hex'] is None
-    assert 'content' not in cert
+    assert 'der_hex' not in cert and 'content' not in cert
     content = output('tokens', '--content')['tokens'][0]['certificates'][0]
-    assert content['content'] is None
-    assert 'unavailable' in run('tokens', '--content').stdout
+    assert content['der_hex'] is None and 'content' not in content
     subprocess.run([openssl, 'req', '-x509', '-newkey', 'rsa:2048', '-nodes',
                     '-days', '1', '-subj', '/CN=Content Test',
                     '-keyout', str(root / 'cert.key'), '-outform', 'DER',
@@ -44,20 +42,14 @@ with tempfile.TemporaryDirectory(prefix='sign-commands-') as directory:
     env['SIGN_MOCK_DER'] = str(root / 'cert.der')
     content = output('tokens', '--all', '--content')['tokens'][0]['certificates']
     assert len(content) == 2
+    expected = (root / 'cert.der').read_bytes().hex()
     for item in content:
-        assert 'Content Test' in item['content']
-        assert 'Serial Number:' in item['content']
-        assert 'Public-Key: (2048 bit)' in item['content']
-        assert 'Signature Algorithm:' in item['content']
-    assert 'Content Test' in run('tokens', '--content').stdout
-    assert 'content' not in output('tokens')['tokens'][0]['certificates'][0]
-    for malformed in [b'not DER', (root / 'cert.der').read_bytes() + b'extra']:
-        (root / 'bad.der').write_bytes(malformed)
-        env['SIGN_MOCK_DER'] = str(root / 'bad.der')
-        assert output('tokens', '--content')['tokens'][0]['certificates'][0]['content'] is None
-        assert 'invalid DER' in run('tokens', '--content').stdout
+        assert item['der_hex'] == expected and 'content' not in item
+    assert expected in run('tokens', '--content').stdout
+    assert expected not in run('tokens').stdout
+    summary = output('tokens')['tokens'][0]['certificates'][0]
+    assert 'der_hex' not in summary and 'content' not in summary
     del env['SIGN_MOCK_DER']
-
     all_certs = output('--json', 'tokens', '--all')
     assert len(all_certs['tokens'][0]['certificates']) == 2
     assert all_certs['tokens'][0]['certificates'][1]['label'] == 'xÿ'

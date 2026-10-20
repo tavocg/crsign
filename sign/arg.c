@@ -20,7 +20,7 @@ static const struct argp_option options[] = {
      CONTENT,
      0,
      0,
-     "Show decoded X.509 certificates (tokens only)",
+     "Show certificate DER in hexadecimal (tokens only)",
      0},
     {"gui", 'g', 0, 0, "Open the graphical interface", 0},
     {"verify", 'v', 0, OPTION_HIDDEN, "Alias for verify", 0},

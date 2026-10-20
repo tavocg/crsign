@@ -18,7 +18,6 @@ include(GNUInstallDirs)
 include(CTest)
 find_package(libssig CONFIG REQUIRED)
 find_package(CURL 7.85 REQUIRED)
-find_package(OpenSSL 3.0 REQUIRED COMPONENTS Crypto)
 
 option(HEADLESS "Build without the GTK graphical interface" OFF)
 
@@ -38,7 +37,7 @@ endif()
 
 add_executable(sign ${SIGN_SOURCES})
 
-target_link_libraries(sign PRIVATE libssig::ssig CURL::libcurl OpenSSL::Crypto)
+target_link_libraries(sign PRIVATE libssig::ssig CURL::libcurl)
 
 target_include_directories(sign PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
