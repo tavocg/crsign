@@ -18,10 +18,10 @@
  * See the LICENSE file in the project root for the full license text.
  */
 
-#include "arg.h"
+#include <sign/arg.h>
 
 #ifdef SIGN_WITH_GUI
-#include "gui/gui.h"
+#include <sign/gui/gui.h>
 #else
 #include <stdio.h>
 #include <stdlib.h>

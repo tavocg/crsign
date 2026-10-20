@@ -7,10 +7,8 @@
  * See LICENSE in the project root for the GNU General Public License.
  */
 
-#include "arg.h"
-
-#include <stdio.h>
 #include <argp.h>
+#include <sign/arg.h>
 
 const char* argp_program_version = "sign " SIGN_VERSION;
 

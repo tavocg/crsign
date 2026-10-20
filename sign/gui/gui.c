@@ -7,9 +7,8 @@
  * See LICENSE in the project root for the GNU General Public License.
  */
 
-#include "gui.h"
-
 #include <gtk/gtk.h>
+#include <sign/gui/gui.h>
 
 static const char APPLICATION_ID[] = "org.crsign.Sign";
 static const char WINDOW_TITLE[] = "Sign";
