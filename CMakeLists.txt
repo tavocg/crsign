@@ -15,6 +15,9 @@ set(CMAKE_C_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(GNUInstallDirs)
+include(CTest)
+find_package(libssig CONFIG REQUIRED)
+find_package(CURL 7.85 REQUIRED)
 
 option(HEADLESS "Build without the GTK graphical interface" OFF)
 
@@ -33,6 +36,8 @@ if(HEADLESS)
 endif()
 
 add_executable(sign ${SIGN_SOURCES})
+
+target_link_libraries(sign PRIVATE libssig::ssig CURL::libcurl)
 
 target_include_directories(sign PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -62,3 +67,7 @@ target_compile_options(sign PRIVATE
 install(TARGETS sign
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
+
+if(BUILD_TESTING)
+    add_subdirectory(tests)
+endif()

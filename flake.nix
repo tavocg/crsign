@@ -26,7 +26,7 @@
 
             packages = with pkgs; [ gcc clang-tools cmake ];
             nativeBuildInputs = with pkgs; [ pkg-config ];
-            buildInputs = with pkgs; [ gtk4 ];
+            buildInputs = with pkgs; [ gtk4 curl openssl p11-kit file ];
 
             shellHook = ''
               if [[ $- == *i* ]]; then

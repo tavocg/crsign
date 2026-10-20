@@ -19,6 +19,7 @@
  */
 
 #include <sign/arg.h>
+#include <sign/operation.h>
 
 #ifdef SIGN_WITH_GUI
 #include <sign/gui/gui.h>
@@ -28,9 +29,13 @@
 #endif
 
 int main(int argc, char** argv) {
-	bool gui = arg_parse(argc, argv);
+	sign_args args = arg_parse(argc, argv);
 
-	if (!gui) {
+	if (args.input) {
+		return operation_run(&args);
+	}
+
+	if (!args.gui) {
 		arg_help(argv[0]);
 		return 0;
 	}

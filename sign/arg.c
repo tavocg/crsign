@@ -1,49 +1,189 @@
-/*
- * This file is part of CRSign.
- * Copyright (C) 2026 Gustavo Calvo <tavo@tavo.cr>
- * SPDX-License-Identifier: GPL-3.0-or-later
- *
- * See sign/main.c for the full copyright and warranty notice.
- * See LICENSE in the project root for the GNU General Public License.
- */
-
+/* SPDX-License-Identifier: GPL-3.0-or-later */
 #include <argp.h>
 #include <sign/arg.h>
+#include <string.h>
 
 const char* argp_program_version = "Sign " SIGN_VERSION;
-
+enum {
+	CA_FILE = 256,
+	INTERMEDIATES,
+	TSA_CA_FILE,
+	TSA_INTERMEDIATES,
+	DETACHED,
+	MIME_TYPE
+};
 static const struct argp_option options[] = {
     {"gui", 'g', 0, 0, "Open the graphical interface", 0},
+    {"verify", 'v', 0, 0, "Verify an attached CMS/CAdES file", 0},
+    {"output", 'o', "FILE", 0, "Signed output (never overwrite)", 0},
+    {"token", 't', "URI", 0, "Exact PKCS#11 token URI", 0},
+    {"key", 'k', "ID_HEX", 0, "Certificate ID in hexadecimal", 0},
+    {"algorithm", 'a', "ALGORITHM", 0, "rsa-pkcs (default), rsa-pss, ecdsa", 0},
+    {"hash", 'H', "HASH", 0, "sha256 (default), sha384, sha512", 0},
+    {"authority", 'A', "URL", 0, "RFC 3161 TSA (HTTP/HTTPS)", 0},
+    {
+        "ca-file",
+        CA_FILE,
+        "FILE",
+        0,
+        "Additional document trust roots, PEM/DER",
+        0,
+    },
+    {
+        "intermediates",
+        INTERMEDIATES,
+        "FILE",
+        0,
+        "Document intermediates, PEM/DER",
+        0,
+    },
+    {
+        "tsa-ca-file",
+        TSA_CA_FILE,
+        "FILE",
+        0,
+        "Additional TSA trust roots, PEM/DER",
+        0,
+    },
+    {
+        "tsa-intermediates",
+        TSA_INTERMEDIATES,
+        "FILE",
+        0,
+        "TSA intermediates, PEM/DER",
+        0,
+    },
+    {"detached", DETACHED, 0, 0, "Sign with external content", 0},
+    {
+        "mime-type",
+        MIME_TYPE,
+        "MIME",
+        0,
+        "Content MIME type (default: libmagic)",
+        0,
+    },
     {"help", 'h', 0, 0, "Show this help message", 0},
     {0}
 };
 
-static error_t parse_option(int key, char* arg, struct argp_state* state) {
-	(void)arg;
-	bool* gui = state->input;
+static unsigned int choice_parse(
+    struct argp_state* state,
+    const char*        arg,
+    const char* const* choices
+) {
+	for (unsigned int i = 0; i < 3; ++i) {
+		if (!strcmp(arg, choices[i])) {
+			return i;
+		}
+	}
+	argp_error(state, "Unknown value: %s", arg);
+	return 0;
+}
 
+static void args_validate(struct argp_state* state, const sign_args* args) {
+	if (!args->input && !args->gui) {
+		if (state->argc > 1) {
+			argp_error(state, "A file is required");
+		}
+		return;
+	}
+	if (args->gui && (args->input || state->argc > 2)) {
+		argp_error(state, "--gui cannot be combined with CLI operations");
+	}
+	if (args->verify &&
+	    (args->output || args->uri || args->id || args->authority ||
+	     args->detached || args->mime_type || args->algo || args->hash)) {
+		argp_error(state, "Signing options cannot be used with --verify");
+	}
+	if (!args->verify && args->input && !args->output) {
+		argp_error(state, "Signing requires -o FILE");
+	}
+	if (!args->verify && (args->ca_file || args->intermediates)) {
+		argp_error(state, "--ca-file and --intermediates require --verify");
+	}
+	if (!args->verify && !args->authority &&
+	    (args->tsa_ca_file || args->tsa_intermediates)) {
+		argp_error(state, "TSA certificates require -A URL when signing");
+	}
+}
+
+static error_t parse_option(int key, char* arg, struct argp_state* state) {
+	sign_args*        args = state->input;
+	const char* const algorithms[] = {"rsa-pkcs", "rsa-pss", "ecdsa"};
+	const char* const hashes[] = {"sha256", "sha384", "sha512"};
 	switch (key) {
 	case 'g':
-		*gui = true;
-		return 0;
+		args->gui = true;
+		break;
+	case 'v':
+		args->verify = true;
+		break;
+	case 'o':
+		args->output = arg;
+		break;
+	case 't':
+		args->uri = arg;
+		break;
+	case 'k':
+		args->id = arg;
+		break;
+	case 'a':
+		args->algo = (libssig_algo)choice_parse(state, arg, algorithms);
+		break;
+	case 'H':
+		args->hash = (libssig_hash)choice_parse(state, arg, hashes);
+		break;
+	case 'A':
+		args->authority = arg;
+		break;
+	case CA_FILE:
+		args->ca_file = arg;
+		break;
+	case INTERMEDIATES:
+		args->intermediates = arg;
+		break;
+	case TSA_CA_FILE:
+		args->tsa_ca_file = arg;
+		break;
+	case TSA_INTERMEDIATES:
+		args->tsa_intermediates = arg;
+		break;
+	case DETACHED:
+		args->detached = true;
+		break;
+	case MIME_TYPE:
+		args->mime_type = arg;
+		break;
 	case 'h':
 		argp_state_help(state, stdout, ARGP_HELP_STD_HELP);
-		return 0;
+		break;
+	case ARGP_KEY_ARG:
+		if (state->arg_num != 0) {
+			argp_error(state, "Only one input file is supported");
+		}
+		args->input = arg;
+		break;
+	case ARGP_KEY_END:
+		args_validate(state, args);
+		break;
 	default:
 		return ARGP_ERR_UNKNOWN;
 	}
+	return 0;
 }
 
 static const struct argp parser = {
     .options = options,
     .parser = parse_option,
-    .doc = "sign: digital signing application."
+    .args_doc = "[FILE]",
+    .doc = "Sign: CAdES signing and verification. System trust is used by "
+           "default."
 };
 
-bool arg_parse(int argc, char** argv) {
-	bool gui = false;
-	argp_parse(&parser, argc, argv, 0, 0, &gui);
-	return gui;
+sign_args arg_parse(int argc, char** argv) {
+	sign_args args = {0};
+	argp_parse(&parser, argc, argv, 0, 0, &args);
+	return args;
 }
 
 void arg_help(char* program_name) {
