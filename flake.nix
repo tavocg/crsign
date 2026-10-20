@@ -29,6 +29,8 @@
             buildInputs = with pkgs; [ gtk4 curl openssl p11-kit file ];
 
             shellHook = ''
+              export CMAKE_PREFIX_PATH="$HOME/Projects/libssig/build''${CMAKE_PREFIX_PATH:+:$CMAKE_PREFIX_PATH}"
+
               if [[ $- == *i* ]]; then
                 PS1="(crsign) $PS1"
               fi
