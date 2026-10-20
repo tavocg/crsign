@@ -1,5 +1,5 @@
 /*
- * This file is part of crsign.
+ * This file is part of CRSign.
  * Copyright (C) 2026 Gustavo Calvo <tavo@tavo.cr>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
@@ -10,7 +10,7 @@
 #include <argp.h>
 #include <sign/arg.h>
 
-const char* argp_program_version = "sign " SIGN_VERSION;
+const char* argp_program_version = "Sign " SIGN_VERSION;
 
 static const struct argp_option options[] = {
     {"gui", 'g', 0, 0, "Open the graphical interface", 0},
@@ -37,7 +37,7 @@ static error_t parse_option(int key, char* arg, struct argp_state* state) {
 static const struct argp parser = {
     .options = options,
     .parser = parse_option,
-    .doc = "crsign: digital signing application."
+    .doc = "sign: digital signing application."
 };
 
 bool arg_parse(int argc, char** argv) {

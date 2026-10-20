@@ -1,4 +1,4 @@
-# crsign
+# CRSign
 
 Firmador digital en C.
 

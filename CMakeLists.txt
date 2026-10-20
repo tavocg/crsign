@@ -1,4 +1,4 @@
-# This file is part of crsign.
+# This file is part of CRSign.
 # Copyright (C) 2026 Gustavo Calvo <tavo@tavo.cr>
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
@@ -7,7 +7,7 @@
 
 cmake_minimum_required(VERSION 3.16)
 
-project(crsign VERSION 0.1.0 LANGUAGES C)
+project(CRSign VERSION 0.1.0 LANGUAGES C)
 
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)

@@ -1,4 +1,4 @@
-# This file is part of crsign.
+# This file is part of CRSign.
 # Copyright (C) 2026 Gustavo Calvo <tavo@tavo.cr>
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
@@ -6,7 +6,7 @@
 # See LICENSE in the project root for the GNU General Public License.
 
 {
-  description = "crsign: digital signing application";
+  description = "CRSign: project for the Sign digital signing application";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 

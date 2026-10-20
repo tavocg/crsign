@@ -1,5 +1,5 @@
 /*
- * crsign - Digital signing application.
+ * Sign: Digital signing application, part of CRSign.
  * Copyright (C) 2026 Gustavo Calvo <tavo@tavo.cr>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *

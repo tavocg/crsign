@@ -1,5 +1,5 @@
 /*
- * This file is part of crsign.
+ * This file is part of CRSign.
  * Copyright (C) 2026 Gustavo Calvo <tavo@tavo.cr>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *

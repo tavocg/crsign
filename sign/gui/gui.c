@@ -1,5 +1,5 @@
 /*
- * This file is part of crsign.
+ * This file is part of CRSign.
  * Copyright (C) 2026 Gustavo Calvo <tavo@tavo.cr>
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
@@ -23,6 +23,7 @@ static void activate(GtkApplication* app, gpointer user_data) {
 }
 
 int gui_run(char* program_name) {
+	g_set_application_name("Sign");
 	char*           argv[] = {program_name, NULL};
 	GtkApplication* app = gtk_application_new(
 	    APPLICATION_ID,
