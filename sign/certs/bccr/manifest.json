@@ -138,5 +138,7 @@
       "source": "fdcr/artifacts/bccr-certs-26.08/CA SINPE - PERSONA JURIDICA v2(3).crt",
       "file_sha256": "2441d3c1dfcd8449d1e6752450b63c2ade649450f0295807a9eb0255a000b0b0"
     }
-  ]
+  ],
+  "tsa_url": "http://tsa.sinpe.fi.cr/tsaHttp/",
+  "tsa_source": "https://www.bccr.fi.cr/firma-digital/DocFirmaDigital/guiaxolidos.pdf"
 }

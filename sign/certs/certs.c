@@ -14,7 +14,7 @@ bool certs_bundle_known(const char* name) {
 	return false;
 }
 
-static bool bundle_selected(const sign_args* args, const char* name) {
+bool certs_bundle_selected(const sign_args* args, const char* name) {
 	if (!args->cert_bundle_count) {
 		return true;
 	}
@@ -97,7 +97,7 @@ bool certs_load(const sign_args* args, sign_trust* trust) {
 
 	for (size_t i = 0; i < sign_certs_count; ++i) {
 		const sign_cert* cert = &sign_certs[i];
-		if (!bundle_selected(args, cert->bundle)) {
+		if (!certs_bundle_selected(args, cert->bundle)) {
 			continue;
 		}
 
@@ -135,7 +135,8 @@ const char* certs_anchor_bundle(
 	char hex[65];
 	certs_anchor_hex(anchor, hex);
 	for (size_t i = 0; i < sign_certs_count; ++i) {
-		if (sign_certs[i].root && bundle_selected(args, sign_certs[i].bundle) &&
+		if (sign_certs[i].root &&
+		    certs_bundle_selected(args, sign_certs[i].bundle) &&
 		    !strcmp(hex, sign_certs[i].sha256)) {
 			return sign_certs[i].bundle;
 		}

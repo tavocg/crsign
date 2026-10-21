@@ -37,7 +37,7 @@ for bundle in ['alpha', 'beta']:
     issue(bundle + '-inter', 'Same intermediate name', issuer=bundle + '-root', ca=True)
     issue(bundle + '-signer', bundle + ' signer', issuer=bundle + '-inter')
     issue(bundle + '-tsa', bundle + ' TSA', issuer=bundle + '-inter', tsa=True)
-    manifest = {'schema_version': 1, 'id': bundle, 'certificates': []}
+    manifest = {'schema_version': 1, 'id': bundle, 'tsa_url': 'https://' + bundle + '.example/tsa', 'certificates': []}
     for suffix, role in [('root', 'root'), ('inter', 'intermediate')]:
         name = bundle + '-' + suffix
         der = subprocess.check_output([openssl, 'x509', '-in', str(root / (name + '.pem')), '-outform', 'DER'])

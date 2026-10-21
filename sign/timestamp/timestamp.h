@@ -10,4 +10,11 @@ bool timestamp_apply(
     libssig_signature* signature
 );
 
+/* Owned URL; explicit authority and B-B require no discovery. */
+bool timestamp_authority(
+    const sign_args*           args,
+    const sign_trust*          trust,
+    const libssig_certificate* cert,
+    char**                     url
+);
 #endif

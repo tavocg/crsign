@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include <sign/http.h>
-#include <sign/timestamp.h>
+#include <sign/timestamp/timestamp.h>
 #include <stdio.h>
 #include <stdlib.h>
 

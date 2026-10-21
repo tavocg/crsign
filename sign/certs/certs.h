@@ -15,15 +15,17 @@ typedef struct {
 	size_t               len;
 	unsigned int         usage;
 	bool                 root;
+	const char*          tsa_url;
 } sign_cert;
 
 extern const sign_cert sign_certs[];
 extern const size_t    sign_certs_count;
-bool                   certs_bundle_known(const char* name);
-bool                   certs_load(const sign_args* args, sign_trust* trust);
-const char*            certs_anchor_bundle(
-               const sign_args*            args,
-               const libssig_trust_anchor* anchor
-           );
+bool        certs_bundle_selected(const sign_args* args, const char* name);
+bool        certs_bundle_known(const char* name);
+bool        certs_load(const sign_args* args, sign_trust* trust);
+const char* certs_anchor_bundle(
+    const sign_args*            args,
+    const libssig_trust_anchor* anchor
+);
 void certs_anchor_hex(const libssig_trust_anchor* anchor, char hex[65]);
 #endif

@@ -108,6 +108,12 @@ with tempfile.TemporaryDirectory(prefix='sign-catalog-') as directory:
     broken = copy.deepcopy(sample)
     broken['id'] = 'bad name'
     rejected(broken)
+    for url in ['ftp://example.org/tsa', 'https://user:pass@example.org/tsa',
+                'https://example.org/tsa#fragment', 'https://example.org/\n',
+                'https:///missing', 'https://example.org:bad/tsa']:
+        broken = copy.deepcopy(sample)
+        broken['tsa_url'] = url
+        rejected(broken)
     manifest.write_text(json.dumps(sample))
     try:
         embed.catalogue([manifest, manifest], openssl)

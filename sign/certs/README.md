@@ -37,8 +37,32 @@ The same options work with signing. `--cert-bundle NAME` is repeatable and
 restricts embedded certificates only; system trust and explicit `--ca-file`,
 `--intermediates`, `--tsa-ca-file`, `--tsa-intermediates` remain available.
 Unknown names and combining bundle selection with `--no-bundled-certs` fail
-before accessing a token. No automatic TSA endpoint is selected: keep using
-`-A URL` when the requested level needs timestamping.
+before accessing a token.
+
+When the level requires timestamping, `-A URL` takes priority. Otherwise Sign
+validates the already-read signing certificate locally. It first looks for SIA
+`id-ad-timeStamping` (1.3.6.1.5.5.7.48.3) HTTP/HTTPS URLs on available, trusted TSA
+leaf certificates supplied through `--tsa-intermediates` or `--tsa-ca-file`.
+TSA certificates must pass timestamp-signing purpose and chain checks. An AIA,
+OCSP, issuer-download or policy URL is not a TSA address.
+
+If no usable SIA exists, Sign matches CA SHA-256 fingerprints in the validated
+document chain against the enabled bundles and uses their optional `tsa_url`.
+The BCCR bundle supplies `http://tsa.sinpe.fi.cr/tsaHttp/`, documented in the
+[BCCR Xolido guide](https://www.bccr.fi.cr/firma-digital/DocFirmaDigital/guiaxolidos.pdf).
+Distinct candidate URLs are ambiguous and require `-A`. Missing metadata or an
+untrusted chain also fails before PIN entry and signing. `--no-bundled-certs`
+disables bundle URLs; `-l B-B` needs no discovery. Selection adds no card reads,
+network requests or signing retries. Certificate validity is checked at the
+current time; discovery does not replace LT/LTA revocation validation.
+
+```sh
+sign document.txt                  # Automatic TSA when the chain matches BCCR
+sign -A https://example.org/tsa document.txt
+```
+
+Other bundles can set a reviewed `tsa_url` in their manifest; shared CA
+fingerprints with different URLs intentionally require an explicit choice.
 
 Verification text and JSON report the anchor source (`system`, `additional`,
 `bundled`), SHA-256 DER fingerprint, and bundle name when fallback supplied it.
@@ -56,6 +80,7 @@ code or CMake source-list edits are needed. For example:
   "schema_version": 1,
   "id": "spain",
   "description": "Reviewed public issuer certificates",
+  "tsa_url": "https://example.org/tsa",
   "certificates": [
     {
       "file": "root.pem",
@@ -104,6 +129,10 @@ newer administrative decisions. Use `--no-bundled-certs` when local policy must
 use only system/explicit trust, including administrative root removals.
 
 ## Tests
+
+`tsa_authority` checks SIA precedence, ambiguous URLs, explicit overrides,
+offline signing, disabled bundles, expired chains and equal issuer names with
+different keys without contacting a card or TSA.
 
 `cert_catalog` audits the shipped public files and generator rejection paths.
 `bundles_cli` uses a separate test binary with synthetic roots, equal issuer

@@ -5,7 +5,7 @@ find_program(OPENSSL_EXECUTABLE openssl REQUIRED)
 
 add_executable(timestamp_driver
     timestamp_driver.c
-    ../sign/timestamp.c
+    ../sign/timestamp/timestamp.c
     ../sign/http.c
     ../sign/trust.c
     ../sign/io.c
@@ -77,7 +77,7 @@ if(NOT HEADLESS)
     target_link_libraries(sign_bundles PRIVATE PkgConfig::GTK4)
     target_compile_definitions(sign_bundles PRIVATE SIGN_WITH_GUI)
 endif()
-add_executable(timestamp_bundles timestamp_driver.c ../sign/timestamp.c
+add_executable(timestamp_bundles timestamp_driver.c ../sign/timestamp/timestamp.c
     ../sign/http.c ../sign/trust.c ../sign/io.c ../sign/certs/certs.c $<TARGET_OBJECTS:bundle_catalog>)
 target_include_directories(timestamp_bundles PRIVATE "${PROJECT_SOURCE_DIR}")
 target_link_libraries(timestamp_bundles PRIVATE libssig::ssig CURL::libcurl OpenSSL::Crypto)
@@ -91,3 +91,13 @@ add_test(NAME cert_catalog COMMAND "${Python3_EXECUTABLE}"
     "${CMAKE_CURRENT_SOURCE_DIR}/catalog_test.py" "${PROJECT_SOURCE_DIR}"
     "${OPENSSL_EXECUTABLE}")
 set_tests_properties(cert_catalog PROPERTIES LABELS "integration" TIMEOUT 30)
+
+add_executable(authority_driver authority_driver.c ../sign/timestamp/authority.c
+    ../sign/trust.c ../sign/io.c ../sign/certs/certs.c $<TARGET_OBJECTS:bundle_catalog>)
+target_include_directories(authority_driver PRIVATE "${PROJECT_SOURCE_DIR}")
+target_link_libraries(authority_driver PRIVATE libssig::ssig OpenSSL::Crypto)
+target_compile_options(authority_driver PRIVATE -Wall -Wextra -Wpedantic -Werror)
+add_test(NAME tsa_authority COMMAND "${Python3_EXECUTABLE}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/authority_test.py" $<TARGET_FILE:authority_driver>
+    "${BUNDLE_FIXTURES}" "${OPENSSL_EXECUTABLE}")
+set_tests_properties(tsa_authority PROPERTIES TIMEOUT 30 LABELS "integration")

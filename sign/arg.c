@@ -59,7 +59,12 @@ static const struct argp_option options[] = {
      "cades, pades, xades or jades (default: pades for PDF)",
      0},
     {"hash", 'H', "HASH", 0, "sha256 (default), sha384, sha512", 0},
-    {"authority", 'A', "URL", 0, "RFC 3161 TSA (HTTP/HTTPS)", 0},
+    {"authority",
+     'A',
+     "URL",
+     0,
+     "RFC 3161 TSA (HTTP/HTTPS; automatic if omitted)",
+     0},
     {
         "ca-file",
         CA_FILE,
@@ -160,14 +165,6 @@ static void args_validate(struct argp_state* state, const sign_args* args) {
 		argp_error(state, "--all and --content require tokens");
 	}
 
-	if (!verify && !tokens && args->level != LIBSSIG_LEVEL_B_B &&
-	    !args->authority) {
-		argp_error(
-		    state,
-		    "The selected level requires -A TSA_URL; use -l B-B for an offline "
-		    "signature"
-		);
-	}
 	if (!verify && !tokens && args->format == LIBSSIG_FORMAT_PADES &&
 	    args->detached) {
 		argp_error(state, "PAdES cannot use --detached");

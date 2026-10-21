@@ -2,6 +2,7 @@
 #define _DEFAULT_SOURCE
 #include <sign/http.h>
 #include <sign/sign.h>
+#include <sign/timestamp/timestamp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -167,7 +168,23 @@ bool sign_create(
 	                                      ? certificate_find(args, &certs)
 	                                      : NULL;
 	if (cert) {
-		status = token_sign(args, input, &ctx, trust, token, cert, signature);
+		char*     authority = NULL;
+		sign_args resolved = *args;
+		if (timestamp_authority(args, trust, cert, &authority)) {
+			resolved.authority = authority;
+			status = token_sign(
+			    &resolved,
+			    input,
+			    &ctx,
+			    trust,
+			    token,
+			    cert,
+			    signature
+			);
+		} else {
+			status = LIBSSIG_ERROR_ARGUMENT;
+		}
+		free(authority);
 	}
 	bool ok = cert && status == LIBSSIG_OK;
 	if (!ok) {

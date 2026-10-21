@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import re
 import subprocess
+from urllib.parse import urlsplit
 
 
 def certificate_bytes(path, openssl='openssl', file_sha256=None):
@@ -44,6 +45,14 @@ def catalogue(manifests, openssl='openssl'):
         if manifest['schema_version'] != 1 or not re.fullmatch(r'[a-z][a-z0-9_-]*', name) or name in seen:
             raise ValueError(f'invalid or duplicate bundle: {path}')
         seen.add(name)
+        tsa_url = manifest.get('tsa_url')
+        if tsa_url is not None:
+            url = urlsplit(tsa_url)
+            if (url.scheme not in ('http', 'https') or not url.hostname or url.username
+                    or url.password or url.fragment or len(tsa_url) > 2048
+                    or any(ord(c) <= 32 or ord(c) >= 127 for c in tsa_url)):
+                raise ValueError(f'invalid TSA URL: {path}')
+            _ = url.port
         fingerprints = set()
         if not manifest['certificates']:
             raise ValueError(f'empty bundle: {path}')
@@ -69,7 +78,7 @@ def catalogue(manifests, openssl='openssl'):
             index = len(entries)
             # Byte arrays avoid C string length limits for large RSA certificates.
             declarations.append(f'static const unsigned char pem_{index}[] = {{' + ','.join(map(str, pem)) + '};')
-            entries.append('{' + f'{json.dumps(name)}, {json.dumps(fingerprint)}, pem_{index}, sizeof(pem_{index}), {usage}, ' + ('true' if cert['role'] == 'root' else 'false') + '}')
+            entries.append('{' + f'{json.dumps(name)}, {json.dumps(fingerprint)}, pem_{index}, sizeof(pem_{index}), {usage}, ' + ('true' if cert['role'] == 'root' else 'false') + ', ' + (json.dumps(tsa_url) if tsa_url else 'NULL') + '}')
     if not entries or len(entries) > 1024:
         raise ValueError('catalogue must contain 1..1024 certificates')
     return '\n'.join(['/* Generated; edit manifests and certificates instead. */', '#include <sign/certs/certs.h>', *declarations,
