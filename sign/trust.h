@@ -5,6 +5,7 @@
 #include <sign/io.h>
 typedef struct {
 	sign_buffer ca, intermediates, tsa_ca, tsa_intermediates;
+	sign_buffer fallback_ca, tsa_fallback_ca;
 } sign_trust;
 bool trust_load(const sign_args* args, sign_trust* trust);
 void trust_free(sign_trust* trust);

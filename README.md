@@ -37,3 +37,5 @@ y el ejecutable `openssl`; pueden omitirse con `-DBUILD_TESTING=OFF`.
 The complete offline test suites are registered in `tests/CMakeLists.txt` and
 include the pinned libssig/ETSI submodules. See [tests/README.md](tests/README.md)
 for recursive checkout, dependencies, CTest selection and CI instructions.
+
+Public certificate bundles and trust options are described in [sign/certs/README.md](sign/certs/README.md).

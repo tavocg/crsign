@@ -18,6 +18,8 @@ include(GNUInstallDirs)
 include(CTest)
 find_package(libssig CONFIG REQUIRED)
 find_package(CURL 7.85 REQUIRED)
+find_package(OpenSSL REQUIRED COMPONENTS Crypto)
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
 
 option(HEADLESS "Build without the GTK graphical interface" OFF)
 
@@ -35,9 +37,26 @@ if(HEADLESS)
     list(FILTER SIGN_SOURCES EXCLUDE REGEX "/sign/gui\\.c$")
 endif()
 
+# The catalogue is local and deterministic; configure never downloads certificates.
+file(GLOB_RECURSE SIGN_CERT_MANIFESTS CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/sign/certs/*/manifest.json")
+file(GLOB_RECURSE SIGN_CERT_FILES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/sign/certs/*.pem")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+    ${SIGN_CERT_MANIFESTS} ${SIGN_CERT_FILES} "${CMAKE_CURRENT_SOURCE_DIR}/sign/certs/embed.py")
+set(SIGN_CERT_CATALOG "${CMAKE_CURRENT_BINARY_DIR}/cert_catalog.c")
+execute_process(COMMAND "${Python3_EXECUTABLE}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/sign/certs/embed.py"
+    "${SIGN_CERT_CATALOG}" ${SIGN_CERT_MANIFESTS}
+    RESULT_VARIABLE SIGN_CERT_RESULT)
+if(NOT SIGN_CERT_RESULT EQUAL 0)
+    message(FATAL_ERROR "Could not generate the embedded certificate catalogue")
+endif()
+list(APPEND SIGN_SOURCES "${SIGN_CERT_CATALOG}")
+
 add_executable(sign ${SIGN_SOURCES})
 
-target_link_libraries(sign PRIVATE libssig::ssig CURL::libcurl)
+target_link_libraries(sign PRIVATE libssig::ssig CURL::libcurl OpenSSL::Crypto)
 
 target_include_directories(sign PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"

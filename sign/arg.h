@@ -22,6 +22,9 @@ typedef struct {
 	libssig_level  level;
 	libssig_format format;
 	bool           format_explicit;
+	bool           no_bundled_certs;
+	const char*    cert_bundles[32];
+	size_t         cert_bundle_count;
 } sign_args;
 
 sign_args arg_parse(int argc, char** argv);

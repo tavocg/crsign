@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include "internal.h"
+#include <sign/certs/certs.h>
 #include <sign/json.h>
 #include <stdio.h>
 
@@ -78,7 +79,52 @@ static void signer_profile_text(const libssig_verify_signer* signer, size_t i) {
 	}
 }
 
-static void timestamp_json(const libssig_verify_timestamp* stamp) {
+static const char* anchor_source(const libssig_trust_anchor* anchor) {
+	const char* sources[] = {"not-checked", "system", "additional", "bundled"};
+	return sources[anchor->source];
+}
+
+static void anchor_json(
+    const sign_args*            args,
+    const libssig_trust_anchor* anchor
+) {
+	if (anchor->source == LIBSSIG_TRUST_NONE) {
+		fputs("null", stdout);
+		return;
+	}
+	char hex[65];
+	certs_anchor_hex(anchor, hex);
+	fputs("{\"source\":", stdout);
+	json_string(anchor_source(anchor));
+	fputs(",\"sha256\":", stdout);
+	json_string(hex);
+	fputs(",\"bundle\":", stdout);
+	json_string(certs_anchor_bundle(args, anchor));
+	putchar('}');
+}
+
+static void anchor_text(
+    const sign_args*            args,
+    const char*                 label,
+    const libssig_trust_anchor* anchor
+) {
+	if (anchor->source == LIBSSIG_TRUST_NONE) {
+		return;
+	}
+	char hex[65];
+	certs_anchor_hex(anchor, hex);
+	const char* bundle = certs_anchor_bundle(args, anchor);
+	printf("%s trust: %s", label, anchor_source(anchor));
+	if (bundle) {
+		printf(" (%s)", bundle);
+	}
+	printf("; root SHA-256: %s\n", hex);
+}
+
+static void timestamp_json(
+    const sign_args*                args,
+    const libssig_verify_timestamp* stamp
+) {
 	printf(
 	    "{\"present\":%s,\"valid\":%s,\"trust_checked\":%s,\"trusted\":%s,"
 	    "\"status\":%d,\"trust_error\":%ld,\"time\":",
@@ -90,10 +136,13 @@ static void timestamp_json(const libssig_verify_timestamp* stamp) {
 	    stamp->trust_error
 	);
 	json_string(stamp->time[0] ? stamp->time : NULL);
+	fputs(",\"anchor\":", stdout);
+	anchor_json(args, &stamp->anchor);
 	putchar('}');
 }
 
 static void verify_json(
+    const sign_args*             args,
     libssig_status               status,
     const libssig_verify_result* result
 ) {
@@ -118,10 +167,12 @@ static void verify_json(
 		json_string(signer->mime_type);
 		fputs(",\"certificate_der_hex\":", stdout);
 		json_hex(signer->cert_der, signer->cert_der_len);
+		fputs(",\"anchor\":", stdout);
+		anchor_json(args, &signer->anchor);
 		fputs(",\"timestamp\":", stdout);
-		timestamp_json(&signer->timestamp);
+		timestamp_json(args, &signer->timestamp);
 		fputs(",\"archive\":", stdout);
-		timestamp_json(&signer->archive);
+		timestamp_json(args, &signer->archive);
 		signer_profile_json(signer);
 		putchar('}');
 	}
@@ -138,7 +189,7 @@ void verify_output(
 ) {
 	verification_error(status);
 	if (args->json) {
-		verify_json(status, result);
+		verify_json(args, status, result);
 		return;
 	}
 
@@ -154,6 +205,9 @@ void verify_output(
 	);
 	for (size_t i = 0; i < result->count; ++i) {
 		signer_profile_text(&result->signers[i], i);
+		anchor_text(args, "Signer", &result->signers[i].anchor);
+		anchor_text(args, "Timestamp", &result->signers[i].timestamp.anchor);
+		anchor_text(args, "Archive", &result->signers[i].archive.anchor);
 		if (result->signers[i].timestamp.present) {
 			printf(
 			    "Timestamp valid and trusted: %s\n",

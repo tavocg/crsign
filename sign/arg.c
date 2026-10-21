@@ -1,12 +1,15 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include <argp.h>
 #include <sign/arg.h>
+#include <sign/certs/certs.h>
 #include <string.h>
 #include <strings.h>
 
 const char* argp_program_version = "Sign " SIGN_VERSION;
 enum {
 	CA_FILE = 256,
+	NO_BUNDLED_CERTS,
+	CERT_BUNDLE,
 	INTERMEDIATES,
 	TSA_CA_FILE,
 	TSA_INTERMEDIATES,
@@ -17,6 +20,18 @@ enum {
 	CONTENT
 };
 static const struct argp_option options[] = {
+    {"no-bundled-certs",
+     NO_BUNDLED_CERTS,
+     0,
+     0,
+     "Disable embedded intermediates and fallback roots",
+     0},
+    {"cert-bundle",
+     CERT_BUNDLE,
+     "NAME",
+     0,
+     "Select an embedded bundle (repeatable; default: all)",
+     0},
     {"content",
      CONTENT,
      0,
@@ -108,6 +123,12 @@ static unsigned int choice_parse(
 static void args_validate(struct argp_state* state, const sign_args* args) {
 	bool verify = args->command == SIGN_COMMAND_VERIFY;
 	bool tokens = args->command == SIGN_COMMAND_TOKENS;
+	if (args->no_bundled_certs && args->cert_bundle_count) {
+		argp_error(
+		    state,
+		    "--no-bundled-certs and --cert-bundle are mutually exclusive"
+		);
+	}
 	if (args->gui) {
 		if (state->argc > 2) {
 			argp_error(state, "--gui cannot be combined with CLI operations");
@@ -130,7 +151,8 @@ static void args_validate(struct argp_state* state, const sign_args* args) {
 	}
 
 	if (tokens && (args->input || args->ca_file || args->intermediates ||
-	               args->tsa_ca_file || args->tsa_intermediates)) {
+	               args->tsa_ca_file || args->tsa_intermediates ||
+	               args->no_bundled_certs || args->cert_bundle_count)) {
 		argp_error(state, "tokens accepts no file or trust options");
 	}
 
@@ -232,6 +254,19 @@ static error_t parse_option(int key, char* arg, struct argp_state* state) {
 		break;
 	case 'A':
 		args->authority = arg;
+		break;
+	case NO_BUNDLED_CERTS:
+		args->no_bundled_certs = true;
+		break;
+	case CERT_BUNDLE:
+		if (!certs_bundle_known(arg)) {
+			argp_error(state, "Unknown certificate bundle: %s", arg);
+		}
+		if (args->cert_bundle_count ==
+		    sizeof(args->cert_bundles) / sizeof(args->cert_bundles[0])) {
+			argp_error(state, "Too many --cert-bundle options (maximum 32)");
+		}
+		args->cert_bundles[args->cert_bundle_count++] = arg;
 		break;
 	case CA_FILE:
 		args->ca_file = arg;

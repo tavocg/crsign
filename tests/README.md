@@ -37,3 +37,9 @@ The CI workflow checks both headless and GTK builds without opening a window.
 Publish the pinned libssig commit before publishing a CRSign commit that points
 to it, so remote recursive checkouts can retrieve the dependency. No generated
 certificates, private keys or personal test documents are committed.
+
+The `bundles_cli` test builds separate synthetic embedded hierarchies and checks
+system priority, selection, expired roots, DER intermediate merging and a local
+TSA without card access. `cert_catalog` audits the shipped public CA certificates,
+including their DER fingerprints and chains, and tests generator rejection paths.
+The installed Sign binary only includes the reviewed public catalogue.
