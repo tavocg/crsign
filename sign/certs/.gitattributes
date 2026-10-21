@@ -1,0 +1,5 @@
+# Preserve original certificate bytes, including vendor line endings.
+*.[cC][rR][tT] -text -whitespace
+*.[cC][eE][rR] -text -whitespace
+*.[dD][eE][rR] -text -whitespace
+*.[pP][eE][mM] -text -whitespace

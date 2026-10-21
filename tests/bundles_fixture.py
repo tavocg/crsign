@@ -55,4 +55,4 @@ der = subprocess.check_output([openssl, 'x509', '-in', str(root / 'expired-root.
 expired['certificates'][0]['sha256'] = hashlib.sha256(der).hexdigest()
 (root / 'expired.json').write_text(json.dumps(expired))
 manifests.append(str(root / 'expired.json'))
-subprocess.run([sys.executable, embed, output, *manifests], check=True)
+subprocess.run([sys.executable, embed, '--openssl', openssl, output, *manifests], check=True)

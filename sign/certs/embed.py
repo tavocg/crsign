@@ -1,14 +1,41 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Generate a deterministic C catalogue from reviewed manifests; no network."""
+import argparse
 import base64
 import hashlib
 import json
 from pathlib import Path
 import re
-import sys
+import subprocess
 
 
-def catalogue(manifests):
+def certificate_bytes(path, openssl='openssl', file_sha256=None):
+    """Read one original DER/PEM certificate without modifying the source."""
+    with path.open('rb') as stream:
+        original = stream.read(65537)
+    if not original or len(original) > 65536:
+        raise ValueError(f'certificate empty or too large: {path}')
+    if file_sha256 and hashlib.sha256(original).hexdigest() != file_sha256:
+        raise ValueError(f'original certificate bytes changed: {path}')
+    if original.lstrip().startswith(b'-----'):
+        match = re.fullmatch(rb'\s*-----BEGIN CERTIFICATE-----\s+([A-Za-z0-9+/=\s]+)-----END CERTIFICATE-----\s*', original)
+        if not match:
+            raise ValueError(f'expected one PEM certificate: {path}')
+        der = base64.b64decode(re.sub(rb'\s', b'', match[1]), validate=True)
+    else:
+        der = original
+    checked = subprocess.run([openssl, 'x509', '-inform', 'DER', '-outform', 'DER'],
+                             input=der, capture_output=True)
+    if checked.returncode or checked.stdout != der:
+        raise ValueError(f'expected one DER certificate without trailing bytes: {path}')
+    encoded = base64.b64encode(der)
+    pem = b'-----BEGIN CERTIFICATE-----\n'
+    pem += b''.join(encoded[i:i + 64] + b'\n' for i in range(0, len(encoded), 64))
+    pem += b'-----END CERTIFICATE-----\n'
+    return der, pem
+
+
+def catalogue(manifests, openssl='openssl'):
     declarations, entries, seen = [], [], set()
     for manifest_path in manifests:
         path = Path(manifest_path)
@@ -22,18 +49,12 @@ def catalogue(manifests):
             raise ValueError(f'empty bundle: {path}')
         for cert in manifest['certificates']:
             relative = Path(cert['file'])
-            if relative.is_absolute() or '..' in relative.parts or relative.suffix != '.pem':
+            if relative.is_absolute() or '..' in relative.parts:
                 raise ValueError(f'certificate escapes bundle: {relative}')
             certificate_path = (path.parent / relative).resolve()
             if path.parent.resolve() not in certificate_path.parents:
                 raise ValueError(f'certificate escapes bundle: {relative}')
-            pem = certificate_path.read_bytes()
-            if len(pem) > 65536:
-                raise ValueError(f'certificate too large: {relative}')
-            match = re.fullmatch(rb'-----BEGIN CERTIFICATE-----\s+([A-Za-z0-9+/=\s]+)-----END CERTIFICATE-----\s*', pem)
-            if not match:
-                raise ValueError(f'expected one PEM certificate: {relative}')
-            der = base64.b64decode(re.sub(rb'\s', b'', match[1]), validate=True)
+            der, pem = certificate_bytes(certificate_path, openssl, cert.get('file_sha256'))
             fingerprint = hashlib.sha256(der).hexdigest()
             if fingerprint != cert['sha256'] or fingerprint in fingerprints:
                 raise ValueError(f'duplicate or changed certificate: {relative}')
@@ -57,4 +78,9 @@ def catalogue(manifests):
 
 
 if __name__ == '__main__':
-    Path(sys.argv[1]).write_text(catalogue(sys.argv[2:]))
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--openssl', default='openssl')
+    parser.add_argument('output', type=Path)
+    parser.add_argument('manifests', nargs='+')
+    args = parser.parse_args()
+    args.output.write_text(catalogue(args.manifests, args.openssl))

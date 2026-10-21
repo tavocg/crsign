@@ -6,8 +6,10 @@ primary issuer lookup cannot find the issuer; they do not override rejected,
 expired or revoked chains. Document and TSA trust remain independent.
 
 The initial `bccr` bundle contains the public national root and 12 policy/SINPE
-intermediates from `fdcr/artifacts/bccr-certs-26.08`. PEM normalization preserves
-the DER certificate and its SHA-256 fingerprint. Code-signing certificates and
+intermediates from `fdcr/artifacts/bccr-certs-26.08`. Their original filenames,
+extensions and bytes are preserved, including DER/PEM encoding and line endings.
+CMake converts them into the PEM strings embedded in the executable; source
+files are never rewritten. Code-signing certificates and
 GlobalSign roots in the source snapshot are deliberately excluded. No private
 keys or personal certificates are included. These files are committed public
 application resources, unlike local personal test certificates.
@@ -46,7 +48,7 @@ Existing LT/LTA OCSP/CRL and TSA requests keep their normal behavior.
 
 ## Add a bundle
 
-Create `sign/certs/NAME/manifest.json` and reviewed public PEM certificates. No C
+Create `sign/certs/NAME/manifest.json` and copy reviewed original public certificates. No C
 code or CMake source-list edits are needed. For example:
 
 ```json
@@ -73,16 +75,24 @@ code or CMake source-list edits are needed. For example:
 }
 ```
 
-Each `.pem` file must contain exactly one certificate (at most 64 KiB). Root entries must be self-signed
-CAs; intermediates never become anchors. Bundle identifiers are unique lowercase
+Each file must contain exactly one DER or PEM certificate (at most 64 KiB),
+regardless of its extension. Keep the publisher’s original name and bytes.
+Root entries must be self-signed CAs; intermediates never become anchors. Bundle identifiers are unique lowercase
 names. DER fingerprints, not issuer names or URLs, identify catalogue entries.
 OpenSSL selects the actual chain using issuer names, AKI/SKI and normal signature
 and path validation. Certificates with shared names and different keys are
 covered by the synthetic suite. Shared roots across bundles are allowed.
 
-Configure runs `embed.py` using Python 3's standard library and compiles its
-output into Sign. There are no certificate downloads at configure, build or
-runtime. The generator rejects changed fingerprints, duplicate entries within a
+CMake runs `embed.py` using Python 3’s standard library and the OpenSSL CLI. It
+validates the certificate, converts DER or vendor PEM into canonical PEM in
+memory, and compiles the generated catalogue into Sign.
+`cmake -S . -B build` followed by `cmake --build build` (or `make` inside `build/`) performs
+everything automatically. Changes to certificate files regenerate the catalogue.
+No conversion was added to runtime. There are no certificate downloads at
+configure, build or runtime. The optional `file_sha256` field pins the original
+file bytes; `sha256` always identifies the DER certificate independently of its source encoding. Git
+attributes disable line-ending conversion for `.crt`, `.cer`, `.der`, and `.pem`.
+The generator rejects changed fingerprints, duplicate entries within a
 bundle, invalid roles/usages and escaping paths. It accepts up to 1024 entries;
 joined runtime bundles are bounded to 16 MiB per trust group. libssig bounds
 fallback roots to 16 MiB / 1024 certificates and checks CA status and self-signatures.

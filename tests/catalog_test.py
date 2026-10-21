@@ -17,7 +17,7 @@ embed = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(embed)
 paths = sorted((source / 'sign/certs').glob('*/manifest.json'))
 assert paths
-assert embed.catalogue(paths) == embed.catalogue(paths)
+assert embed.catalogue(paths, openssl) == embed.catalogue(paths, openssl)
 with tempfile.TemporaryDirectory(prefix='sign-catalog-') as directory:
     temp = Path(directory)
     for path in paths:
@@ -25,8 +25,12 @@ with tempfile.TemporaryDirectory(prefix='sign-catalog-') as directory:
         assert len(manifest['certificates']) <= 1024
         roots, intermediates = [], []
         for cert in manifest['certificates']:
-            pem = path.parent / cert['file']
-            der = subprocess.check_output([openssl, 'x509', '-in', str(pem), '-outform', 'DER'])
+            original = path.parent / cert['file']
+            der, normalized = embed.certificate_bytes(original, openssl)
+            if cert.get('file_sha256'):
+                assert hashlib.sha256(original.read_bytes()).hexdigest() == cert['file_sha256']
+            pem = temp / f'certificate-{len(roots) + len(intermediates)}.pem'
+            pem.write_bytes(normalized)
             assert hashlib.sha256(der).hexdigest() == cert['sha256']
             if cert.get('published_sha1'):
                 assert hashlib.sha1(der).hexdigest() == cert['published_sha1']
@@ -54,11 +58,38 @@ with tempfile.TemporaryDirectory(prefix='sign-catalog-') as directory:
     def rejected(value):
         manifest.write_text(json.dumps(value))
         try:
-            embed.catalogue([manifest])
+            embed.catalogue([manifest], openssl)
         except (ValueError, KeyError):
             return
         raise AssertionError('invalid catalogue accepted')
 
+    # Encoding and vendor filenames must not change the embedded catalogue.
+    manifest.write_text(json.dumps(sample))
+    baseline = embed.catalogue([manifest], openssl)
+    der, normalized = embed.certificate_bytes(temp / 'root.pem', openssl)
+    for name, data in [('Original certificate (1).crt', der), ('certificate.cer', normalized),
+                       ('Vendor Certificate.crt', normalized.replace(b'\n', b'\r\n'))]:
+        original = temp / name
+        original.write_bytes(data)
+        assert embed.certificate_bytes(original, openssl) == (der, normalized)
+        assert original.read_bytes() == data
+        variant = copy.deepcopy(sample)
+        variant['certificates'][0]['file'] = name
+        variant['certificates'][0]['file_sha256'] = hashlib.sha256(data).hexdigest()
+        manifest.write_text(json.dumps(variant))
+        assert embed.catalogue([manifest], openssl) == baseline
+    for data in [der + b'\x00', normalized + normalized, b'not a certificate']:
+        original = temp / 'invalid.crt'
+        original.write_bytes(data)
+        try:
+            embed.certificate_bytes(original, openssl)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError('malformed or multiple certificates accepted')
+    broken = copy.deepcopy(sample)
+    broken['certificates'][0]['file_sha256'] = '0' * 64
+    rejected(broken)
     broken = copy.deepcopy(sample)
     broken['certificates'][0]['sha256'] = '0' * 64
     rejected(broken)
@@ -79,7 +110,7 @@ with tempfile.TemporaryDirectory(prefix='sign-catalog-') as directory:
     rejected(broken)
     manifest.write_text(json.dumps(sample))
     try:
-        embed.catalogue([manifest, manifest])
+        embed.catalogue([manifest, manifest], openssl)
     except ValueError:
         pass
     else:

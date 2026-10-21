@@ -19,6 +19,7 @@ include(CTest)
 find_package(libssig CONFIG REQUIRED)
 find_package(CURL 7.85 REQUIRED)
 find_package(OpenSSL REQUIRED COMPONENTS Crypto)
+find_program(OPENSSL_EXECUTABLE openssl REQUIRED)
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 
 option(HEADLESS "Build without the GTK graphical interface" OFF)
@@ -41,12 +42,13 @@ endif()
 file(GLOB_RECURSE SIGN_CERT_MANIFESTS CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/sign/certs/*/manifest.json")
 file(GLOB_RECURSE SIGN_CERT_FILES CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/sign/certs/*.pem")
+    "${CMAKE_CURRENT_SOURCE_DIR}/sign/certs/*")
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
     ${SIGN_CERT_MANIFESTS} ${SIGN_CERT_FILES} "${CMAKE_CURRENT_SOURCE_DIR}/sign/certs/embed.py")
 set(SIGN_CERT_CATALOG "${CMAKE_CURRENT_BINARY_DIR}/cert_catalog.c")
 execute_process(COMMAND "${Python3_EXECUTABLE}"
     "${CMAKE_CURRENT_SOURCE_DIR}/sign/certs/embed.py"
+    --openssl "${OPENSSL_EXECUTABLE}"
     "${SIGN_CERT_CATALOG}" ${SIGN_CERT_MANIFESTS}
     RESULT_VARIABLE SIGN_CERT_RESULT)
 if(NOT SIGN_CERT_RESULT EQUAL 0)

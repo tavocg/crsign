@@ -4,61 +4,67 @@
   "description": "Costa Rica national hierarchy (MICITT / BCCR SINPE), vendor snapshot 26.08",
   "certificates": [
     {
-      "file": "policy-individual-v2-b3a23fb00b84.pem",
+      "file": "CA POLITICA PERSONA FISICA - COSTA RICA v2(1).crt",
       "sha256": "b3a23fb00b8473569881f34866c0eb4fbc36ab85cf1273e75e86c301eb0742e8",
       "role": "intermediate",
       "usages": [
         "document"
       ],
-      "source": "fdcr/artifacts/bccr-certs-26.08/CA POLITICA PERSONA FISICA - COSTA RICA v2(1).crt"
+      "source": "fdcr/artifacts/bccr-certs-26.08/CA POLITICA PERSONA FISICA - COSTA RICA v2(1).crt",
+      "file_sha256": "3a9d1f296f1b2998e00b20411f4b6f12a9be0258c26d8d1cae48a427d671d799"
     },
     {
-      "file": "policy-individual-v2-32c28e684a28.pem",
+      "file": "CA POLITICA PERSONA FISICA - COSTA RICA v2.crt",
       "sha256": "32c28e684a283df15da761b8b8e79a9ed72d81ddb557824a823a3f069a7e77dd",
       "role": "intermediate",
       "usages": [
         "document"
       ],
-      "source": "fdcr/artifacts/bccr-certs-26.08/CA POLITICA PERSONA FISICA - COSTA RICA v2.crt"
+      "source": "fdcr/artifacts/bccr-certs-26.08/CA POLITICA PERSONA FISICA - COSTA RICA v2.crt",
+      "file_sha256": "32c28e684a283df15da761b8b8e79a9ed72d81ddb557824a823a3f069a7e77dd"
     },
     {
-      "file": "policy-legal-v2-fb55fa176bdc.pem",
+      "file": "CA POLITICA PERSONA JURIDICA - COSTA RICA v2(1).crt",
       "sha256": "fb55fa176bdc1a60d700b4940e46549dd72663f943c0eff334ced6c8779c834b",
       "role": "intermediate",
       "usages": [
         "document"
       ],
-      "source": "fdcr/artifacts/bccr-certs-26.08/CA POLITICA PERSONA JURIDICA - COSTA RICA v2(1).crt"
+      "source": "fdcr/artifacts/bccr-certs-26.08/CA POLITICA PERSONA JURIDICA - COSTA RICA v2(1).crt",
+      "file_sha256": "79e2be969f0015abeb1b91553515cba48a17d284a0a940b3151ed4f700f610ff"
     },
     {
-      "file": "policy-legal-v2-8d4b697ae299.pem",
+      "file": "CA POLITICA PERSONA JURIDICA - COSTA RICA v2.crt",
       "sha256": "8d4b697ae29912bcfc570374695f040096f1a8499fe5a4e0b65ee32567aec15b",
       "role": "intermediate",
       "usages": [
         "document"
       ],
-      "source": "fdcr/artifacts/bccr-certs-26.08/CA POLITICA PERSONA JURIDICA - COSTA RICA v2.crt"
+      "source": "fdcr/artifacts/bccr-certs-26.08/CA POLITICA PERSONA JURIDICA - COSTA RICA v2.crt",
+      "file_sha256": "8d4b697ae29912bcfc570374695f040096f1a8499fe5a4e0b65ee32567aec15b"
     },
     {
-      "file": "policy-timestamp-v2-493d7d6fed3d.pem",
+      "file": "CA POLITICA SELLADO DE TIEMPO - COSTA RICA v2(1).crt",
       "sha256": "493d7d6fed3d25461838bb102cdda26c52e8fed6a6e218b367e8a088777db1bd",
       "role": "intermediate",
       "usages": [
         "tsa"
       ],
-      "source": "fdcr/artifacts/bccr-certs-26.08/CA POLITICA SELLADO DE TIEMPO - COSTA RICA v2(1).crt"
+      "source": "fdcr/artifacts/bccr-certs-26.08/CA POLITICA SELLADO DE TIEMPO - COSTA RICA v2(1).crt",
+      "file_sha256": "05590b4543ee4c20cd5ffde29f0403a68a4188341a01bac7841a5acb8b026423"
     },
     {
-      "file": "policy-timestamp-v2-fdcfe11315fc.pem",
+      "file": "CA POLITICA SELLADO DE TIEMPO - COSTA RICA v2.crt",
       "sha256": "fdcfe11315fc9f4b059934346243549486db9df06772b09562ca666c9b8b8ea0",
       "role": "intermediate",
       "usages": [
         "tsa"
       ],
-      "source": "fdcr/artifacts/bccr-certs-26.08/CA POLITICA SELLADO DE TIEMPO - COSTA RICA v2.crt"
+      "source": "fdcr/artifacts/bccr-certs-26.08/CA POLITICA SELLADO DE TIEMPO - COSTA RICA v2.crt",
+      "file_sha256": "fdcfe11315fc9f4b059934346243549486db9df06772b09562ca666c9b8b8ea0"
     },
     {
-      "file": "national-root-v2.pem",
+      "file": "CA RAIZ NACIONAL - COSTA RICA v2.crt",
       "sha256": "fd9ea730948ec25875fd3c4a778815f57f2261f739be898dd720fa2e07ef7c42",
       "role": "root",
       "usages": [
@@ -69,61 +75,68 @@
       "publisher_reference": "https://www.bccr.fi.cr/cr/es/firma-digital/informacion-general/certificados-de-la-autoridad-certificadora-ca.html",
       "published_sha1": "68a24d2b2cb5c4ce9fe300e3b6fcd1dfeeb9c311",
       "published_serial": "74b8cf638fab72bc46c1d2bacd00050c",
-      "reviewed_on": "2026-10-21"
+      "reviewed_on": "2026-10-21",
+      "file_sha256": "fd9ea730948ec25875fd3c4a778815f57f2261f739be898dd720fa2e07ef7c42"
     },
     {
-      "file": "sinpe-individual-v2-58e07fd8ae7e.pem",
+      "file": "CA SINPE - PERSONA FISICA v2(1).crt",
       "sha256": "58e07fd8ae7e6c9100ada817213226717f2123c8d23d078a0bd758bebfd671a5",
       "role": "intermediate",
       "usages": [
         "document"
       ],
-      "source": "fdcr/artifacts/bccr-certs-26.08/CA SINPE - PERSONA FISICA v2(1).crt"
+      "source": "fdcr/artifacts/bccr-certs-26.08/CA SINPE - PERSONA FISICA v2(1).crt",
+      "file_sha256": "f59824f739fb0603bcfa2910eee0f84e44ce9415812036a6f66c2fef5dca0004"
     },
     {
-      "file": "sinpe-individual-v2-3ad3c04f06e0.pem",
+      "file": "CA SINPE - PERSONA FISICA v2(2).crt",
       "sha256": "3ad3c04f06e0ccc3ed8f1cba777f1ed985b09adffce9cfc18b18ca1f951df9ed",
       "role": "intermediate",
       "usages": [
         "document"
       ],
-      "source": "fdcr/artifacts/bccr-certs-26.08/CA SINPE - PERSONA FISICA v2(2).crt"
+      "source": "fdcr/artifacts/bccr-certs-26.08/CA SINPE - PERSONA FISICA v2(2).crt",
+      "file_sha256": "58cf896de5ac68eb5d186a4e34842df193d9a4bc75ed5ed02aa50da1140aa24a"
     },
     {
-      "file": "sinpe-individual-v2-2fff51427e9d.pem",
+      "file": "CA SINPE - PERSONA FISICA v2(3).crt",
       "sha256": "2fff51427e9d9e17a9137c69186c0ce762216a199144c160a9cdf1a4fd6238ae",
       "role": "intermediate",
       "usages": [
         "document"
       ],
-      "source": "fdcr/artifacts/bccr-certs-26.08/CA SINPE - PERSONA FISICA v2(3).crt"
+      "source": "fdcr/artifacts/bccr-certs-26.08/CA SINPE - PERSONA FISICA v2(3).crt",
+      "file_sha256": "0105bc1c1d8686e2218e3a7d9791a669c16e4c9532853c5ad71d63d20d8bcee5"
     },
     {
-      "file": "sinpe-legal-v2-f2503e93d69a.pem",
+      "file": "CA SINPE - PERSONA JURIDICA v2(1).crt",
       "sha256": "f2503e93d69a1ae57861102042cc0ab05b272401b9a48c79d88d171f88eb3093",
       "role": "intermediate",
       "usages": [
         "document"
       ],
-      "source": "fdcr/artifacts/bccr-certs-26.08/CA SINPE - PERSONA JURIDICA v2(1).crt"
+      "source": "fdcr/artifacts/bccr-certs-26.08/CA SINPE - PERSONA JURIDICA v2(1).crt",
+      "file_sha256": "be044580ef5c946c4f3b4a3f8941697ba367271a1f112a1b9568338f46fdc191"
     },
     {
-      "file": "sinpe-legal-v2-0cd35122da67.pem",
+      "file": "CA SINPE - PERSONA JURIDICA v2(2).crt",
       "sha256": "0cd35122da671b8e896bb14653256fd88452812b56c6b4077a3c2b77c1601879",
       "role": "intermediate",
       "usages": [
         "document"
       ],
-      "source": "fdcr/artifacts/bccr-certs-26.08/CA SINPE - PERSONA JURIDICA v2(2).crt"
+      "source": "fdcr/artifacts/bccr-certs-26.08/CA SINPE - PERSONA JURIDICA v2(2).crt",
+      "file_sha256": "c4cd81d8a164340e7005ab187d2ddeda0a045d9f55846d5db67592b90d9b9de7"
     },
     {
-      "file": "sinpe-legal-v2-1aec7902d762.pem",
+      "file": "CA SINPE - PERSONA JURIDICA v2(3).crt",
       "sha256": "1aec7902d762ae6ed0cf7a1e3d3dbcbe60e0321980b733202f83cba7d9bfcc49",
       "role": "intermediate",
       "usages": [
         "document"
       ],
-      "source": "fdcr/artifacts/bccr-certs-26.08/CA SINPE - PERSONA JURIDICA v2(3).crt"
+      "source": "fdcr/artifacts/bccr-certs-26.08/CA SINPE - PERSONA JURIDICA v2(3).crt",
+      "file_sha256": "2441d3c1dfcd8449d1e6752450b63c2ade649450f0295807a9eb0255a000b0b0"
     }
   ]
 }
