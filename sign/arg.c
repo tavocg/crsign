@@ -279,7 +279,7 @@ static const struct argp parser = {
     .options = options,
     .parser = parse_option,
     .args_doc = "FILE [-o OUTPUT]\nverify FILE\ntokens",
-    .doc = "Sign: CAdES signing and verification. System trust is used by "
+    .doc = "Sign: AdES signing and verification. System trust is used by "
            "default."
 };
 
