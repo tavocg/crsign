@@ -1,0 +1,45 @@
+name: Build
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and Test (headless=${{ matrix.headless }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        headless: ["ON", "OFF"]
+
+    steps:
+      - name: Checkout repository and pinned test suites
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+
+      - name: Configure pinned libssig
+        run: nix develop --command cmake -S tests/libssig -B build-libssig -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
+
+      - name: Build pinned libssig
+        run: nix develop --command cmake --build build-libssig --parallel
+
+      - name: Configure Sign and tests
+        run: >-
+          nix develop --command cmake -S . -B build
+          -DCMAKE_BUILD_TYPE=Release
+          -DHEADLESS=${{ matrix.headless }}
+          -Dlibssig_DIR="$GITHUB_WORKSPACE/build-libssig"
+          -DSIGN_TEST_LIBSSIG=ON
+          -DLIBSSIG_TEST_CONFORMANCE=ON
+
+      - name: Build
+        run: nix develop --command cmake --build build --parallel
+
+      - name: Test
+        run: nix develop --command ctest --test-dir build --parallel 4 --output-on-failure

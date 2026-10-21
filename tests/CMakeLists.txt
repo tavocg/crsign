@@ -33,3 +33,21 @@ endif()
 add_test(NAME commands_cli COMMAND ${Python3_EXECUTABLE}
     ${CMAKE_CURRENT_SOURCE_DIR}/commands_cli.py $<TARGET_FILE:sign_mock> ${OPENSSL_EXECUTABLE})
 set_tests_properties(commands_cli PROPERTIES TIMEOUT 30)
+
+# Reuse libssig's pinned suite, including its nested ETSI schema submodules.
+option(SIGN_TEST_LIBSSIG "Run libssig conformance and real Sign fixture tests" ON)
+if(SIGN_TEST_LIBSSIG)
+    if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/libssig/tests/CMakeLists.txt")
+        message(FATAL_ERROR
+            "Missing tests/libssig. Run git submodule update --init --recursive "
+            "or explicitly set SIGN_TEST_LIBSSIG=OFF for CLI-only tests.")
+    endif()
+    add_subdirectory(libssig/tests libssig)
+    add_test(NAME signatures_cli COMMAND ${Python3_EXECUTABLE}
+        "${CMAKE_CURRENT_SOURCE_DIR}/signatures_cli.py" $<TARGET_FILE:sign>
+        "${CMAKE_CURRENT_BINARY_DIR}/libssig/ades-fixtures"
+        "${CMAKE_CURRENT_BINARY_DIR}/libssig/document-fixtures")
+    set_tests_properties(signatures_cli PROPERTIES
+        FIXTURES_REQUIRED "libssig_ades;libssig_documents"
+        LABELS "integration;conformance" TIMEOUT 120)
+endif()

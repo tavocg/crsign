@@ -53,3 +53,7 @@ B-B, B-T, B-LT and B-LTA; zero/default remains B-LTA. `sign verify` detects
 the format from its bytes. XAdES embeds arbitrary original bytes as a base64
 XMLDSig Object, preserving the original document, and `--detached` keeps
 content external. JAdES uses flattened JWS JSON serialization.
+
+The complete offline test suites are registered in `tests/CMakeLists.txt` and
+include the pinned libssig/ETSI submodules. See [tests/README.md](tests/README.md)
+for recursive checkout, dependencies, CTest selection and CI instructions.

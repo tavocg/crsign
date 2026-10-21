@@ -1,0 +1,3 @@
+[submodule "tests/libssig"]
+	path = tests/libssig
+	url = https://github.com/tavocg/libssig.git
