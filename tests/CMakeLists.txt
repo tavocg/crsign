@@ -101,3 +101,11 @@ add_test(NAME tsa_authority COMMAND "${Python3_EXECUTABLE}"
     "${CMAKE_CURRENT_SOURCE_DIR}/authority_test.py" $<TARGET_FILE:authority_driver>
     "${BUNDLE_FIXTURES}" "${OPENSSL_EXECUTABLE}")
 set_tests_properties(tsa_authority PROPERTIES TIMEOUT 30 LABELS "integration")
+
+add_executable(http_driver http_driver.c ../sign/http.c)
+target_include_directories(http_driver PRIVATE "${PROJECT_SOURCE_DIR}")
+target_link_libraries(http_driver PRIVATE libssig::ssig CURL::libcurl)
+target_compile_options(http_driver PRIVATE -Wall -Wextra -Wpedantic -Werror)
+add_test(NAME http_transport COMMAND "${Python3_EXECUTABLE}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/http_test.py" $<TARGET_FILE:http_driver>)
+set_tests_properties(http_transport PROPERTIES TIMEOUT 30 LABELS "integration")

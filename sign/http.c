@@ -5,6 +5,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef SIGN_VERSION
+#define SIGN_VERSION "unknown"
+#endif
 
 static size_t response_collect(
     char*  data,
@@ -44,19 +47,28 @@ libssig_status http_exchange(
 		return LIBSSIG_ERROR_CRYPTO;
 	}
 	CURL*              curl = curl_easy_init();
-	struct curl_slist* headers = curl_slist_append(
-	    NULL,
-	    kind == LIBSSIG_FETCH_OCSP ? "Content-Type: application/ocsp-request"
-	                               : "Content-Type: application/timestamp-query"
-	);
-	struct curl_slist*
-	     items = headers ? curl_slist_append(
-                              headers,
-                              kind == LIBSSIG_FETCH_OCSP
-	                               ? "Accept: application/ocsp-response"
-	                               : "Accept: application/timestamp-reply"
-                          )
-	                     : NULL;
+	static const char* names[] = {"TSA", "OCSP", "certificate", "CRL"};
+	static const char* content_types[] = {
+	    "Content-Type: application/timestamp-query",
+	    "Content-Type: application/ocsp-request"
+	};
+	static const char* accept_types[] = {
+	    "Accept: application/timestamp-reply",
+	    "Accept: application/ocsp-response",
+	    "Accept: application/pkix-cert, application/pkcs7-mime, */*",
+	    "Accept: application/pkix-crl, */*"
+	};
+	if ((unsigned int)kind >= sizeof(names) / sizeof(names[0])) {
+		curl_easy_cleanup(curl);
+		curl_global_cleanup();
+		return LIBSSIG_ERROR_ARGUMENT;
+	}
+	struct curl_slist* headers = curl_slist_append(NULL, accept_types[kind]);
+	struct curl_slist* items = headers;
+	if (request && kind <= LIBSSIG_FETCH_OCSP) {
+		items = headers ? curl_slist_append(headers, content_types[kind])
+		                : NULL;
+	}
 	bool ok = curl && items;
 	if (items) {
 		headers = items;
@@ -69,6 +81,11 @@ libssig_status http_exchange(
 	} while (0)
 	SET(CURLOPT_URL, url);
 	SET(CURLOPT_PROTOCOLS_STR, "http,https");
+	SET(CURLOPT_REDIR_PROTOCOLS_STR, "http,https");
+	SET(CURLOPT_FOLLOWLOCATION, 1L);
+	SET(CURLOPT_MAXREDIRS, 3L);
+	SET(CURLOPT_POSTREDIR, (long)CURL_REDIR_POST_ALL);
+	SET(CURLOPT_USERAGENT, "Sign/" SIGN_VERSION);
 	SET(CURLOPT_HTTPHEADER, headers);
 	if (request) {
 		SET(CURLOPT_POSTFIELDS, request);
@@ -88,9 +105,12 @@ libssig_status http_exchange(
 	if (!ok) {
 		fprintf(
 		    stderr,
-		    "sign: TSA HTTP failure: %s (HTTP %ld)\n",
-		    curl_easy_strerror(code),
-		    status
+		    "sign: %s HTTP failure: %s (HTTP %ld, %s)\n",
+		    names[kind],
+		    code == CURLE_OK ? "unsuccessful response"
+		                     : curl_easy_strerror(code),
+		    status,
+		    url
 		);
 	}
 	curl_slist_free_all(headers);
