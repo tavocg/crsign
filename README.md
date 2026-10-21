@@ -1,6 +1,24 @@
 # CRSign
 
-Firmador digital en C.
+Firmador digital en C, con soporte para CAdES, PAdES, XAdES, JAdES con
+validación de largo plazo.
+
+## Uso
+
+```sh
+sign tokens # listar tokens
+sign doc.pdf -A 'http://tsa.sinpe.fi.cr/tsaHttp/' # firmar
+sign verify doc-signed.pdf # verificar
+```
+
+La firma usa B-LTA por defecto y requiere `-A URL`. `-l B-B` permite firmar
+sin red; también se admiten `-l B-T` y `-l B-LT`. PDF usa PAdES automáticamente;
+`-f cades|pades` permite elegir el formato. Para LT/LTA se pueden aportar
+`--ca-file`, `--intermediates`, `--tsa-ca-file` y `--tsa-intermediates`; la
+confianza del sistema sigue activa. Si faltan evidencias o falla un sello, no se
+guarda la salida.
+
+## Construcción
 
 Requiere CMake, un compilador C, glibc (argp), libssig y libcurl >= 7.85.
 La interfaz gráfica también requiere pkg-config y GTK 4.
@@ -14,45 +32,7 @@ cmake --build build
 Para compilar sin GTK, añade `-DHEADLESS=ON`. Las pruebas requieren Python 3
 y el ejecutable `openssl`; pueden omitirse con `-DBUILD_TESTING=OFF`.
 
-```sh
-# Firma CAdES con contenido incluido; solicita el PIN sin mostrarlo.
-./build/sign documento.txt -o documento.p7m \
-  -t 'pkcs11:...' -k ID_HEX \
-  -A 'http://tsa.sinpe.fi.cr/tsaHttp/'
-
-./build/sign verify documento.p7m
-./build/sign tokens
-./build/sign tokens --json
-./build/sign verify documento.p7m --json
-ctest --test-dir build --output-on-failure
-```
-
-La firma usa B-LTA por defecto y requiere `-A URL`. `-l B-B` permite firmar
-sin red; también se admiten `-l B-T` y `-l B-LT`. Los valores no distinguen
-mayúsculas. PDF usa PAdES automáticamente; `-f cades|pades` permite elegir
-el formato. Para LT/LTA se pueden aportar `--ca-file`, `--intermediates`,
-`--tsa-ca-file` y `--tsa-intermediates`; la confianza del sistema sigue activa.
-Si faltan evidencias o falla un sello, no se guarda la salida.
-
-`sign verify` delega en libssig la detección de formato y evidencias. Verifica
-B-B/B-T con confianza vigente, B-LT con revocación incluida vigente y B-LTA
-con la política histórica de la biblioteca. Usa la confianza del sistema por
-defecto. Texto y JSON distinguen nivel detectado, nivel validado y resultado
-histórico; evidencias incompletas o inválidas producen un error sin degradar
-el nivel detectado. La biblioteca no descarga evidencias durante verify.
-
-## Source layout
-
-Features with multiple implementation files, such as verification and token
-listing, live in `sign/verify/` and `sign/tokens/`, with their entry headers
-and private helpers. Features that only need a `.c`/`.h` pair live directly in
-`sign/`, alongside shared argument parsing, I/O, HTTP and output helpers.
-
-JAdES and XAdES are selected with `-f jades` and `-f xades`. Both support
-B-B, B-T, B-LT and B-LTA; zero/default remains B-LTA. `sign verify` detects
-the format from its bytes. XAdES embeds arbitrary original bytes as a base64
-XMLDSig Object, preserving the original document, and `--detached` keeps
-content external. JAdES uses flattened JWS JSON serialization.
+## Tests
 
 The complete offline test suites are registered in `tests/CMakeLists.txt` and
 include the pinned libssig/ETSI submodules. See [tests/README.md](tests/README.md)
