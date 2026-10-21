@@ -73,6 +73,9 @@ with tempfile.TemporaryDirectory(prefix='sign-trust-') as directory:
     result = json.loads(run(sign, 'verify', '--json', 'input.p7m').stdout)
     assert result['ok'] and result['signature_valid'] and result['trusted']
     assert result['count'] == 1 and not result['signers'][0]['timestamp']['present']
+    assert result['format'] == 'cades'
+    assert result['signers'][0]['level'] == 'B-B' and result['signers'][0]['level_validated']
+    assert result['signers'][0]['history'] == 'not-checked'
     env['SSL_CERT_FILE'] = str(root / 'tsa-root.pem')
     run(sign, 'verify', 'input.p7m', success=False)
     result = json.loads(run(sign, '--json', 'verify', 'input.p7m', success=False).stdout)
@@ -163,6 +166,8 @@ ess_cert_id_alg = sha256
             '--tsa-intermediates', 'tsa-inter.pem', 'custom-stamped.p7m').stdout)
         stamp = result['signers'][0]['timestamp']
         assert stamp['present'] and stamp['valid'] and stamp['trusted'] and stamp['time']
+        assert result['signers'][0]['level'] == 'B-T' and result['signers'][0]['level_validated']
+        assert result['signers'][0]['history'] == 'not-checked'
         env['SIGN_MOCK_DATA'] = str(root / 'input.p7m')
         result = json.loads(run(mock_sign, 'input.txt', '-o', 'signed-stamped.p7m',
             '-l', 'B-T', '-A', url, '--tsa-ca-file', 'tsa-root.pem', '--tsa-intermediates',
@@ -170,6 +175,16 @@ ess_cert_id_alg = sha256
         assert result['command'] == 'sign' and result['ok'] and result['timestamped']
         run(sign, 'verify', '--tsa-ca-file', 'tsa-root.pem',
             '--tsa-intermediates', 'tsa-inter.pem', 'signed-stamped.p7m')
+
+        # LT verification is selected by libssig and checks embedded status.
+        run(mock_sign, 'input.txt', '-o', 'signed-lt.p7m', '-l', 'B-LT',
+            '-A', url, '--ca-file', 'document-root.pem', '--tsa-ca-file', 'tsa-root.pem',
+            '--tsa-intermediates', 'tsa-inter.pem')
+        result = json.loads(run(sign, 'verify', 'signed-lt.p7m', '--ca-file',
+            'document-root.pem', '--tsa-ca-file', 'tsa-root.pem', '--json').stdout)
+        signer = result['signers'][0]
+        assert result['ok'] and signer['level'] == 'B-LT' and signer['level_validated']
+        assert signer['revocation_checked'] and signer['history'] == 'not-checked'
 
         # Default LTA traverses both chains and fetches OCSP before its archive seal.
         result = json.loads(run(mock_sign, 'input.txt', '-o', 'signed-lta.p7m',
@@ -179,6 +194,36 @@ ess_cert_id_alg = sha256
         result = json.loads(run(sign, 'verify', 'signed-lta.p7m', '--ca-file',
             'document-root.pem', '--tsa-ca-file', 'tsa-root.pem', '--json').stdout)
         assert result['ok'] and result['signers'][0]['archive']['valid']
+        signer = result['signers'][0]
+        assert signer['level'] == 'B-LTA' and signer['level_validated']
+        assert signer['history'] == 'valid' and signer['validation_time']
+        assert signer['revocation_checked']
+        text = run(sign, 'verify', 'signed-lta.p7m', '--ca-file',
+            'document-root.pem', '--tsa-ca-file', 'tsa-root.pem').stdout
+        assert 'B-LTA (validated)' in text and 'Historical validation: valid' in text
+
+        # Corrupt the archive attribute, preserving the document signature.
+        def value_range(data, pos):
+            size = data[pos + 1]
+            start = pos + 2
+            if size & 0x80:
+                width = size & 0x7f
+                size = int.from_bytes(data[start:start + width], 'big')
+                start += width
+            return start, start + size
+
+        damaged = bytearray((root / 'signed-lta.p7m').read_bytes())
+        archive_oid = bytes.fromhex('060604008d450204')
+        pos = damaged.index(archive_oid) + len(archive_oid)
+        start, end = value_range(damaged, pos)
+        damaged[end - 1] ^= 1
+        (root / 'damaged-lta.p7m').write_bytes(damaged)
+        result = json.loads(run(sign, 'verify', 'damaged-lta.p7m', '--ca-file',
+            'document-root.pem', '--tsa-ca-file', 'tsa-root.pem', '--json', success=False).stdout)
+        assert not result['ok'] and result['signature_valid']
+        assert result['signers'][0]['level'] == 'B-LTA'
+        assert not result['signers'][0]['level_validated']
+
         # Check system TSA trust without supplying a TSA CA file.
         env['SSL_CERT_FILE'] = str(root / 'tsa-root.pem')
         run(sign, 'verify', '--ca-file', 'document-root.pem',

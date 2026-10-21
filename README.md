@@ -33,3 +33,10 @@ mayúsculas. PDF usa PAdES automáticamente; `-f cades|pades` permite elegir
 el formato. Para LT/LTA se pueden aportar `--ca-file`, `--intermediates`,
 `--tsa-ca-file` y `--tsa-intermediates`; la confianza del sistema sigue activa.
 Si faltan evidencias o falla un sello, no se guarda la salida.
+
+`sign verify` delega en libssig la detección de formato y evidencias. Verifica
+B-B/B-T con confianza vigente, B-LT con revocación incluida vigente y B-LTA
+con la política histórica de la biblioteca. Usa la confianza del sistema por
+defecto. Texto y JSON distinguen nivel detectado, nivel validado y resultado
+histórico; evidencias incompletas o inválidas producen un error sin degradar
+el nivel detectado. La biblioteca no descarga evidencias durante verify.

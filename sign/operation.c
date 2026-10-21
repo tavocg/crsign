@@ -199,9 +199,6 @@ static bool signature_verify(
 	libssig_verify_result result = {0};
 	libssig_status        status = libssig_verify(&params, &result);
 	verify_output(args, status, &result);
-	if (status != LIBSSIG_OK) {
-		fprintf(stderr, "sign: verification failed (status=%d)\n", (int)status);
-	}
 	libssig_verify_free(&result);
 	return status == LIBSSIG_OK;
 }
