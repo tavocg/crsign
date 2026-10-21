@@ -14,6 +14,7 @@ sign, driver, openssl, mock_sign = sys.argv[1:]
 with tempfile.TemporaryDirectory(prefix='sign-trust-') as directory:
     root = Path(directory)
     env = os.environ.copy()
+    env.pop('NIX_SSL_CERT_FILE', None)
     env['SSL_CERT_DIR'] = str(root / 'empty-store')
     env['NO_PROXY'] = env['no_proxy'] = '127.0.0.1'
     server = http.server.HTTPServer(('127.0.0.1', 0), http.server.BaseHTTPRequestHandler)

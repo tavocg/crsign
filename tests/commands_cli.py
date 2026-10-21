@@ -11,6 +11,7 @@ sign, openssl = sys.argv[1:]
 with tempfile.TemporaryDirectory(prefix='sign-commands-') as directory:
     root = Path(directory)
     env = os.environ.copy()
+    env.pop('NIX_SSL_CERT_FILE', None)
     source = root / 'sample.txt'
     source.write_text('test signature bytes')
     env['SIGN_MOCK_DATA'] = str(source)
