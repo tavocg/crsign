@@ -126,7 +126,7 @@ static void verify_json(
 		putchar('}');
 	}
 	fputs("],\"format\":", stdout);
-	const char* formats[] = {"cades", "cms", "pades"};
+	const char* formats[] = {"cades", "cms", "pades", "xades", "jades"};
 	json_string(result->count ? formats[result->format] : NULL);
 	puts("}");
 }

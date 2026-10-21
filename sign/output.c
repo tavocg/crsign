@@ -13,9 +13,8 @@ void operation_output(const sign_args* args, bool ok, size_t len) {
 			fputs(",\"level\":", stdout);
 			json_string(levels[args->level]);
 			fputs(",\"format\":", stdout);
-			json_string(
-			    args->format == LIBSSIG_FORMAT_PADES ? "pades" : "cades"
-			);
+			const char* formats[] = {"cades", "cms", "pades", "xades", "jades"};
+			json_string(formats[args->format]);
 			fputs(",\"output\":", stdout);
 			json_string(args->output);
 			printf(

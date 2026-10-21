@@ -117,6 +117,10 @@ with tempfile.TemporaryDirectory(prefix='sign-commands-') as directory:
         assert not output(original, success=False)['ok']
         assert destination.read_bytes() == before
 
+    for fmt in ['cades', 'pades', 'xades', 'jades']:
+        signed_format = output(source, '-f', fmt, '-o', f'format-{fmt}.signed')
+        assert signed_format['ok'] and signed_format['format'] == fmt
+
     destination = root / 'signed "ñ".p7m'
     signed = output(source, '-o', destination)
     assert signed['command'] == 'sign' and signed['ok']

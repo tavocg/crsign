@@ -47,3 +47,9 @@ Features with multiple implementation files, such as verification and token
 listing, live in `sign/verify/` and `sign/tokens/`, with their entry headers
 and private helpers. Features that only need a `.c`/`.h` pair live directly in
 `sign/`, alongside shared argument parsing, I/O, HTTP and output helpers.
+
+JAdES and XAdES are selected with `-f jades` and `-f xades`. Both support
+B-B, B-T, B-LT and B-LTA; zero/default remains B-LTA. `sign verify` detects
+the format from its bytes. XAdES embeds arbitrary original bytes as a base64
+XMLDSig Object, preserving the original document, and `--detached` keeps
+content external. JAdES uses flattened JWS JSON serialization.

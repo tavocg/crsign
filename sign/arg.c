@@ -37,7 +37,12 @@ static const struct argp_option options[] = {
     {"key", 'k', "ID_HEX", 0, "Certificate ID in hexadecimal", 0},
     {"algorithm", 'a', "ALGORITHM", 0, "rsa-pkcs (default), rsa-pss, ecdsa", 0},
     {"level", 'l', "LEVEL", 0, "B-LTA (default), B-LT, B-T, B-B", 0},
-    {"format", 'f', "FORMAT", 0, "cades or pades (default: pades for PDF)", 0},
+    {"format",
+     'f',
+     "FORMAT",
+     0,
+     "cades, pades, xades or jades (default: pades for PDF)",
+     0},
     {"hash", 'H', "HASH", 0, "sha256 (default), sha384, sha512", 0},
     {"authority", 'A', "URL", 0, "RFC 3161 TSA (HTTP/HTTPS)", 0},
     {
@@ -179,7 +184,7 @@ static error_t parse_option(int key, char* arg, struct argp_state* state) {
 	const char* const algorithms[] = {"rsa-pkcs", "rsa-pss", "ecdsa"};
 	const char* const hashes[] = {"sha256", "sha384", "sha512"};
 	const char* const levels[] = {"B-LTA", "B-B", "B-T", "B-LT"};
-	const char* const formats[] = {"cades", "cms", "pades"};
+	const char* const formats[] = {"cades", "cms", "pades", "xades", "jades"};
 	if (key == 'o' || key == 't' || key == 'k' || key == 'a' || key == 'H' ||
 	    key == 'A' || key == 'l' || key == 'f' || key == DETACHED ||
 	    key == MIME_TYPE) {
@@ -219,9 +224,9 @@ static error_t parse_option(int key, char* arg, struct argp_state* state) {
 		args->level = (libssig_level)choice_parse(state, arg, levels, 4);
 		break;
 	case 'f':
-		args->format = (libssig_format)choice_parse(state, arg, formats, 3);
+		args->format = (libssig_format)choice_parse(state, arg, formats, 5);
 		if (args->format == LIBSSIG_FORMAT_CMS) {
-			argp_error(state, "Use cades or pades");
+			argp_error(state, "Use cades, pades, xades or jades");
 		}
 		args->format_explicit = true;
 		break;
