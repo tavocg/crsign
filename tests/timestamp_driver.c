@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-#include <sign/timestamp.h>
+#include <sign/timestamp/timestamp.h>
 #include <stdlib.h>
 int main(int argc, char** argv) {
 	if (argc < 4 || argc > 6) {

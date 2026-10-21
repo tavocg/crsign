@@ -1,7 +1,10 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-#ifndef SIGN_TIMESTAMP_H
-#define SIGN_TIMESTAMP_H
-#include <sign/trust.h>
+#ifndef SIGN_HTTP_H
+#define SIGN_HTTP_H
+
+#include <libssig/libssig.h>
+#include <sign/io.h>
+
 libssig_status http_exchange(
     void*                user,
     libssig_fetch_kind   kind,
@@ -10,9 +13,5 @@ libssig_status http_exchange(
     size_t               request_len,
     libssig_signature*   response
 );
-bool timestamp_apply(
-    const sign_args*   args,
-    const sign_trust*  trust,
-    libssig_signature* signature
-);
+
 #endif

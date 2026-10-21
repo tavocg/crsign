@@ -40,3 +40,10 @@ con la política histórica de la biblioteca. Usa la confianza del sistema por
 defecto. Texto y JSON distinguen nivel detectado, nivel validado y resultado
 histórico; evidencias incompletas o inválidas producen un error sin degradar
 el nivel detectado. La biblioteca no descarga evidencias durante verify.
+
+## Source layout
+
+Feature implementations live in `sign/sign/`, `sign/verify/`, `sign/tokens/`,
+`sign/trust/`, `sign/timestamp/` and `sign/gui/`, each with its entry header.
+Shared argument parsing, I/O, HTTP transport and output helpers live directly
+in `sign/`. Private feature headers stay inside their feature directory.
