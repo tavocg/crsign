@@ -1,13 +1,11 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-#ifndef SIGN_SIGN_SIGN_H
-#define SIGN_SIGN_SIGN_H
+#ifndef SIGN_TIMESTAMP_H
+#define SIGN_TIMESTAMP_H
 
-#include <sign/arg.h>
-#include <sign/trust/trust.h>
+#include <sign/trust.h>
 
-bool sign_create(
+bool timestamp_apply(
     const sign_args*   args,
-    const sign_buffer* input,
     const sign_trust*  trust,
     libssig_signature* signature
 );

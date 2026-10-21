@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include <sign/operation.h>
 #include <sign/output.h>
-#include <sign/sign/sign.h>
+#include <sign/sign.h>
 #include <sign/tokens/tokens.h>
 #include <sign/verify/verify.h>
 #include <stdio.h>

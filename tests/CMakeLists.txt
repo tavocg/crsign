@@ -5,9 +5,9 @@ find_program(OPENSSL_EXECUTABLE openssl REQUIRED)
 
 add_executable(timestamp_driver
     timestamp_driver.c
-    ../sign/timestamp/timestamp.c
+    ../sign/timestamp.c
     ../sign/http.c
-    ../sign/trust/trust.c
+    ../sign/trust.c
     ../sign/io.c
 )
 target_include_directories(timestamp_driver PRIVATE "${PROJECT_SOURCE_DIR}")

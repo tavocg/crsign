@@ -43,7 +43,7 @@ el nivel detectado. La biblioteca no descarga evidencias durante verify.
 
 ## Source layout
 
-Feature implementations live in `sign/sign/`, `sign/verify/`, `sign/tokens/`,
-`sign/trust/`, `sign/timestamp/` and `sign/gui/`, each with its entry header.
-Shared argument parsing, I/O, HTTP transport and output helpers live directly
-in `sign/`. Private feature headers stay inside their feature directory.
+Features with multiple implementation files, such as verification and token
+listing, live in `sign/verify/` and `sign/tokens/`, with their entry headers
+and private helpers. Features that only need a `.c`/`.h` pair live directly in
+`sign/`, alongside shared argument parsing, I/O, HTTP and output helpers.

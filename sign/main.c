@@ -22,7 +22,7 @@
 #include <sign/operation.h>
 
 #ifdef SIGN_WITH_GUI
-#include <sign/gui/gui.h>
+#include <sign/gui.h>
 #else
 #include <stdio.h>
 #include <stdlib.h>

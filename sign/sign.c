@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #define _DEFAULT_SOURCE
 #include <sign/http.h>
-#include <sign/sign/sign.h>
+#include <sign/sign.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

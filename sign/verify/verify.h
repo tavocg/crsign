@@ -3,7 +3,7 @@
 #define SIGN_VERIFY_VERIFY_H
 
 #include <sign/arg.h>
-#include <sign/trust/trust.h>
+#include <sign/trust.h>
 
 bool verify_run(
     const sign_args*   args,

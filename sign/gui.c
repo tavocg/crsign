@@ -8,7 +8,7 @@
  */
 
 #include <gtk/gtk.h>
-#include <sign/gui/gui.h>
+#include <sign/gui.h>
 
 static const char APPLICATION_ID[] = "org.crsign.Sign";
 static const char WINDOW_TITLE[] = "Sign";

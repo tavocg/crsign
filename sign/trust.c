@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-#include <sign/trust/trust.h>
+#include <sign/trust.h>
 #include <stdlib.h>
 
 bool trust_load(const sign_args* args, sign_trust* trust) {
