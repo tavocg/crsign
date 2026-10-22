@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #define _POSIX_C_SOURCE 200809L
+#include <libssig/trust_store.h>
 #include <openssl/err.h>
 #include <openssl/pem.h>
 #include <openssl/x509v3.h>
@@ -90,13 +91,13 @@ static STACK_OF(X509) *
 	if (!untrusted || !store || !ctx || !certs_parse(inter, untrusted)) {
 		goto done;
 	}
-	/* An unavailable system store must not prevent explicit/fallback anchors.
-	 */
-	X509_STORE_set_default_paths(store);
-	ERR_clear_error();
 	if (!roots_add(store, ca)) {
 		goto done;
 	}
+	/* Discovery is best effort; explicit anchors can still supply a chain.
+	 * The loader installs native policy checks before adding certificates. */
+	libssig_trust_store_load_system(store);
+	ERR_clear_error();
 	for (int i = 0; i < 2; ++i) {
 		if (!X509_STORE_CTX_init(ctx, store, cert, untrusted)) {
 			break;

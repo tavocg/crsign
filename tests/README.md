@@ -103,3 +103,22 @@ system priority, selection, expired roots, DER intermediate merging and a local
 TSA without card access. `cert_catalog` audits the shipped public CA certificates,
 including their DER fingerprints and chains, and tests generator rejection paths.
 The installed Sign binary only includes the reviewed public catalogue.
+
+The system-trust layer can also be tested without PKCS#11, QPDF or GTK:
+
+```sh
+cmake -S tests/libssig/tests/system_trust -B build/system-trust -DCMAKE_BUILD_TYPE=Release
+cmake --build build/system-trust --parallel
+ctest --test-dir build/system-trust --output-on-failure
+```
+
+This suite requires OpenSSL >= 3.5; set `OPENSSL_ROOT_DIR` if it is not found.
+`system_trust` injects native trust decisions while exercising real OpenSSL
+chains: native rejection, explicit-root precedence, historical dates, timestamp
+purpose, missing issuers, expired certificates, callbacks and DER handling.
+On Windows/macOS, `system_trust_os` additionally compiles and runs the real
+Crypt32/Security backend against the existing public system stores, rejects an
+unknown self-signed certificate and checks an explicit anchor. It installs no
+certificates, changes no trust settings and accesses no private keys.
+`native-trust.yml` registers these standalone tests on Windows/MSYS2 UCRT64 and
+macOS with Homebrew OpenSSL; this does not yet build the whole application.

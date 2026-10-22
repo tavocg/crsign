@@ -150,12 +150,43 @@ Sin `-m`, se aplica la configuración o la detección de p11-kit como antes.
 `-m` se admite al firmar y listar tokens, y se rechaza al verificar.
 
 
+## Confianza del sistema
+
+La validación de documentos, TSA y OCSP incorpora la confianza del sistema a
+través de libssig. En Linux conserva los almacenes predeterminados de OpenSSL,
+incluidos `SSL_CERT_FILE` y `SSL_CERT_DIR`. En Windows agrega los certificados
+públicos de `ROOT` y `CA` del usuario actual, que incluyen los del equipo; en
+macOS agrega las anclas del sistema, los certificados con ajustes de confianza
+de usuario/administrador y los certificados públicos de la búsqueda de llaveros.
+No abre claves privadas ni modifica los almacenes.
+
+Una cadena que termina en un ancla importada del almacén nativo debe superar
+las comprobaciones de OpenSSL y la evaluación nativa de esa misma cadena,
+con su fecha de validación y el propósito de sello de tiempo cuando corresponda.
+Un certificado del almacén de intermediarios no se convierte por sí solo en una
+raíz confiable. Los rechazos nativos se informan como `certificate rejected` y
+no activan el respaldo de raíces embebidas.
+
+`--ca-file` y `--tsa-ca-file` siguen aportando anclas explícitas e independientes;
+las rutas y variables de confianza de OpenSSL siguen activas. Esas fuentes
+explícitas no se someten a las reglas del almacén nativo. La evaluación nativa no
+descarga emisores ni respuestas OCSP/CRL; libssig conserva sus comprobaciones de
+evidencia de revocación. Si el sistema elige una cadena diferente, se rechaza esa
+ruta en lugar de atribuirle la confianza de otra cadena.
+
+La selección automática de TSA usa la misma integración. Este paso incluye
+pruebas de la capa común en Linux y una suite mínima con CI para Windows/macOS;
+la ejecución nativa queda pendiente hasta que se ejecute esa CI.
+
 ## Construcción
 
-Requiere CMake, un compilador C, argp, libssig >= 0.1.1, libcurl >= 7.85,
+Requiere CMake, un compilador C, argp, libssig >= 0.1.2, libcurl >= 7.85,
 pkg-config, GLib >= 2.40/GIO y tomlc17 (API con `toml_get`, por ejemplo 20260501).
 La interfaz gráfica también requiere GTK 4. GLib/GIO y tomlc17 se usan igualmente
 en compilaciones headless; el entorno Nix incluye ambas dependencias.
+En Windows/macOS, libssig requiere OpenSSL >= 3.5 para consultar el propósito de
+validación. Windows enlaza con Crypt32 y macOS con Security/CoreFoundation
+(macOS >= 10.14). En Linux se conserva el mínimo OpenSSL 3.0 de libssig.
 
 glibc incluye argp. En otros entornos se debe instalar una implementación
 compatible, como argp-standalone. CMake detecta si argp está en la biblioteca C;
@@ -178,9 +209,8 @@ redirigido, argumentos o variables de entorno. Los PIN que superen 1024 bytes
 se rechazan; no se truncan. El búfer se borra antes de liberarlo tras el intento de firma.
 Los tokens con teclado propio no solicitan un PIN en la CLI.
 
-La carga explícita de módulos pasa por p11-kit; el empaquetado y la integración
-con almacenes nativos siguen pendientes de adaptación. La CLI, archivos y entrada del PIN
-requieren ejecución y validación nativas en Windows/macOS; estos cambios no
+La carga explícita de módulos pasa por p11-kit. El empaquetado y la validación
+completa de la aplicación en Windows/macOS siguen pendientes; estos cambios no
 implican soporte completo del programa en esos sistemas.
 
 ```sh
