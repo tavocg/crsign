@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include <sign/http.h>
+#include <sign/modules.h>
 #include <sign/pin.h>
 #include <sign/sign.h>
 #include <sign/timestamp/timestamp.h>
@@ -139,7 +140,7 @@ bool sign_create(
 	libssig_context          ctx = {0};
 	libssig_token_list       tokens = {0};
 	libssig_certificate_list certs = {0};
-	libssig_status           status = libssig_context_open(&ctx);
+	libssig_status           status = modules_open(args, &ctx);
 	if (status == LIBSSIG_OK) {
 		status = libssig_tokens(&ctx, &tokens, 0);
 	}

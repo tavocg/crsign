@@ -9,6 +9,13 @@ libssig_status libssig_context_open(libssig_context* ctx) {
 	(void)ctx;
 	return getenv("SIGN_MOCK_FAIL") ? LIBSSIG_ERROR_MODULES : LIBSSIG_OK;
 }
+libssig_status libssig_context_open_modules(
+    libssig_context*           ctx,
+    const libssig_string_list* paths
+) {
+	(void)paths;
+	return libssig_context_open(ctx);
+}
 void libssig_context_close(libssig_context* ctx) {
 	(void)ctx;
 }

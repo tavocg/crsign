@@ -94,7 +94,7 @@ label = "empty"
     assert options('-p', 'empty') == defaults
     assert options('-p', 'bccr', '-p', 'empty') == defaults
     assert 'Unknown profile' in run(source, '-p', 'unknown', success=False).stderr
-    for command in [('tokens',), ('verify', source), ('--gui',)]:
+    for command in [('verify', source), ('--gui',)]:
         run(*command, '-p', 'bccr', success=False)
 
     # Validation failures identify the selected file and never produce output.

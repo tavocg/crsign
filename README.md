@@ -44,7 +44,7 @@ label = "automatico"
 Solo `label` es obligatorio en cada perfil y debe ser único. `name` es
 descriptivo. Todos los parámetros de firmado son opcionales: al omitirlos se
 conservan los valores predeterminados y la selección automática de token,
-certificado, TSA y formato. El perfil `automatico` equivale a firmar sin perfil.
+certificado, TSA y formato. Un perfil vacío hereda los valores globales.
 
 Los argumentos explícitos prevalecen independientemente de su posición:
 `sign -p bccr -t "pkcs11:token=Other" doc.pdf` sustituye el token del perfil.
@@ -58,10 +58,11 @@ bundles del perfil.
 Las rutas de certificados relativas se resuelven desde la carpeta de
 `crsign.toml`; las rutas pasadas por CLI siguen siendo relativas al directorio
 de trabajo. No se expanden `~` ni variables de entorno dentro del TOML.
-El archivo se lee al firmar, incluso sin `-p`, para aplicar los valores globales.
+El archivo se lee al firmar y listar tokens, incluso sin `-p`, para aplicar los valores globales.
 Si no existe y no se solicita un perfil, se conservan los valores predeterminados.
-`-p` se admite exclusivamente para firmar. Verificar, listar tokens y mostrar
-ayuda no leen esta configuración.
+`-p` se admite para firmar y listar tokens. Verificar y mostrar ayuda no leen
+esta configuración. Al listar tokens solo se aplica la selección de módulos;
+no se ejecuta `pincmd`.
 Se rechazan TOML inválido, etiquetas duplicadas, campos desconocidos del perfil
 seleccionado y versiones no compatibles. La versión es obligatoria; por ahora
 se acepta `0.1` tanto numérico como texto (`"0.1"`), sin migración automática.
@@ -97,9 +98,46 @@ devuelve un PIN inválido, la firma se detiene sin reintento ni solicitud
 interactiva adicional. Solo se ejecuta si el token necesita un PIN y no tiene
 teclado propio.
 
+## Módulos PKCS#11
+
+Sin `modules`, se conserva la detección de módulos registrados en p11-kit.
+Para cargar una o varias bibliotecas directamente, configura una lista global o
+por perfil:
+
+```toml
+version = 0.1
+modules = ["/usr/lib/pkcs11/vendor.so", "/opt/other/libpkcs11.so"]
+
+[[profiles]]
+label = "bccr"
+modules = ["modules/vendor.so"]
+
+[[profiles]]
+label = "automatico"
+modules = []
+```
+
+Un perfil que omite `modules` hereda la lista global. Su propia lista reemplaza
+la global; `modules = []` restablece la detección de p11-kit. Una lista no vacía
+carga exclusivamente esas bibliotecas, en el orden indicado. Todas deben cargar
+e inicializarse correctamente; si alguna falla se liberan las anteriores y se
+detiene la operación. Las rutas repetidas se cargan una sola vez.
+
+Las rutas relativas parten de la carpeta de `crsign.toml`, también sin `-p`.
+No se expanden `~` ni variables. Usa bibliotecas `.so` en Linux, `.dylib` o `.so`
+según el proveedor en macOS y `.dll` en Windows, compatibles con la arquitectura
+del programa y con sus dependencias instaladas. En TOML, las comillas simples
+permiten escribir rutas de Windows sin escapar las barras:
+`modules = ['C:\Program Files\Vendor\pkcs11.dll']`.
+
+`sign tokens -p bccr` permite consultar los tokens y certificados usando los
+módulos del perfil. `sign -p bccr archivo.pdf` usa la misma selección al firmar.
+Si aparecen varios tokens, elige uno con `-t URI`, usando la URI completa que
+muestra `sign tokens`.
+
 ## Construcción
 
-Requiere CMake, un compilador C, argp, libssig, libcurl >= 7.85,
+Requiere CMake, un compilador C, argp, libssig >= 0.1.1, libcurl >= 7.85,
 pkg-config, GLib >= 2.40/GIO y tomlc17 (API con `toml_get`, por ejemplo 20260501).
 La interfaz gráfica también requiere GTK 4. GLib/GIO y tomlc17 se usan igualmente
 en compilaciones headless; el entorno Nix incluye ambas dependencias.
@@ -125,8 +163,8 @@ redirigido, argumentos o variables de entorno. Los PIN que superen 1024 bytes
 se rechazan; no se truncan. El búfer se borra antes de liberarlo tras el intento de firma.
 Los tokens con teclado propio no solicitan un PIN en la CLI.
 
-La carga de módulos de tarjetas, el empaquetado y la integración con almacenes
-nativos siguen pendientes de adaptación. La CLI, archivos y entrada del PIN
+La carga explícita de módulos pasa por p11-kit; el empaquetado y la integración
+con almacenes nativos siguen pendientes de adaptación. La CLI, archivos y entrada del PIN
 requieren ejecución y validación nativas en Windows/macOS; estos cambios no
 implican soporte completo del programa en esos sistemas.
 

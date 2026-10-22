@@ -162,9 +162,15 @@ sys.stdout.buffer.write(outputs[mode])
     sign_file()
     assert not marker.exists()
 
-    # Other commands and help do not read the signing configuration.
+    # Listing reads module configuration, but never invokes a PIN helper.
+    write(command('fail'))
+    result = subprocess.run([sign, 'tokens', '--json'], env=env, capture_output=True, timeout=10)
+    assert result.returncode == 0 and not marker.exists(), result.stderr
+    # Help does not read configuration; listing reports malformed configuration.
     config.write_text('invalid TOML')
-    for arguments in [('tokens', '--json'), ('--help',)]:
+    for arguments in [('--help',)]:
         result = subprocess.run([sign, *arguments], env=env, capture_output=True, timeout=10)
         assert result.returncode == 0, result.stderr
+    result = subprocess.run([sign, 'tokens'], env=env, capture_output=True, timeout=10)
+    assert result.returncode != 0
 print('Global/profile PIN helper checks passed')

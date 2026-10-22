@@ -30,6 +30,14 @@ int main(int argc, char** argv) {
 	STRING_FIELD("mime_type", mime_type);
 	STRING_FIELD("output", output);
 #undef STRING_FIELD
+	fputs(",\"modules\":[", stdout);
+	for (size_t i = 0; i < args.modules.count; ++i) {
+		if (i) {
+			putchar(',');
+		}
+		json_string(args.modules.items[i]);
+	}
+	putchar(']');
 	fputs(",\"pincmd\":[", stdout);
 	for (size_t i = 0; args.pincmd && args.pincmd[i]; ++i) {
 		if (i) {

@@ -19,7 +19,7 @@ find_package(Argp REQUIRED)
 
 include(GNUInstallDirs)
 include(CTest)
-find_package(libssig CONFIG REQUIRED)
+find_package(libssig 0.1.1 CONFIG REQUIRED)
 find_package(CURL 7.85 REQUIRED)
 find_package(OpenSSL REQUIRED COMPONENTS Crypto)
 find_program(OPENSSL_EXECUTABLE openssl REQUIRED)

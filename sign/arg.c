@@ -51,7 +51,12 @@ static const struct argp_option options[] = {
      0,
      "Output (default: basename-signed.ext; never overwrite)",
      0},
-    {"profile", 'p', "LABEL", 0, "Use a signing profile from crsign.toml", 0},
+    {"profile",
+     'p',
+     "LABEL",
+     0,
+     "Use a profile from crsign.toml (signing or tokens)",
+     0},
     {"token", 't', "URI", 0, "Exact PKCS#11 token URI", 0},
     {"key", 'k', "ID_HEX", 0, "Certificate ID in hexadecimal", 0},
     {"algorithm", 'a', "ALGORITHM", 0, "rsa-pkcs (default), rsa-pss, ecdsa", 0},
@@ -334,7 +339,6 @@ static error_t parse_option(int key, char* arg, struct argp_state* state) {
 		break;
 	case 'p':
 		context->profile = arg;
-		args->signing_options = true;
 		break;
 	case 'o':
 	case 't':
@@ -376,8 +380,13 @@ static error_t parse_option(int key, char* arg, struct argp_state* state) {
 		break;
 	case ARGP_KEY_END:
 		/* Check command compatibility before opening a configuration file. */
+		if (context->profile &&
+		    (args->command == SIGN_COMMAND_VERIFY || args->gui)) {
+			argp_error(state, "--profile requires signing or tokens");
+		}
 		args_validate(state, args);
-		if (args->command == SIGN_COMMAND_SIGN && args->input) {
+		if ((args->command == SIGN_COMMAND_SIGN && args->input) ||
+		    args->command == SIGN_COMMAND_TOKENS) {
 			bool cli_bundles = args->cert_bundle_count ||
 			                   args->no_bundled_certs;
 			sign_args resolved = {0};
@@ -389,6 +398,12 @@ static error_t parse_option(int key, char* arg, struct argp_state* state) {
 			    )) {
 				argp_error(state, "%s", error);
 			}
+			if (args->command == SIGN_COMMAND_TOKENS) {
+				/* Listing uses module selection without applying signing
+				 * options. */
+				resolved = (sign_args){.modules = resolved.modules,
+				                       .config = resolved.config};
+			}
 			/* Command/UI options do not belong to the signing profile. */
 			resolved.command = args->command;
 			resolved.input = args->input;
@@ -396,7 +411,7 @@ static error_t parse_option(int key, char* arg, struct argp_state* state) {
 			resolved.json = args->json;
 			resolved.all_certificates = args->all_certificates;
 			resolved.content = args->content;
-			resolved.signing_options = true;
+			resolved.signing_options = args->signing_options;
 			*args = resolved;
 			/* A CLI bundle selection replaces the profile's entire selection.
 			 */

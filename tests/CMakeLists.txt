@@ -139,3 +139,18 @@ add_test(NAME pincmd_cli COMMAND "${Python3_EXECUTABLE}"
     "${CMAKE_CURRENT_SOURCE_DIR}/pincmd_cli.py" $<TARGET_FILE:sign_mock>
     $<TARGET_FILE:args_driver>)
 set_tests_properties(pincmd_cli PROPERTIES TIMEOUT 30)
+
+# Real dynamic loading through p11-kit, using isolated empty hardware fixtures.
+pkg_check_modules(P11_KIT REQUIRED IMPORTED_TARGET p11-kit-1)
+foreach(module IN ITEMS first second broken)
+    add_library(pkcs11_${module} MODULE pkcs11_module.c)
+    target_link_libraries(pkcs11_${module} PRIVATE PkgConfig::P11_KIT)
+    target_compile_definitions(pkcs11_${module} PRIVATE MODULE_LABEL="Sign-${module}")
+    target_compile_options(pkcs11_${module} PRIVATE -Wall -Wextra -Wpedantic -Werror)
+endforeach()
+target_compile_definitions(pkcs11_broken PRIVATE MODULE_FAIL)
+add_test(NAME modules_cli COMMAND "${Python3_EXECUTABLE}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/modules_cli.py" $<TARGET_FILE:sign>
+    $<TARGET_FILE:args_driver> $<TARGET_FILE:sign_mock>
+    $<TARGET_FILE:pkcs11_first> $<TARGET_FILE:pkcs11_second> $<TARGET_FILE:pkcs11_broken>)
+set_tests_properties(modules_cli PROPERTIES TIMEOUT 30)

@@ -26,6 +26,7 @@ static const config_field profile_fields[] = {
     {"name", 0, TOML_STRING, false},
     {"label", 0, TOML_STRING, false},
     {"pincmd", 0, TOML_UNKNOWN, false},
+    {"modules", 0, TOML_ARRAY, false},
     {"token", 't', TOML_STRING, false},
     {"cert_id", 'k', TOML_STRING, false},
     {"algorithm", 'a', TOML_STRING, false},
@@ -112,6 +113,45 @@ static bool read_pincmd(
 	return true;
 }
 
+/* Module paths use the same owned configuration lifetime as other settings. */
+static bool read_modules(
+    sign_args*          args,
+    struct sign_config* config,
+    const char*         directory,
+    toml_datum_t        value,
+    char*               error,
+    size_t              size
+) {
+	if (value.type != TOML_ARRAY) {
+		return config_error(error, size, "modules must be an array of paths");
+	}
+	const char** paths = g_new0(const char*, (size_t)value.u.arr.size + 1);
+	g_ptr_array_add(config->allocations, paths);
+	args->modules = (libssig_string_list){.items = paths};
+	for (int i = 0; i < value.u.arr.size; ++i) {
+		toml_datum_t item = value.u.arr.elem[i];
+		if (!valid_string(item) || !item.u.s[0]) {
+			return config_error(
+			    error,
+			    size,
+			    "modules must contain nonempty paths"
+			);
+		}
+		char* path = g_canonicalize_filename(item.u.s, directory);
+		g_ptr_array_add(config->allocations, path);
+		bool duplicate = false;
+		for (size_t j = 0; j < args->modules.count; ++j) {
+			if (!strcmp(path, paths[j])) {
+				duplicate = true;
+			}
+		}
+		if (!duplicate) {
+			paths[args->modules.count++] = path;
+		}
+	}
+	return true;
+}
+
 static bool read_fields(
     sign_args*          args,
     struct sign_config* config,
@@ -136,6 +176,12 @@ static bool read_fields(
 			return config_error(error, size, "Unknown profile field: %s", key);
 		}
 		toml_datum_t value = table.u.tab.value[i];
+		if (!strcmp(field->name, "modules")) {
+			if (!read_modules(args, config, directory, value, error, size)) {
+				return false;
+			}
+			continue;
+		}
 		if (!strcmp(field->name, "pincmd")) {
 			if (!read_pincmd(args, config, value, error, size)) {
 				return false;
@@ -223,7 +269,7 @@ static bool read_v01(
 		const char* key = root.u.tab.key[i];
 		if (strlen(key) != (size_t)root.u.tab.len[i] ||
 		    (strcmp(key, "version") && strcmp(key, "profiles") &&
-		     strcmp(key, "pincmd"))) {
+		     strcmp(key, "pincmd") && strcmp(key, "modules"))) {
 			return config_error(
 			    error,
 			    size,
@@ -231,6 +277,11 @@ static bool read_v01(
 			    key
 			);
 		}
+	}
+	toml_datum_t modules = toml_get(root, "modules");
+	if (modules.type != TOML_UNKNOWN &&
+	    !read_modules(args, config, directory, modules, error, size)) {
+		return false;
 	}
 	toml_datum_t command = toml_get(root, "pincmd");
 	if (command.type != TOML_UNKNOWN &&
