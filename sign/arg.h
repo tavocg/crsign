@@ -25,9 +25,34 @@ typedef struct {
 	bool           no_bundled_certs;
 	const char*    cert_bundles[32];
 	size_t         cert_bundle_count;
+	/* Owns strings read from the selected profile; release with arg_free(). */
+	struct sign_config* config;
 } sign_args;
 
+/* Shared option identifiers and validation for CLI arguments and profiles. */
+enum {
+	CA_FILE = 256,
+	NO_BUNDLED_CERTS,
+	CERT_BUNDLE,
+	INTERMEDIATES,
+	TSA_CA_FILE,
+	TSA_INTERMEDIATES,
+	DETACHED,
+	MIME_TYPE,
+	JSON,
+	ALL_CERTIFICATES,
+	CONTENT
+};
+
+bool arg_setting(
+    sign_args*  args,
+    int         key,
+    const char* value,
+    char*       error,
+    size_t      error_size
+);
 sign_args arg_parse(int argc, char** argv);
+void      arg_free(sign_args* args);
 void      arg_help(char* program_name);
 
 #endif // SIGN_ARG_H

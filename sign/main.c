@@ -32,7 +32,9 @@ int main(int argc, char** argv) {
 	sign_args args = arg_parse(argc, argv);
 
 	if (args.input || args.command == SIGN_COMMAND_TOKENS) {
-		return operation_run(&args);
+		int result = operation_run(&args);
+		arg_free(&args);
+		return result;
 	}
 
 	if (!args.gui) {

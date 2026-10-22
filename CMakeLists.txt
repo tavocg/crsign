@@ -21,11 +21,17 @@ find_package(CURL 7.85 REQUIRED)
 find_package(OpenSSL REQUIRED COMPONENTS Crypto)
 find_program(OPENSSL_EXECUTABLE openssl REQUIRED)
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(GLIB REQUIRED IMPORTED_TARGET glib-2.0)
+find_path(TOMLC17_INCLUDE_DIR tomlc17.h REQUIRED)
+find_library(TOMLC17_LIBRARY NAMES tomlc17 REQUIRED)
+add_library(sign_config_deps INTERFACE)
+target_include_directories(sign_config_deps INTERFACE "${TOMLC17_INCLUDE_DIR}")
+target_link_libraries(sign_config_deps INTERFACE PkgConfig::GLIB "${TOMLC17_LIBRARY}")
 
 option(HEADLESS "Build without the GTK graphical interface" OFF)
 
 if(NOT HEADLESS)
-    find_package(PkgConfig REQUIRED)
     pkg_check_modules(GTK4 REQUIRED IMPORTED_TARGET gtk4)
 endif()
 
@@ -58,7 +64,7 @@ list(APPEND SIGN_SOURCES "${SIGN_CERT_CATALOG}")
 
 add_executable(sign ${SIGN_SOURCES})
 
-target_link_libraries(sign PRIVATE libssig::ssig CURL::libcurl OpenSSL::Crypto)
+target_link_libraries(sign PRIVATE libssig::ssig CURL::libcurl OpenSSL::Crypto sign_config_deps)
 
 target_include_directories(sign PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"

@@ -32,7 +32,7 @@
             ];
             nativeBuildInputs = with pkgs; [ pkg-config ];
             buildInputs = with pkgs; [
-              gtk4 curl openssl p11-kit file qpdf jansson libxml2
+              gtk4 glib tomlc17 curl openssl p11-kit file qpdf jansson libxml2
               # FindPkgConfig also queries GTK private dependencies for static linking.
               libsysprof-capture pcre2 util-linux libselinux libsepol
               fribidi libthai libdatrie libxdmcp libxau
