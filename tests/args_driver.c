@@ -19,6 +19,7 @@ int main(int argc, char** argv) {
 #define STRING_FIELD(name, member)                                             \
 	fputs(",\"" name "\":", stdout);                                           \
 	json_string(args.member)
+	STRING_FIELD("input", input);
 	STRING_FIELD("token", uri);
 	STRING_FIELD("cert_id", id);
 	STRING_FIELD("authority", authority);

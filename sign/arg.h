@@ -27,6 +27,8 @@ typedef struct {
 	size_t         cert_bundle_count;
 	/* Owns strings read from the selected profile; release with arg_free(). */
 	struct sign_config* config;
+	/* Owns the native-encoding argument vector (UTF-8 on Windows). */
+	char** argv;
 } sign_args;
 
 /* Shared option identifiers and validation for CLI arguments and profiles. */

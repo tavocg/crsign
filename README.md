@@ -65,10 +65,21 @@ se acepta `0.1` tanto numérico como texto (`"0.1"`), sin migración automática
 
 ## Construcción
 
-Requiere CMake, un compilador C, glibc (argp), libssig, libcurl >= 7.85,
-pkg-config, GLib/GIO y tomlc17 (API con `toml_get`, por ejemplo 20260501).
+Requiere CMake, un compilador C, argp, libssig, libcurl >= 7.85,
+pkg-config, GLib >= 2.40/GIO y tomlc17 (API con `toml_get`, por ejemplo 20260501).
 La interfaz gráfica también requiere GTK 4. GLib/GIO y tomlc17 se usan igualmente
 en compilaciones headless; el entorno Nix incluye ambas dependencias.
+
+glibc incluye argp. En otros entornos se debe instalar una implementación
+compatible, como argp-standalone. CMake detecta si argp está en la biblioteca C;
+si no está, busca el encabezado y la biblioteca externos. Se pueden indicar
+explícitamente con `-DARGP_INCLUDE_DIR=/ruta/include`
+y `-DARGP_LIBRARY=/ruta/lib/libargp.a` (o la biblioteca equivalente del sistema).
+No se descargan dependencias durante la configuración.
+
+En Windows, la CLI obtiene los argumentos desde la línea de comandos Unicode y
+los convierte a UTF-8 para las rutas, perfiles y opciones, conservando la sintaxis
+de argp. Los argumentos se mantienen vivos hasta terminar la operación.
 
 La capa de archivos usa GLib/GIO para las rutas nativas, incluidos nombres
 UTF-8 en Windows, y conserva la creación exclusiva de salidas (sin sobrescribir).

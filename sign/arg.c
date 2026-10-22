@@ -6,7 +6,9 @@
 #include <sign/config.h>
 #include <stdarg.h>
 #include <string.h>
-#include <strings.h>
+#ifdef G_OS_WIN32
+#include <glib/gwin32.h>
+#endif
 
 const char* argp_program_version = "Sign " SIGN_VERSION;
 typedef struct {
@@ -126,7 +128,7 @@ static int choice_parse(
     int                count
 ) {
 	for (int i = 0; i < count; ++i) {
-		if (!strcasecmp(value, choices[i])) {
+		if (!g_ascii_strcasecmp(value, choices[i])) {
 			return i;
 		}
 	}
@@ -157,7 +159,7 @@ bool arg_setting(
 		break;
 	case 'a':
 		choice = choice_parse(
-		    !strcasecmp(value, "rsa") ? "rsa-pkcs" : value,
+		    !g_ascii_strcasecmp(value, "rsa") ? "rsa-pkcs" : value,
 		    algorithms,
 		    3
 		);
@@ -436,10 +438,19 @@ static const struct argp parser = {
 };
 
 sign_args arg_parse(int argc, char** argv) {
+	/* main() uses the system code page on Windows; GLib file APIs use UTF-8. */
+#ifdef G_OS_WIN32
+	char** owned_argv = g_win32_get_command_line();
+	argc = (int)g_strv_length(owned_argv);
+#else
+	char** owned_argv = g_strdupv(argv);
+#endif
+	(void)argv;
 	parse_context context = {
 	    .settings = g_array_new(false, false, sizeof(cli_setting))
 	};
-	argp_parse(&parser, argc, argv, 0, 0, &context);
+	argp_parse(&parser, argc, owned_argv, 0, 0, &context);
+	context.args.argv = owned_argv;
 	g_array_free(context.settings, true);
 	return context.args;
 }
@@ -450,5 +461,6 @@ void arg_help(char* program_name) {
 
 void arg_free(sign_args* args) {
 	config_free(args->config);
+	g_strfreev(args->argv);
 	*args = (sign_args){0};
 }

@@ -19,6 +19,9 @@ environments can install `tests/libssig/tests/requirements.txt` and select their
 interpreter with `Python3_EXECUTABLE`.
 
 - `commands_cli` checks command dispatch and JSON with a hardware substitute.
+- `arguments_cli` checks Unicode arguments, attached short options, long options,
+  repeated values, `--`, help/version and profile precedence with either argp
+  implementation. The CMake `Argp::Argp` target uses libc or an external library.
 - `file_io` checks native output paths, Unicode filenames, binary/empty files,
   exclusive creation and destination symlinks. On Unix it also checks private
   permissions, rejection of oversized sparse inputs and cleanup after an actual
@@ -40,6 +43,12 @@ CTest fixtures automatically generate inputs when selecting `-R signatures_cli`
 or `-L conformance`, including parallel runs. Minimal CLI tests are available
 with `SIGN_TEST_LIBSSIG=OFF`; disabling `BUILD_TESTING` needs no test submodules.
 The CI workflow checks both headless and GTK builds without opening a window.
+
+To exercise argp-standalone even on glibc, configure a separate build with
+`-DARGP_INCLUDE_DIR=/path/include -DARGP_LIBRARY=/path/lib/libargp.a`, build it,
+and run `ctest --test-dir BUILD -R 'arguments_cli|profiles_cli|commands_cli'
+--output-on-failure`. This checks the external implementation on the host; it
+does not replace native Windows/macOS execution.
 
 The file layer also has a standalone suite that requires only a C compiler,
 CMake, pkg-config and GLib/GIO, so it can be built on Windows/macOS before the

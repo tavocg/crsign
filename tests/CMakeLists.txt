@@ -25,7 +25,7 @@ set_tests_properties(trust_cli PROPERTIES TIMEOUT 90)
 # Exercise the real CLI without a card, PIN or installed PKCS#11 module.
 add_executable(sign_mock ${SIGN_SOURCES} token_mock.c)
 target_include_directories(sign_mock PRIVATE "${PROJECT_SOURCE_DIR}")
-target_link_libraries(sign_mock PRIVATE libssig::ssig CURL::libcurl OpenSSL::Crypto sign_config_deps PkgConfig::GIO)
+target_link_libraries(sign_mock PRIVATE Argp::Argp libssig::ssig CURL::libcurl OpenSSL::Crypto sign_config_deps PkgConfig::GIO)
 target_compile_definitions(sign_mock PRIVATE SIGN_VERSION="${PROJECT_VERSION}")
 target_compile_options(sign_mock PRIVATE -Wall -Wextra -Wpedantic -Werror)
 if(NOT HEADLESS)
@@ -70,7 +70,7 @@ target_include_directories(bundle_catalog PRIVATE "${PROJECT_SOURCE_DIR}")
 target_link_libraries(bundle_catalog PRIVATE libssig::ssig)
 add_executable(sign_bundles ${BUNDLE_SOURCES} $<TARGET_OBJECTS:bundle_catalog>)
 target_include_directories(sign_bundles PRIVATE "${PROJECT_SOURCE_DIR}")
-target_link_libraries(sign_bundles PRIVATE libssig::ssig CURL::libcurl OpenSSL::Crypto sign_config_deps PkgConfig::GIO)
+target_link_libraries(sign_bundles PRIVATE Argp::Argp libssig::ssig CURL::libcurl OpenSSL::Crypto sign_config_deps PkgConfig::GIO)
 target_compile_definitions(sign_bundles PRIVATE SIGN_VERSION="${PROJECT_VERSION}")
 target_compile_options(sign_bundles PRIVATE -Wall -Wextra -Wpedantic -Werror)
 if(NOT HEADLESS)
@@ -113,7 +113,7 @@ set_tests_properties(http_transport PROPERTIES TIMEOUT 30 LABELS "integration")
 add_executable(args_driver args_driver.c ../sign/arg.c ../sign/config.c
     ../sign/json.c ../sign/io.c ../sign/certs/certs.c "${SIGN_CERT_CATALOG}")
 target_include_directories(args_driver PRIVATE "${PROJECT_SOURCE_DIR}")
-target_link_libraries(args_driver PRIVATE libssig::ssig OpenSSL::Crypto sign_config_deps PkgConfig::GIO)
+target_link_libraries(args_driver PRIVATE Argp::Argp libssig::ssig OpenSSL::Crypto sign_config_deps PkgConfig::GIO)
 target_compile_definitions(args_driver PRIVATE SIGN_VERSION="${PROJECT_VERSION}")
 target_compile_options(args_driver PRIVATE -Wall -Wextra -Wpedantic -Werror)
 add_test(NAME profiles_cli COMMAND "${Python3_EXECUTABLE}"
@@ -122,3 +122,7 @@ add_test(NAME profiles_cli COMMAND "${Python3_EXECUTABLE}"
 set_tests_properties(profiles_cli PROPERTIES TIMEOUT 30)
 
 add_subdirectory(io)
+
+add_test(NAME arguments_cli COMMAND "${Python3_EXECUTABLE}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/arguments_cli.py" $<TARGET_FILE:args_driver>)
+set_tests_properties(arguments_cli PROPERTIES TIMEOUT 30)
