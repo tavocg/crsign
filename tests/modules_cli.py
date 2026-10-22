@@ -53,6 +53,8 @@ with tempfile.TemporaryDirectory(prefix='sign-modules-') as temporary:
 
     # No configuration, omitted modules and [] preserve registered discovery.
     assert labels() == {'Sign-first'}
+    assert labels('-m', second) == {'Sign-second'}
+    assert options('-m', second) == [second]
     write()
     assert labels() == {'Sign-first'}
     write([])
@@ -73,19 +75,47 @@ with tempfile.TemporaryDirectory(prefix='sign-modules-') as temporary:
         assert events.count(f'Sign-{name}:finalize') == 1, events
     assert not any('broken' in event for event in events)
 
+    # CLI lists replace both global and profile lists, regardless of argument order.
+    write([broken], [broken])
+    assert labels('-m', second) == {'Sign-second'}
+    assert labels('-m', second, '-p', 'bccr') == {'Sign-second'}
+    assert labels('-p', 'bccr', '--module=' + first, '-m' + second) == {'Sign-first', 'Sign-second'}
+    assert options('-m', second, '-p', 'bccr', '--module', first, '-m', second) == [second, first]
+    events = log.read_text().splitlines()
+    assert not any('broken' in event for event in events), events
+    # Multiple CLI modules go through real managed loading and retain deduplication.
+    assert labels('-m', second, '-m', first, '-m', second) == {'Sign-first', 'Sign-second'}
+    events = log.read_text().splitlines()
+    for name in ['first', 'second']:
+        assert events.count(f'Sign-{name}:initialize') == 1, events
+        assert events.count(f'Sign-{name}:finalize') == 1, events
+
     # Relative/Unicode paths, lexical deduplication and profile signing options.
     local = directory / ('módulo con espacios' + Path(second).suffix)
     shutil.copyfile(second, local)
     write([first], [local.name, './' + local.name], 'token = "irrelevant"\nhash = "sha512"\n')
     assert options('-p', 'bccr') == [str(local)]
     assert labels('-p', 'bccr') == {'Sign-second'}
+    relative = os.path.relpath(local, Path.cwd())
+    assert options('-m', relative) == [str(local)]
+    assert labels('-m', relative) == {'Sign-second'}
+    # CLI values have no delimiter syntax; commas and semicolons belong to paths.
+    punctuation = directory / ('module,one;two' + Path(second).suffix)
+    shutil.copyfile(second, punctuation)
+    assert labels('--module', str(punctuation)) == {'Sign-second'}
+    assert options('--module', str(punctuation)) == [str(punctuation)]
     # The real signing path also uses configured modules (fixture has no certs).
     selected = json.loads(run(sign, 'tokens', '--json', '-p', 'bccr').stdout)['tokens'][0]['uri']
     result = run(sign, source, '-p', 'bccr', '-t', selected, success=False)
     assert 'no matching signing certificate' in result.stderr, result.stderr
+    # The signing path uses CLI modules as well, overriding a broken profile.
+    write([broken], [broken])
+    result = run(sign, source, '-p', 'bccr', '-m', str(local), success=False)
+    assert 'no matching signing certificate' in result.stderr, result.stderr
     # Exercise profile/module ownership across a successful signing operation.
     write([first], [second], 'level = "B-B"\n')
     run(mock, source, '-p', 'bccr', '-o', root / 'signed.p7s')
+    run(mock, source, '-m', str(local), '-p', 'bccr', '-o', root / 'signed-cli.p7s')
 
     # Every explicit module must load and initialize; no fallback to discovery.
     for failing in [str(root / 'missing.so'), broken]:
@@ -99,6 +129,18 @@ with tempfile.TemporaryDirectory(prefix='sign-modules-') as temporary:
         write([failing])
         result = run(sign, source, success=False)
         assert 'configured PKCS#11 modules' in result.stderr
+
+    write([first])
+    log.unlink(missing_ok=True)
+    result = run(sign, 'tokens', '-m', second, '-m', broken, success=False)
+    assert 'configured PKCS#11 modules' in result.stderr
+    events = log.read_text().splitlines()
+    assert 'Sign-second:finalize' in events and not any('Sign-first' in event for event in events)
+    # Empty/missing paths and incompatible commands are rejected before loading.
+    for args in [('tokens', '-m', ''), ('tokens', '-m'),
+                 ('verify', source, '-m', first), ('-m', first, 'verify', source),
+                 ('--gui', '-m', first), ('-m', first)]:
+        run(sign, *args, success=False)
 
     # Reject invalid schema globally and inside a selected profile, including NULs.
     for invalid in ['path', True, 12, {}, [''], [12], ['bad\x00path']]:

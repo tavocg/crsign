@@ -38,7 +38,8 @@ interpreter with `Python3_EXECUTABLE`.
   partial write forced by `RLIMIT_FSIZE`.
 - `modules_cli` loads real fixture libraries through p11-kit and checks default
   discovery, global/profile inheritance, multiple modules, relative Unicode paths,
-  duplicate paths, signing/listing consistency and cleanup after partial failure.
+  duplicate paths, repeatable `-m`/`--module` overrides, signing/listing consistency
+  and cleanup after partial failure.
   The library's `context_modules` test checks managed loading lifecycle and invalid
   API arguments independently. These fixtures contain no real keys or PINs.
 - `profiles_cli` checks TOML versions and schema, XDG/HOME lookup, empty profiles,

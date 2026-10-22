@@ -20,6 +20,7 @@ typedef struct {
 	sign_args   args;
 	const char* profile;
 	GArray*     settings;
+	GPtrArray*  modules;
 } parse_context;
 
 static const struct argp_option options[] = {
@@ -56,6 +57,12 @@ static const struct argp_option options[] = {
      "LABEL",
      0,
      "Use a profile from crsign.toml (signing or tokens)",
+     0},
+    {"module",
+     'm',
+     "PATH",
+     0,
+     "Load a PKCS#11 module (repeatable; replaces configured modules)",
      0},
     {"token", 't', "URI", 0, "Exact PKCS#11 token URI", 0},
     {"key", 'k', "ID_HEX", 0, "Certificate ID in hexadecimal", 0},
@@ -340,6 +347,27 @@ static error_t parse_option(int key, char* arg, struct argp_state* state) {
 	case 'p':
 		context->profile = arg;
 		break;
+	case 'm': {
+		if (!arg[0]) {
+			argp_error(state, "--module requires a nonempty path");
+		}
+		/* CLI paths are relative to the working directory, unlike TOML paths.
+		 */
+		char* path = g_canonicalize_filename(arg, NULL);
+		bool  duplicate = false;
+		for (guint i = 0; i < context->modules->len; ++i) {
+			if (!strcmp(path, g_ptr_array_index(context->modules, i))) {
+				duplicate = true;
+				break;
+			}
+		}
+		if (duplicate) {
+			g_free(path);
+		} else {
+			g_ptr_array_add(context->modules, path);
+		}
+		break;
+	}
 	case 'o':
 	case 't':
 	case 'k':
@@ -384,6 +412,9 @@ static error_t parse_option(int key, char* arg, struct argp_state* state) {
 		    (args->command == SIGN_COMMAND_VERIFY || args->gui)) {
 			argp_error(state, "--profile requires signing or tokens");
 		}
+		if (context->modules->len && args->command == SIGN_COMMAND_VERIFY) {
+			argp_error(state, "--module requires signing or tokens");
+		}
 		args_validate(state, args);
 		if ((args->command == SIGN_COMMAND_SIGN && args->input) ||
 		    args->command == SIGN_COMMAND_TOKENS) {
@@ -403,6 +434,12 @@ static error_t parse_option(int key, char* arg, struct argp_state* state) {
 				 * options. */
 				resolved = (sign_args){.modules = resolved.modules,
 				                       .config = resolved.config};
+			}
+			if (context->modules->len) {
+				resolved.modules = (libssig_string_list){
+				    .items = (const char**)context->modules->pdata,
+				    .count = context->modules->len
+				};
 			}
 			/* Command/UI options do not belong to the signing profile. */
 			resolved.command = args->command;
@@ -462,9 +499,18 @@ sign_args arg_parse(int argc, char** argv) {
 #endif
 	(void)argv;
 	parse_context context = {
-	    .settings = g_array_new(false, false, sizeof(cli_setting))
+	    .settings = g_array_new(false, false, sizeof(cli_setting)),
+	    .modules = g_ptr_array_new_with_free_func(g_free)
 	};
 	argp_parse(&parser, argc, owned_argv, 0, 0, &context);
+	if (context.modules->len) {
+		g_ptr_array_add(context.modules, NULL);
+		context.args.cli_modules = (char**)
+		    g_ptr_array_free(context.modules, false);
+		context.args.modules.items = (const char**)context.args.cli_modules;
+	} else {
+		g_ptr_array_free(context.modules, true);
+	}
 	context.args.argv = owned_argv;
 	g_array_free(context.settings, true);
 	return context.args;
@@ -476,6 +522,7 @@ void arg_help(char* program_name) {
 
 void arg_free(sign_args* args) {
 	config_free(args->config);
+	g_strfreev(args->cli_modules);
 	g_strfreev(args->argv);
 	*args = (sign_args){0};
 }

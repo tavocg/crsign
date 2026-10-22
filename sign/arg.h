@@ -31,6 +31,8 @@ typedef struct {
 	struct sign_config* config;
 	/* Owns the native-encoding argument vector (UTF-8 on Windows). */
 	char** argv;
+	/* Owns normalized CLI module paths; modules borrows this list when set. */
+	char** cli_modules;
 } sign_args;
 
 /* Shared option identifiers and validation for CLI arguments and profiles. */

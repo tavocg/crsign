@@ -135,6 +135,21 @@ módulos del perfil. `sign -p bccr archivo.pdf` usa la misma selección al firma
 Si aparecen varios tokens, elige uno con `-t URI`, usando la URI completa que
 muestra `sign tokens`.
 
+La CLI permite repetir `-m PATH` o `--module PATH` para indicar los módulos:
+
+```sh
+sign tokens -m /ruta/modulo1.so -m /ruta/modulo2.so
+sign -p bccr -m /ruta/vendor.so archivo.pdf
+```
+
+Si se proporciona algún `-m`, la lista completa de la CLI reemplaza la del perfil
+o la global, independientemente del orden de los argumentos. Cada opción recibe
+una sola ruta, sin separadores especiales. Las rutas relativas de la CLI parten
+del directorio de trabajo; se pueden usar comillas para rutas con espacios.
+Sin `-m`, se aplica la configuración o la detección de p11-kit como antes.
+`-m` se admite al firmar y listar tokens, y se rechaza al verificar.
+
+
 ## Construcción
 
 Requiere CMake, un compilador C, argp, libssig >= 0.1.1, libcurl >= 7.85,
