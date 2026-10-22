@@ -83,10 +83,17 @@ de argp. Los argumentos se mantienen vivos hasta terminar la operación.
 
 La capa de archivos usa GLib/GIO para las rutas nativas, incluidos nombres
 UTF-8 en Windows, y conserva la creación exclusiva de salidas (sin sobrescribir).
-Esto es un primer paso de portabilidad: la CLI, la entrada del PIN, la carga de
-módulos de tarjetas y la integración con almacenes nativos todavía requieren
-adaptación y pruebas en Windows/macOS. No implica soporte completo del programa
-en esos sistemas.
+La entrada del PIN usa termios en Unix y la consola Unicode en Windows, con el
+eco desactivado y restauración del modo del terminal al terminar o cancelar.
+Solo acepta una terminal interactiva: no lee PIN desde archivos, tuberías,
+argumentos o variables de entorno. Los PIN que superen 1024 bytes se rechazan;
+no se truncan. El búfer se borra antes de liberarlo tras el intento de firma.
+Los tokens con teclado propio no solicitan un PIN en la CLI.
+
+La carga de módulos de tarjetas, el empaquetado y la integración con almacenes
+nativos siguen pendientes de adaptación. La CLI, archivos y entrada del PIN
+requieren ejecución y validación nativas en Windows/macOS; estos cambios no
+implican soporte completo del programa en esos sistemas.
 
 ```sh
 cmake -S . -B build -DCMAKE_PREFIX_PATH=/ruta/instalacion/libssig -DBUILD_TESTING=OFF

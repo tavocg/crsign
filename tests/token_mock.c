@@ -25,6 +25,10 @@ libssig_status libssig_tokens(
 	if (!tokens->items) {
 		return LIBSSIG_ERROR_MEMORY;
 	}
+	static const char* pin_flags[] = {
+	    "login-required",
+	    "protected-authentication-path"
+	};
 	tokens->count = 1;
 	tokens->items[0] = (libssig_token){
 	    .uri = "pkcs11:token=Mock",
@@ -32,6 +36,11 @@ libssig_status libssig_tokens(
 	    .manufacturer = "Test",
 	    .model = "Mock",
 	    .serial = "123",
+	    .flag_names = {
+	        pin_flags,
+	        getenv("SIGN_MOCK_LOGIN") ? (getenv("SIGN_MOCK_PROTECTED") ? 2 : 1)
+	                                  : 0
+	    },
 	};
 	return LIBSSIG_OK;
 }
@@ -106,6 +115,14 @@ libssig_status libssig_sign(
 	(void)ctx;
 	if (!params->token || !params->cert || !params->data) {
 		return LIBSSIG_ERROR_ARGUMENT;
+	}
+	if (getenv("SIGN_MOCK_LOGIN")) {
+		bool protected = getenv("SIGN_MOCK_PROTECTED") != NULL;
+		if ((protected && (params->pin || params->pin_len)) ||
+		    (!protected && (!params->pin || params->pin_len != 4 ||
+		                    memcmp(params->pin, "1234", 4)))) {
+			return LIBSSIG_ERROR_ARGUMENT;
+		}
 	}
 	if (getenv("SIGN_MOCK_SIGN_FAIL")) {
 		return LIBSSIG_ERROR_PKCS11;

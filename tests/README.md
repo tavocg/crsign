@@ -22,6 +22,12 @@ interpreter with `Python3_EXECUTABLE`.
 - `arguments_cli` checks Unicode arguments, attached short options, long options,
   repeated values, `--`, help/version and profile precedence with either argp
   implementation. The CMake `Argp::Argp` target uses libc or an external library.
+- `terminal_pin` uses real POSIX PTYs to check hidden ASCII/UTF-8 input,
+  backspace/line erase, empty and oversized input, redirected-input rejection,
+  EOF, Ctrl+C and terminal restoration after signals.
+- `pin_signing` checks a complete signing operation with a simulated token that
+  requires a PIN, signing failure and protected authentication paths. These
+  tests use only fixed fake PINs and never access a real card.
 - `file_io` checks native output paths, Unicode filenames, binary/empty files,
   exclusive creation and destination symlinks. On Unix it also checks private
   permissions, rejection of oversized sparse inputs and cleanup after an actual
@@ -65,6 +71,18 @@ cases verify that backslashes remain ordinary filename characters. The suite
 uses the actual platform's GLib behavior; running on Linux does not execute the
 Windows cases. Windows symlink checks can be skipped when privileges or
 filesystem support prevent creating links.
+
+PIN tests also build independently of libssig/GTK:
+
+```sh
+cmake -S tests/terminal -B build/terminal
+cmake --build build/terminal
+ctest --test-dir build/terminal --output-on-failure
+```
+
+The PTY tests are registered on Unix only. The Windows console branch can be
+compiled with the standalone target; native interactive verification remains
+required on Windows. `PIN:` is written to stderr so JSON stdout stays parseable.
 
 Publish the pinned libssig commit before publishing a CRSign commit that points
 to it, so remote recursive checkouts can retrieve the dependency. No generated

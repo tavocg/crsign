@@ -126,3 +126,11 @@ add_subdirectory(io)
 add_test(NAME arguments_cli COMMAND "${Python3_EXECUTABLE}"
     "${CMAKE_CURRENT_SOURCE_DIR}/arguments_cli.py" $<TARGET_FILE:args_driver>)
 set_tests_properties(arguments_cli PROPERTIES TIMEOUT 30)
+
+add_subdirectory(terminal)
+if(UNIX)
+    add_test(NAME pin_signing COMMAND "${Python3_EXECUTABLE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/terminal/terminal_test.py"
+        $<TARGET_FILE:terminal_driver> $<TARGET_FILE:sign_mock>)
+    set_tests_properties(pin_signing PROPERTIES TIMEOUT 30)
+endif()

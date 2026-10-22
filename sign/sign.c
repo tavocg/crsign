@@ -1,12 +1,11 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-#define _DEFAULT_SOURCE
 #include <sign/http.h>
 #include <sign/sign.h>
+#include <sign/terminal.h>
 #include <sign/timestamp/timestamp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 static const libssig_token* token_find(
     const sign_args*          args,
@@ -100,19 +99,9 @@ static libssig_status token_sign(
     const libssig_certificate* cert,
     libssig_signature*         signature
 ) {
-	char* pin = NULL;
-	if (pin_required(token)) {
-		if (!isatty(STDIN_FILENO)) {
-			fputs(
-			    "sign: an interactive terminal is required for the PIN\n",
-			    stderr
-			);
-			return LIBSSIG_ERROR_ARGUMENT;
-		}
-		pin = getpass("PIN: ");
-		if (!pin) {
-			return LIBSSIG_ERROR_ARGUMENT;
-		}
+	sign_buffer pin = {0};
+	if (pin_required(token) && !terminal_pin_read(&pin)) {
+		return LIBSSIG_ERROR_ARGUMENT;
 	}
 	libssig_verify_params validation = {0};
 	trust_verify_params(trust, &validation);
@@ -121,14 +110,13 @@ static libssig_status token_sign(
 	    .tsa_url = args->authority,
 	    .trust = &validation
 	};
-	size_t              pin_len = pin ? strlen(pin) : 0;
 	libssig_sign_params params = {
 	    .token = token,
 	    .cert = cert,
 	    .data = input->data,
 	    .data_len = input->len,
-	    .pin = (const unsigned char*)pin,
-	    .pin_len = pin_len,
+	    .pin = pin.data,
+	    .pin_len = pin.len,
 	    .level = args->level,
 	    .format = args->format,
 	    .services = &services,
@@ -138,10 +126,7 @@ static libssig_status token_sign(
 	    .options = args->detached ? LIBSSIG_SIGN_DETACHED : 0,
 	};
 	libssig_status status = libssig_sign(ctx, &params, signature);
-	volatile char* cursor = pin;
-	for (size_t i = 0; i < pin_len; ++i) {
-		cursor[i] = 0;
-	}
+	terminal_pin_free(&pin);
 	return status;
 }
 
