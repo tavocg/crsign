@@ -23,6 +23,7 @@ find_program(OPENSSL_EXECUTABLE openssl REQUIRED)
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GLIB REQUIRED IMPORTED_TARGET glib-2.0)
+pkg_check_modules(GIO REQUIRED IMPORTED_TARGET gio-2.0)
 find_path(TOMLC17_INCLUDE_DIR tomlc17.h REQUIRED)
 find_library(TOMLC17_LIBRARY NAMES tomlc17 REQUIRED)
 add_library(sign_config_deps INTERFACE)
@@ -64,7 +65,7 @@ list(APPEND SIGN_SOURCES "${SIGN_CERT_CATALOG}")
 
 add_executable(sign ${SIGN_SOURCES})
 
-target_link_libraries(sign PRIVATE libssig::ssig CURL::libcurl OpenSSL::Crypto sign_config_deps)
+target_link_libraries(sign PRIVATE libssig::ssig CURL::libcurl OpenSSL::Crypto sign_config_deps PkgConfig::GIO)
 
 target_include_directories(sign PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"

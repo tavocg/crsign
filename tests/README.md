@@ -19,6 +19,10 @@ environments can install `tests/libssig/tests/requirements.txt` and select their
 interpreter with `Python3_EXECUTABLE`.
 
 - `commands_cli` checks command dispatch and JSON with a hardware substitute.
+- `file_io` checks native output paths, Unicode filenames, binary/empty files,
+  exclusive creation and destination symlinks. On Unix it also checks private
+  permissions, rejection of oversized sparse inputs and cleanup after an actual
+  partial write forced by `RLIMIT_FSIZE`.
 - `profiles_cli` checks TOML versions and schema, XDG/HOME lookup, empty profiles,
   CLI overrides (including default-valued overrides), relative certificate paths,
   and signing with automatic token/certificate and PDF format selection.
@@ -36,6 +40,22 @@ CTest fixtures automatically generate inputs when selecting `-R signatures_cli`
 or `-L conformance`, including parallel runs. Minimal CLI tests are available
 with `SIGN_TEST_LIBSSIG=OFF`; disabling `BUILD_TESTING` needs no test submodules.
 The CI workflow checks both headless and GTK builds without opening a window.
+
+The file layer also has a standalone suite that requires only a C compiler,
+CMake, pkg-config and GLib/GIO, so it can be built on Windows/macOS before the
+rest of the CLI is ported:
+
+```sh
+cmake -S tests/io -B build/io
+cmake --build build/io
+ctest --test-dir build/io --output-on-failure
+```
+
+Windows path cases cover drive-relative, UNC and mixed-separator paths. Unix
+cases verify that backslashes remain ordinary filename characters. The suite
+uses the actual platform's GLib behavior; running on Linux does not execute the
+Windows cases. Windows symlink checks can be skipped when privileges or
+filesystem support prevent creating links.
 
 Publish the pinned libssig commit before publishing a CRSign commit that points
 to it, so remote recursive checkouts can retrieve the dependency. No generated

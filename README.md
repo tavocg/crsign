@@ -66,9 +66,16 @@ se acepta `0.1` tanto numérico como texto (`"0.1"`), sin migración automática
 ## Construcción
 
 Requiere CMake, un compilador C, glibc (argp), libssig, libcurl >= 7.85,
-pkg-config, GLib y tomlc17 (API con `toml_get`, por ejemplo 20260501).
-La interfaz gráfica también requiere GTK 4. GLib y tomlc17 se usan igualmente
+pkg-config, GLib/GIO y tomlc17 (API con `toml_get`, por ejemplo 20260501).
+La interfaz gráfica también requiere GTK 4. GLib/GIO y tomlc17 se usan igualmente
 en compilaciones headless; el entorno Nix incluye ambas dependencias.
+
+La capa de archivos usa GLib/GIO para las rutas nativas, incluidos nombres
+UTF-8 en Windows, y conserva la creación exclusiva de salidas (sin sobrescribir).
+Esto es un primer paso de portabilidad: la CLI, la entrada del PIN, la carga de
+módulos de tarjetas y la integración con almacenes nativos todavía requieren
+adaptación y pruebas en Windows/macOS. No implica soporte completo del programa
+en esos sistemas.
 
 ```sh
 cmake -S . -B build -DCMAKE_PREFIX_PATH=/ruta/instalacion/libssig -DBUILD_TESTING=OFF

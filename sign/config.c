@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-#include <errno.h>
 #include <glib.h>
-#include <glib/gstdio.h>
 #include <sign/config.h>
+#include <sign/io.h>
 #include <stdarg.h>
+#include <stdlib.h>
 #include <string.h>
 #include <tomlc17.h>
 
@@ -235,17 +235,16 @@ bool config_profile(
 ) {
 	char* directory = g_build_filename(g_get_user_config_dir(), "crsign", NULL);
 	char* path = g_build_filename(directory, "crsign.toml", NULL);
-	FILE* file = g_fopen(path, "rb");
-	if (!file) {
-		config_error(error, error_size, "%s: %s", path, strerror(errno));
+	sign_buffer source = {0};
+	if (!file_load(path, &source, error, error_size)) {
 		g_free(directory);
 		g_free(path);
 		return false;
 	}
 	struct sign_config* config = g_new0(struct sign_config, 1);
 	config->paths = g_ptr_array_new_with_free_func(g_free);
-	config->document = toml_parse_file(file);
-	fclose(file);
+	config->document = toml_parse((const char*)source.data, (int)source.len);
+	free(source.data);
 	char      detail[256];
 	bool      ok = config->document.ok;
 	sign_args resolved = {0};
