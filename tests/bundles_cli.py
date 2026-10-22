@@ -14,6 +14,7 @@ fixtures = Path(fixtures)
 with tempfile.TemporaryDirectory(prefix='sign-bundles-') as directory:
     root = Path(directory)
     env = os.environ.copy()
+    env['XDG_CONFIG_HOME'] = str(root / 'config')
     env.pop('NIX_SSL_CERT_FILE', None)
     env['SSL_CERT_FILE'] = str(root / 'missing-root.pem')
     env['SSL_CERT_DIR'] = str(root / 'missing-directory')

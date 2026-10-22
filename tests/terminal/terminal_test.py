@@ -15,7 +15,7 @@ import termios
 import time
 
 
-def interactive(command, data=b'1234\n', *, status=0, send_signal=None, env=None):
+def interactive(command, data=b'1234\n', *, status=0, send_signal=None, env=None, stars=None):
     master, slave = os.openpty()
     initial = termios.tcgetattr(slave)
 
@@ -55,6 +55,11 @@ def interactive(command, data=b'1234\n', *, status=0, send_signal=None, env=None
             transcript += chunk
         for secret in (b'1234', b'12\xc3\xb1', b'77777777'):
             assert secret not in transcript and secret not in stdout, (stdout, transcript)
+        if stars is not None:
+            masked = transcript.split(b'PIN: ', 1)[1].split(b'\r', 1)[0].split(b'\n', 1)[0]
+            while b'*\b \b' in masked:
+                masked = masked.replace(b'*\b \b', b'')
+            assert masked == b'*' * stars, (masked, stars, transcript)
         return stdout, transcript
     finally:
         if process.poll() is None:
@@ -65,12 +70,13 @@ def interactive(command, data=b'1234\n', *, status=0, send_signal=None, env=None
 
 
 def standalone(driver):
-    for arguments, data in [([], b'1234\n'), (['unicode'], b'12\xc3\xb1\n'),
-                            (['empty'], b'\n'), ([], b'12X\x7f34\n'),
-                            ([], b'12\xc3\xb1\x7f34\n'),
-                            ([], b'wrong\x151234\n'),
-                            (['limit'], b'7' * 1024 + b'\n')]:
-        output, _ = interactive([driver, *arguments], data)
+    for arguments, data, stars in [([], b'1234\n', 4), (['unicode'], b'12\xc3\xb1\n', 3),
+                                   (['empty'], b'\n', 0), ([], b'12X\x7f34\n', 4),
+                                   ([], b'12\xc3\xb1\x7f34\n', 4),
+                                   ([], b'wrong\x151234\n', 4),
+                                   ([], b'\x7f1234\n', 4),
+                                   (['limit'], b'7' * 1024 + b'\n', 1024)]:
+        output, _ = interactive([driver, *arguments], data, stars=stars)
         assert output == b'PIN accepted; buffer cleared\n'
     output, transcript = interactive([driver], b'7' * 1025 + b'\n', status=1)
     assert not output and b'exceeds 1024' in transcript
@@ -91,6 +97,7 @@ def signing(sign):
         source, target = root / 'input.txt', root / 'signed.txt'
         source.write_bytes(b'PIN signing fixture')
         env = os.environ.copy()
+        env['XDG_CONFIG_HOME'] = str(root / 'config')
         env['SIGN_MOCK_DATA'] = str(source)
         env['SIGN_MOCK_LOGIN'] = '1'
         command = [sign, str(source), '-l', 'B-B', '-o', str(target), '--json']

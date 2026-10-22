@@ -377,11 +377,11 @@ static error_t parse_option(int key, char* arg, struct argp_state* state) {
 	case ARGP_KEY_END:
 		/* Check command compatibility before opening a configuration file. */
 		args_validate(state, args);
-		if (context->profile) {
+		if (args->command == SIGN_COMMAND_SIGN && args->input) {
 			bool cli_bundles = args->cert_bundle_count ||
 			                   args->no_bundled_certs;
 			sign_args resolved = {0};
-			if (!config_profile(
+			if (!config_load(
 			        &resolved,
 			        context->profile,
 			        error,

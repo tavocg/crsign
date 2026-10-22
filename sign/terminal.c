@@ -14,8 +14,6 @@
 #include <unistd.h>
 #endif
 
-#define PIN_LIMIT 1024
-
 typedef enum {
 	PIN_OK,
 	PIN_NOT_TERMINAL,
@@ -33,6 +31,19 @@ static void wipe(void* data, size_t len) {
 
 static bool prompt(void) {
 	return fputs("PIN: ", stderr) >= 0 && fflush(stderr) == 0;
+}
+
+static bool mask_add(void) {
+	return fputc('*', stderr) != EOF && fflush(stderr) == 0;
+}
+
+static bool mask_erase(size_t count) {
+	while (count--) {
+		if (fputs("\b \b", stderr) < 0) {
+			return false;
+		}
+	}
+	return fflush(stderr) == 0;
 }
 
 #ifdef _WIN32
@@ -66,7 +77,7 @@ static pin_status read_pin(unsigned char* data, size_t* len) {
 	               ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT |
 	                 ENABLE_PROCESSED_INPUT | ENABLE_VIRTUAL_TERMINAL_INPUT);
 	pin_status status = PIN_ERROR;
-	WCHAR      wide[PIN_LIMIT + 1] = {0};
+	WCHAR      wide[SIGN_PIN_LIMIT + 1] = {0};
 	size_t     count = 0;
 	bool       overflow = false;
 	if (!SetConsoleMode(input, hidden) || !prompt()) {
@@ -93,11 +104,30 @@ static pin_status read_pin(unsigned char* data, size_t* len) {
 					wide[count--] = 0;
 				}
 				wide[count] = 0;
+				if (!mask_erase(1)) {
+					goto done;
+				}
+			}
+		} else if (c == 21) {
+			size_t stars = 0;
+			for (size_t i = 0; i < count; ++i) {
+				if (wide[i] < 0xdc00 || wide[i] > 0xdfff) {
+					++stars;
+				}
+			}
+			wipe(wide, sizeof(wide));
+			count = 0;
+			overflow = false;
+			if (!mask_erase(stars)) {
+				goto done;
 			}
 		} else if (!c) {
 			goto done;
-		} else if (count < PIN_LIMIT && !overflow) {
+		} else if (count < SIGN_PIN_LIMIT && !overflow) {
 			wide[count++] = c;
+			if ((c < 0xdc00 || c > 0xdfff) && !mask_add()) {
+				goto done;
+			}
 		} else {
 			overflow = true;
 		}
@@ -114,7 +144,7 @@ static pin_status read_pin(unsigned char* data, size_t* len) {
 		    wide,
 		    (int)count,
 		    (char*)data,
-		    PIN_LIMIT,
+		    SIGN_PIN_LIMIT,
 		    NULL,
 		    NULL
 		);
@@ -232,6 +262,15 @@ static pin_status read_pin(unsigned char* data, size_t* len) {
 			break;
 		}
 		if (c == original.c_cc[VKILL]) {
+			size_t stars = 0;
+			for (size_t i = 0; i < *len; ++i) {
+				if ((data[i] & 0xc0) != 0x80) {
+					++stars;
+				}
+			}
+			if (!mask_erase(stars)) {
+				break;
+			}
 			wipe(data, *len);
 			*len = 0;
 			overflow = false;
@@ -240,6 +279,7 @@ static pin_status read_pin(unsigned char* data, size_t* len) {
 		if (c == original.c_cc[VERASE] || c == 8 || c == 127) {
 			/* Erase a whole UTF-8 codepoint; never leave half of a PIN
 			 * character. */
+			bool erase = *len && !overflow;
 			while (*len && !overflow) {
 				--*len;
 				bool continuation = (data[*len] & 0xc0) == 0x80;
@@ -248,13 +288,19 @@ static pin_status read_pin(unsigned char* data, size_t* len) {
 					break;
 				}
 			}
+			if (erase && !mask_erase(1)) {
+				break;
+			}
 			continue;
 		}
 		if (!c) {
 			break;
 		}
-		if (*len < PIN_LIMIT) {
+		if (*len < SIGN_PIN_LIMIT) {
 			data[(*len)++] = c;
+			if ((c & 0xc0) != 0x80 && !mask_add()) {
+				break;
+			}
 		} else {
 			overflow = true;
 		}
@@ -285,7 +331,7 @@ done:
 #endif
 
 bool terminal_pin_read(sign_buffer* pin) {
-	unsigned char data[PIN_LIMIT + 1] = {0};
+	unsigned char data[SIGN_PIN_LIMIT + 1] = {0};
 	size_t        len = 0;
 	pin_status    status = read_pin(data, &len);
 	if (status == PIN_OK) {
@@ -311,12 +357,4 @@ bool terminal_pin_read(sign_buffer* pin) {
 	};
 	fprintf(stderr, "sign: %s\n", messages[status]);
 	return false;
-}
-
-void terminal_pin_free(sign_buffer* pin) {
-	if (pin->data) {
-		wipe(pin->data, pin->len + 1);
-		free(pin->data);
-	}
-	*pin = (sign_buffer){0};
 }

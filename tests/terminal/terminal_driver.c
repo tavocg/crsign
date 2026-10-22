@@ -23,9 +23,9 @@ int main(int argc, char** argv) {
 		     !memcmp(pin.data, expected, pin.len);
 	}
 	ok = ok && pin.data[pin.len] == 0;
-	terminal_pin_free(&pin);
+	pin_free(&pin);
 	ok = ok && !pin.data && !pin.len;
-	terminal_pin_free(&pin);
+	pin_free(&pin);
 	if (!ok) {
 		return 2;
 	}

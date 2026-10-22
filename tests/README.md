@@ -22,12 +22,16 @@ interpreter with `Python3_EXECUTABLE`.
 - `arguments_cli` checks Unicode arguments, attached short options, long options,
   repeated values, `--`, help/version and profile precedence with either argp
   implementation. The CMake `Argp::Argp` target uses libc or an external library.
-- `terminal_pin` uses real POSIX PTYs to check hidden ASCII/UTF-8 input,
+- `terminal_pin` uses real POSIX PTYs to check masked ASCII/UTF-8 input,
   backspace/line erase, empty and oversized input, redirected-input rejection,
   EOF, Ctrl+C and terminal restoration after signals.
 - `pin_signing` checks a complete signing operation with a simulated token that
   requires a PIN, signing failure and protected authentication paths. These
   tests use only fixed fake PINs and never access a real card.
+- `pincmd_cli` checks global/profile commands, string/argv syntax, inheritance,
+  disabling the command, UTF-8/CRLF output, length limits, command failures,
+  redirected input isolation, privacy of diagnostics and protected token paths.
+  CLI tests isolate `XDG_CONFIG_HOME` so user PIN helpers are never executed.
 - `file_io` checks native output paths, Unicode filenames, binary/empty files,
   exclusive creation and destination symlinks. On Unix it also checks private
   permissions, rejection of oversized sparse inputs and cleanup after an actual
@@ -72,7 +76,7 @@ uses the actual platform's GLib behavior; running on Linux does not execute the
 Windows cases. Windows symlink checks can be skipped when privileges or
 filesystem support prevent creating links.
 
-PIN tests also build independently of libssig/GTK:
+PIN tests also build independently of libssig/GTK with GLib/GIO available:
 
 ```sh
 cmake -S tests/terminal -B build/terminal

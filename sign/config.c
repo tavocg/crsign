@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+#include <errno.h>
 #include <glib.h>
+#include <glib/gstdio.h>
 #include <sign/config.h>
 #include <sign/io.h>
 #include <stdarg.h>
@@ -9,7 +11,7 @@
 
 struct sign_config {
 	toml_result_t document;
-	GPtrArray*    paths;
+	GPtrArray*    allocations;
 };
 
 /* Schema metadata maps TOML directly onto the shared signing options. */
@@ -23,6 +25,7 @@ typedef struct {
 static const config_field profile_fields[] = {
     {"name", 0, TOML_STRING, false},
     {"label", 0, TOML_STRING, false},
+    {"pincmd", 0, TOML_UNKNOWN, false},
     {"token", 't', TOML_STRING, false},
     {"cert_id", 'k', TOML_STRING, false},
     {"algorithm", 'a', TOML_STRING, false},
@@ -56,6 +59,59 @@ static bool valid_string(toml_datum_t value) {
 	       strlen(value.u.s) == (size_t)value.u.str.len;
 }
 
+/* Parsed argv and relative paths share the config's allocation lifetime. */
+static bool read_pincmd(
+    sign_args*          args,
+    struct sign_config* config,
+    toml_datum_t        value,
+    char*               error,
+    size_t              size
+) {
+	char** argv = NULL;
+	if (value.type == TOML_STRING && valid_string(value)) {
+		if (!g_shell_parse_argv(value.u.s, NULL, &argv, NULL) || !argv[0][0]) {
+			g_strfreev(argv);
+			return config_error(
+			    error,
+			    size,
+			    "pincmd must contain a valid command"
+			);
+		}
+		for (size_t i = 0; argv[i]; ++i) {
+			g_ptr_array_add(config->allocations, argv[i]);
+		}
+	} else if (value.type == TOML_ARRAY) {
+		for (int i = 0; i < value.u.arr.size; ++i) {
+			toml_datum_t item = value.u.arr.elem[i];
+			if (!valid_string(item) || (i == 0 && !item.u.s[0])) {
+				return config_error(
+				    error,
+				    size,
+				    "pincmd must contain string arguments and a nonempty "
+				    "executable"
+				);
+			}
+		}
+		if (!value.u.arr.size) {
+			args->pincmd = NULL;
+			return true;
+		}
+		argv = g_new0(char*, (size_t)value.u.arr.size + 1);
+		for (int i = 0; i < value.u.arr.size; ++i) {
+			argv[i] = (char*)value.u.arr.elem[i].u.s;
+		}
+	} else {
+		return config_error(
+		    error,
+		    size,
+		    "pincmd must be a string or an array of strings"
+		);
+	}
+	g_ptr_array_add(config->allocations, argv);
+	args->pincmd = (const char* const*)argv;
+	return true;
+}
+
 static bool read_fields(
     sign_args*          args,
     struct sign_config* config,
@@ -80,6 +136,12 @@ static bool read_fields(
 			return config_error(error, size, "Unknown profile field: %s", key);
 		}
 		toml_datum_t value = table.u.tab.value[i];
+		if (!strcmp(field->name, "pincmd")) {
+			if (!read_pincmd(args, config, value, error, size)) {
+				return false;
+			}
+			continue;
+		}
 		if (value.type != field->type ||
 		    (value.type == TOML_STRING && !valid_string(value))) {
 			return config_error(
@@ -137,7 +199,7 @@ static bool read_fields(
 		}
 		if (field->path && !g_path_is_absolute(text)) {
 			char* path = g_build_filename(directory, text, NULL);
-			g_ptr_array_add(config->paths, path);
+			g_ptr_array_add(config->allocations, path);
 			text = path;
 		}
 		if (!arg_setting(args, field->option, text, error, size)) {
@@ -160,7 +222,8 @@ static bool read_v01(
 	for (int i = 0; i < root.u.tab.size; ++i) {
 		const char* key = root.u.tab.key[i];
 		if (strlen(key) != (size_t)root.u.tab.len[i] ||
-		    (strcmp(key, "version") && strcmp(key, "profiles"))) {
+		    (strcmp(key, "version") && strcmp(key, "profiles") &&
+		     strcmp(key, "pincmd"))) {
 			return config_error(
 			    error,
 			    size,
@@ -168,6 +231,14 @@ static bool read_v01(
 			    key
 			);
 		}
+	}
+	toml_datum_t command = toml_get(root, "pincmd");
+	if (command.type != TOML_UNKNOWN &&
+	    !read_pincmd(args, config, command, error, size)) {
+		return false;
+	}
+	if (!label) {
+		return true;
 	}
 	toml_datum_t profiles = toml_get(root, "profiles");
 	if (profiles.type != TOML_ARRAY) {
@@ -227,7 +298,7 @@ static bool read_v01(
 	);
 }
 
-bool config_profile(
+bool config_load(
     sign_args*  args,
     const char* label,
     char*       error,
@@ -235,6 +306,16 @@ bool config_profile(
 ) {
 	char* directory = g_build_filename(g_get_user_config_dir(), "crsign", NULL);
 	char* path = g_build_filename(directory, "crsign.toml", NULL);
+	/* A global configuration is optional, but permission/read errors are not
+	 * mistaken for an absent file. A requested profile always requires it. */
+	if (!label) {
+		GStatBuf info;
+		if (g_stat(path, &info) < 0 && errno == ENOENT) {
+			g_free(path);
+			g_free(directory);
+			return true;
+		}
+	}
 	sign_buffer source = {0};
 	if (!file_load(path, &source, error, error_size)) {
 		g_free(directory);
@@ -242,7 +323,7 @@ bool config_profile(
 		return false;
 	}
 	struct sign_config* config = g_new0(struct sign_config, 1);
-	config->paths = g_ptr_array_new_with_free_func(g_free);
+	config->allocations = g_ptr_array_new_with_free_func(g_free);
 	config->document = toml_parse((const char*)source.data, (int)source.len);
 	free(source.data);
 	char      detail[256];
@@ -281,7 +362,7 @@ bool config_profile(
 		    error_size,
 		    "%s (profile %s): %s",
 		    path,
-		    label,
+		    label ? label : "global",
 		    detail
 		);
 		config_free(config);
@@ -296,6 +377,6 @@ void config_free(struct sign_config* config) {
 		return;
 	}
 	toml_free(config->document);
-	g_ptr_array_free(config->paths, true);
+	g_ptr_array_free(config->allocations, true);
 	g_free(config);
 }

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include <sign/http.h>
+#include <sign/pin.h>
 #include <sign/sign.h>
-#include <sign/terminal.h>
 #include <sign/timestamp/timestamp.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -100,7 +100,7 @@ static libssig_status token_sign(
     libssig_signature*         signature
 ) {
 	sign_buffer pin = {0};
-	if (pin_required(token) && !terminal_pin_read(&pin)) {
+	if (pin_required(token) && !pin_read(args->pincmd, &pin)) {
 		return LIBSSIG_ERROR_ARGUMENT;
 	}
 	libssig_verify_params validation = {0};
@@ -126,7 +126,7 @@ static libssig_status token_sign(
 	    .options = args->detached ? LIBSSIG_SIGN_DETACHED : 0,
 	};
 	libssig_status status = libssig_sign(ctx, &params, signature);
-	terminal_pin_free(&pin);
+	pin_free(&pin);
 	return status;
 }
 

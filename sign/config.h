@@ -4,8 +4,9 @@
 
 #include <sign/arg.h>
 
-/* Replaces options with profile values and defaults. Unchanged on failure. */
-bool config_profile(
+/* Loads global settings plus an optional profile. A NULL label loads globals
+ * only; a missing global file is allowed. Unchanged on failure. */
+bool config_load(
     sign_args*  args,
     const char* label,
     char*       error,

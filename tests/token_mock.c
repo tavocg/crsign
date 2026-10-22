@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+#include <glib.h>
 #include <libssig/libssig.h>
 #include <sign/io.h>
 #include <stdlib.h>
@@ -117,10 +118,15 @@ libssig_status libssig_sign(
 		return LIBSSIG_ERROR_ARGUMENT;
 	}
 	if (getenv("SIGN_MOCK_LOGIN")) {
-		bool protected = getenv("SIGN_MOCK_PROTECTED") != NULL;
+		bool        protected = getenv("SIGN_MOCK_PROTECTED") != NULL;
+		const char* expected = g_getenv("SIGN_MOCK_EXPECTED_PIN");
+		if (!expected) {
+			expected = "1234";
+		}
 		if ((protected && (params->pin || params->pin_len)) ||
-		    (!protected && (!params->pin || params->pin_len != 4 ||
-		                    memcmp(params->pin, "1234", 4)))) {
+		    (!protected &&
+		     (!params->pin || params->pin_len != strlen(expected) ||
+		      memcmp(params->pin, expected, params->pin_len)))) {
 			return LIBSSIG_ERROR_ARGUMENT;
 		}
 	}

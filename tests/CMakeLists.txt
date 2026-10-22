@@ -134,3 +134,8 @@ if(UNIX)
         $<TARGET_FILE:terminal_driver> $<TARGET_FILE:sign_mock>)
     set_tests_properties(pin_signing PROPERTIES TIMEOUT 30)
 endif()
+
+add_test(NAME pincmd_cli COMMAND "${Python3_EXECUTABLE}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/pincmd_cli.py" $<TARGET_FILE:sign_mock>
+    $<TARGET_FILE:args_driver>)
+set_tests_properties(pincmd_cli PROPERTIES TIMEOUT 30)

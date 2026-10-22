@@ -33,10 +33,10 @@ with tempfile.TemporaryDirectory(prefix='sign-profiles-') as directory:
         config.write_text(f'version = {version}\n[[profiles]]\nlabel = "bccr"\n' + profile)
 
     defaults = options()
-    # No selected profile: config is optional and is not read.
+    # The global file is optional, but if present it must be valid TOML.
     assert 'crsign.toml' in run(source, '-p', 'bccr', success=False).stderr
     config.write_text('this is invalid TOML')
-    assert options() == defaults
+    assert str(config) in run(source, success=False).stderr
     run('--help', program=sign)
     write()
     assert options('-p', 'bccr') == defaults

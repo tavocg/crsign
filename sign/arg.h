@@ -13,18 +13,19 @@ typedef enum {
 
 typedef struct {
 	bool gui, detached, json, all_certificates, content, signing_options;
-	sign_command   command;
-	const char *   input, *output, *uri, *id, *authority;
-	const char *   ca_file, *intermediates, *tsa_ca_file, *tsa_intermediates;
-	const char*    mime_type;
-	libssig_algo   algo;
-	libssig_hash   hash;
-	libssig_level  level;
-	libssig_format format;
-	bool           format_explicit;
-	bool           no_bundled_certs;
-	const char*    cert_bundles[32];
-	size_t         cert_bundle_count;
+	sign_command command;
+	const char * input, *output, *uri, *id, *authority;
+	const char * ca_file, *intermediates, *tsa_ca_file, *tsa_intermediates;
+	const char*  mime_type;
+	const char* const* pincmd;
+	libssig_algo       algo;
+	libssig_hash       hash;
+	libssig_level      level;
+	libssig_format     format;
+	bool               format_explicit;
+	bool               no_bundled_certs;
+	const char*        cert_bundles[32];
+	size_t             cert_bundle_count;
 	/* Owns strings read from the selected profile; release with arg_free(). */
 	struct sign_config* config;
 	/* Owns the native-encoding argument vector (UTF-8 on Windows). */

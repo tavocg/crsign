@@ -58,10 +58,44 @@ bundles del perfil.
 Las rutas de certificados relativas se resuelven desde la carpeta de
 `crsign.toml`; las rutas pasadas por CLI siguen siendo relativas al directorio
 de trabajo. No se expanden `~` ni variables de entorno dentro del TOML.
-El archivo solo se lee al usar `-p`, que se admite exclusivamente para firmar.
+El archivo se lee al firmar, incluso sin `-p`, para aplicar los valores globales.
+Si no existe y no se solicita un perfil, se conservan los valores predeterminados.
+`-p` se admite exclusivamente para firmar. Verificar, listar tokens y mostrar
+ayuda no leen esta configuración.
 Se rechazan TOML inválido, etiquetas duplicadas, campos desconocidos del perfil
 seleccionado y versiones no compatibles. La versión es obligatoria; por ahora
 se acepta `0.1` tanto numérico como texto (`"0.1"`), sin migración automática.
+
+`pincmd` permite obtener el PIN de un comando, tanto globalmente (antes de
+`[[profiles]]`) como por perfil:
+
+```toml
+version = 0.1
+pincmd = "pass show crsign/default"
+
+[[profiles]]
+label = "bccr"
+pincmd = ["pass", "show", "crsign/bccr"]
+
+[[profiles]]
+label = "interactivo"
+pincmd = []
+```
+
+El perfil hereda el comando global si omite `pincmd`; su propio comando lo
+reemplaza. `pincmd = []` fuerza la entrada interactiva. Se admite una cadena con
+comillas de estilo shell o una lista de argumentos; la lista evita ambigüedades
+con rutas de Windows. El ejecutable se busca en `PATH` o se usa su ruta explícita,
+y hereda el directorio de trabajo. No se ejecuta un shell ni se expanden variables
+o tuberías automáticamente; para usarlas hay que invocar el shell explícitamente.
+
+El comando debe finalizar correctamente y devolver una sola línea UTF-8 no
+vacía, de hasta 1024 bytes, en stdout. Se elimina únicamente el salto de línea
+final LF o CRLF; se conservan los espacios. Su stdin está desconectado y su
+stderr se descarta para evitar que el PIN aparezca en diagnósticos. Si falla o
+devuelve un PIN inválido, la firma se detiene sin reintento ni solicitud
+interactiva adicional. Solo se ejecuta si el token necesita un PIN y no tiene
+teclado propio.
 
 ## Construcción
 
@@ -84,10 +118,11 @@ de argp. Los argumentos se mantienen vivos hasta terminar la operación.
 La capa de archivos usa GLib/GIO para las rutas nativas, incluidos nombres
 UTF-8 en Windows, y conserva la creación exclusiva de salidas (sin sobrescribir).
 La entrada del PIN usa termios en Unix y la consola Unicode en Windows, con el
-eco desactivado y restauración del modo del terminal al terminar o cancelar.
-Solo acepta una terminal interactiva: no lee PIN desde archivos, tuberías,
-argumentos o variables de entorno. Los PIN que superen 1024 bytes se rechazan;
-no se truncan. El búfer se borra antes de liberarlo tras el intento de firma.
+eco de los caracteres desactivado: se muestra `*` al escribir y se pueden usar
+retroceso y Ctrl+U para corregir. El modo del terminal se restaura al terminar o
+cancelar. Sin `pincmd` requiere una terminal interactiva; no toma el PIN de stdin
+redirigido, argumentos o variables de entorno. Los PIN que superen 1024 bytes
+se rechazan; no se truncan. El búfer se borra antes de liberarlo tras el intento de firma.
 Los tokens con teclado propio no solicitan un PIN en la CLI.
 
 La carga de módulos de tarjetas, el empaquetado y la integración con almacenes

@@ -30,6 +30,14 @@ int main(int argc, char** argv) {
 	STRING_FIELD("mime_type", mime_type);
 	STRING_FIELD("output", output);
 #undef STRING_FIELD
+	fputs(",\"pincmd\":[", stdout);
+	for (size_t i = 0; args.pincmd && args.pincmd[i]; ++i) {
+		if (i) {
+			putchar(',');
+		}
+		json_string(args.pincmd[i]);
+	}
+	putchar(']');
 	fputs(",\"cert_bundles\":[", stdout);
 	for (size_t i = 0; i < args.cert_bundle_count; ++i) {
 		if (i) {
