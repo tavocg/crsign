@@ -99,7 +99,7 @@ jobs:
       - name: Configure and build CRSign
         run: |
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DHEADLESS=${{ matrix.headless }} \
-            -DSIGN_TEST_LIBSSIG=OFF -DCMAKE_PREFIX_PATH="$PWD/build/native-prefix;$MINGW_PREFIX"
+            -DSIGN_TEST_LIBSSIG=OFF -DCMAKE_PREFIX_PATH="$(cygpath -m "$PWD/build/native-prefix");$(cygpath -m "$MINGW_PREFIX")"
           cmake --build build --parallel 4
       - name: Test CLI and native stores
         run: |
