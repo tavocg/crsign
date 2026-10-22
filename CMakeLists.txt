@@ -18,8 +18,13 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 find_package(Argp REQUIRED)
 
 include(GNUInstallDirs)
+if(APPLE)
+    set(CMAKE_INSTALL_RPATH "@executable_path/../lib")
+elseif(UNIX)
+    set(CMAKE_INSTALL_RPATH "$ORIGIN/../${CMAKE_INSTALL_LIBDIR}")
+endif()
 include(CTest)
-find_package(libssig 0.1.2 CONFIG REQUIRED)
+find_package(libssig 0.1.3 CONFIG REQUIRED)
 find_package(CURL 7.85 REQUIRED)
 find_package(OpenSSL REQUIRED COMPONENTS Crypto)
 find_program(OPENSSL_EXECUTABLE openssl REQUIRED)
@@ -66,6 +71,14 @@ if(NOT SIGN_CERT_RESULT EQUAL 0)
 endif()
 list(APPEND SIGN_SOURCES "${SIGN_CERT_CATALOG}")
 
+if(WIN32)
+    enable_language(RC)
+    configure_file(packaging/windows.rc.in "${CMAKE_CURRENT_BINARY_DIR}/windows.rc" @ONLY)
+    set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/windows.rc" PROPERTIES
+        OBJECT_DEPENDS "${PROJECT_SOURCE_DIR}/packaging/windows.manifest")
+    list(APPEND SIGN_SOURCES "${CMAKE_CURRENT_BINARY_DIR}/windows.rc")
+endif()
+
 add_executable(sign ${SIGN_SOURCES})
 
 target_link_libraries(sign PRIVATE Argp::Argp libssig::ssig CURL::libcurl OpenSSL::Crypto sign_config_deps PkgConfig::GIO)
@@ -89,10 +102,7 @@ target_compile_definitions(sign PRIVATE
 )
 
 target_compile_options(sign PRIVATE
-    -Wall
-    -Wextra
-    -Wpedantic
-    -Werror
+    "$<$<COMPILE_LANGUAGE:C>:-Wall;-Wextra;-Wpedantic;-Werror>"
 )
 
 install(TARGETS sign

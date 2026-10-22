@@ -180,7 +180,7 @@ la ejecución nativa queda pendiente hasta que se ejecute esa CI.
 
 ## Construcción
 
-Requiere CMake, un compilador C, argp, libssig >= 0.1.2, libcurl >= 7.85,
+Requiere CMake, un compilador C, argp, libssig >= 0.1.3, libcurl >= 7.85,
 pkg-config, GLib >= 2.40/GIO y tomlc17 (API con `toml_get`, por ejemplo 20260501).
 La interfaz gráfica también requiere GTK 4. GLib/GIO y tomlc17 se usan igualmente
 en compilaciones headless; el entorno Nix incluye ambas dependencias.
@@ -209,9 +209,14 @@ redirigido, argumentos o variables de entorno. Los PIN que superen 1024 bytes
 se rechazan; no se truncan. El búfer se borra antes de liberarlo tras el intento de firma.
 Los tokens con teclado propio no solicitan un PIN en la CLI.
 
-La carga explícita de módulos pasa por p11-kit. El empaquetado y la validación
-completa de la aplicación en Windows/macOS siguen pendientes; estos cambios no
-implican soporte completo del programa en esos sistemas.
+La compilación y el empaquetado nativos se automatizan con una matriz de CI
+para Windows UCRT64 y macOS, en variantes CLI y GTK. Genera paquetes portables
+con bibliotecas transitivas, recursos de GTK y la base de libmagic incorporada.
+La matriz también comprueba la ejecución tras trasladar el paquete. Su ejecución
+nativa sigue pendiente hasta ejecutar esa CI; las pruebas locales en Linux no
+implican validación completa en los otros sistemas.
+Consulta [las instrucciones de paquetes nativos](packaging/README.md) para
+compilar, generar los archivos y conocer los sistemas y arquitecturas de destino.
 
 ```sh
 cmake -S . -B build -DCMAKE_PREFIX_PATH=/ruta/instalacion/libssig -DBUILD_TESTING=OFF

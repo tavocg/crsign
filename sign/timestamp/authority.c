@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-#define _POSIX_C_SOURCE 200809L
 #include <libssig/trust_store.h>
 #include <openssl/err.h>
 #include <openssl/pem.h>
@@ -149,7 +148,11 @@ static bool url_select(char** url, const char* candidate) {
 	if (*url) {
 		return !strcmp(*url, candidate);
 	}
-	*url = strdup(candidate);
+	size_t len = strlen(candidate);
+	*url = malloc(len + 1);
+	if (*url) {
+		memcpy(*url, candidate, len + 1);
+	}
 	return *url != NULL;
 }
 
@@ -182,7 +185,11 @@ static bool sia_select(const sign_trust* trust, char** url) {
 			if (!url_valid(data, len)) {
 				continue;
 			}
-			char* candidate = strndup((const char*)data, (size_t)len);
+			char* candidate = malloc((size_t)len + 1);
+			if (candidate) {
+				memcpy(candidate, data, (size_t)len);
+				candidate[len] = 0;
+			}
 			ok = candidate && url_select(url, candidate);
 			free(candidate);
 		}

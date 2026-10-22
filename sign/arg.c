@@ -1,5 +1,14 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Some standalone argp headers redefine compiler macros in strict C mode.
+ * Keep those definitions from changing subsequent libc/GLib inline functions.
+ */
+#pragma push_macro("__attribute__")
+#pragma push_macro("__format__")
+#pragma push_macro("__printf__")
 #include <argp.h>
+#pragma pop_macro("__printf__")
+#pragma pop_macro("__format__")
+#pragma pop_macro("__attribute__")
 #include <glib.h>
 #include <sign/arg.h>
 #include <sign/certs/certs.h>

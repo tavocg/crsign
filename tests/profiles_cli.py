@@ -163,12 +163,15 @@ label = "empty"
     write('format = "cades"\n')
     assert sign_file()['format'] == 'cades'
 
-    # Both unset and empty XDG_CONFIG_HOME fall back to HOME/.config.
-    fallback = Path(env['HOME']) / '.config' / 'crsign' / 'crsign.toml'
-    fallback.parent.mkdir(parents=True)
-    fallback.write_text('version = 0.1\n[[profiles]]\nlabel = "home"\nhash = "sha512"\n')
-    env.pop('XDG_CONFIG_HOME')
-    assert options('-p', 'home') == options('-H', 'sha512')
-    env['XDG_CONFIG_HOME'] = ''
-    assert options('-p', 'home') == options('-H', 'sha512')
+    # GLib uses native AppData on Windows; avoid touching the runner's real
+    # known folder while testing the Unix HOME fallback.
+    if os.name != 'nt':
+        # Both unset and empty XDG_CONFIG_HOME fall back to HOME/.config.
+        fallback = Path(env['HOME']) / '.config' / 'crsign' / 'crsign.toml'
+        fallback.parent.mkdir(parents=True)
+        fallback.write_text('version = 0.1\n[[profiles]]\nlabel = "home"\nhash = "sha512"\n')
+        env.pop('XDG_CONFIG_HOME')
+        assert options('-p', 'home') == options('-H', 'sha512')
+        env['XDG_CONFIG_HOME'] = ''
+        assert options('-p', 'home') == options('-H', 'sha512')
 print('Profile configuration and CLI precedence checks passed')

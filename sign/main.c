@@ -20,6 +20,7 @@
 
 #include <sign/arg.h>
 #include <sign/operation.h>
+#include <sign/runtime.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -43,6 +44,10 @@ int main(int argc, char** argv) {
 	}
 
 #ifdef SIGN_WITH_GUI
+	if (!runtime_init()) {
+		arg_free(&args);
+		return EXIT_FAILURE;
+	}
 	int result = gui_run(args.argv[0]);
 #else
 	fprintf(stderr, "sign: GUI unavailable in this headless build\n");

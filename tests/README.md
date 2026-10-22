@@ -122,3 +122,17 @@ unknown self-signed certificate and checks an explicit anchor. It installs no
 certificates, changes no trust settings and accesses no private keys.
 `native-trust.yml` registers these standalone tests on Windows/MSYS2 UCRT64 and
 macOS with Homebrew OpenSSL; this does not yet build the whole application.
+
+`native_packaging` checks PE/Mach-O dependency parsing, closure and cycles,
+missing/conflicting libraries, relative macOS references, signing of copied
+files, archive checksums and rejection of unsafe source-archive paths. It runs
+on any host without Windows/macOS tools. `portable_runtime` runs a relocated
+resource driver from a directory with spaces and Unicode, checks image-cache
+relocation, explicit resource overrides and cache read failures.
+
+`native-build.yml` builds CLI and GTK applications on Windows UCRT64 and macOS,
+runs the CLI and native trust suites, then bundles and launches the relocated
+package with development-library paths removed. The package check verifies a
+real CMS/CAdES signature and, for GTK, opens the existing application window.
+Its native results are pending until that workflow runs. See
+[packaging/README.md](../packaging/README.md) for dependencies and artifact layout.
