@@ -31,7 +31,12 @@
               ]))
             ];
             nativeBuildInputs = with pkgs; [ pkg-config ];
-            buildInputs = with pkgs; [ gtk4 curl openssl p11-kit file qpdf jansson libxml2 ];
+            buildInputs = with pkgs; [
+              gtk4 curl openssl p11-kit file qpdf jansson libxml2
+              # FindPkgConfig also queries GTK private dependencies for static linking.
+              libsysprof-capture pcre2 util-linux libselinux libsepol
+              fribidi libthai libdatrie libxdmcp libxau
+            ];
 
             shellHook = ''
               export CMAKE_PREFIX_PATH="$HOME/Projects/libssig/build''${CMAKE_PREFIX_PATH:+:$CMAKE_PREFIX_PATH}"

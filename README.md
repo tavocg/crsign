@@ -24,7 +24,7 @@ Requiere CMake, un compilador C, glibc (argp), libssig y libcurl >= 7.85.
 La interfaz gráfica también requiere pkg-config y GTK 4.
 
 ```sh
-cmake -S . -B build -DCMAKE_PREFIX_PATH=/ruta/instalacion/libssig
+cmake -S . -B build -DCMAKE_PREFIX_PATH=/ruta/instalacion/libssig -DBUILD_TESTING=OFF
 cmake --build build
 ./build/sign --gui
 ```
