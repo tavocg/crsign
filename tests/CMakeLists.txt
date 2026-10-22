@@ -109,3 +109,14 @@ target_compile_options(http_driver PRIVATE -Wall -Wextra -Wpedantic -Werror)
 add_test(NAME http_transport COMMAND "${Python3_EXECUTABLE}"
     "${CMAKE_CURRENT_SOURCE_DIR}/http_test.py" $<TARGET_FILE:http_driver>)
 set_tests_properties(http_transport PROPERTIES TIMEOUT 30 LABELS "integration")
+
+add_executable(args_driver args_driver.c ../sign/arg.c ../sign/config.c
+    ../sign/json.c ../sign/certs/certs.c "${SIGN_CERT_CATALOG}")
+target_include_directories(args_driver PRIVATE "${PROJECT_SOURCE_DIR}")
+target_link_libraries(args_driver PRIVATE libssig::ssig OpenSSL::Crypto sign_config_deps)
+target_compile_definitions(args_driver PRIVATE SIGN_VERSION="${PROJECT_VERSION}")
+target_compile_options(args_driver PRIVATE -Wall -Wextra -Wpedantic -Werror)
+add_test(NAME profiles_cli COMMAND "${Python3_EXECUTABLE}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/profiles_cli.py" $<TARGET_FILE:args_driver>
+    $<TARGET_FILE:sign_mock>)
+set_tests_properties(profiles_cli PROPERTIES TIMEOUT 30)

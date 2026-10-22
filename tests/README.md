@@ -19,6 +19,9 @@ environments can install `tests/libssig/tests/requirements.txt` and select their
 interpreter with `Python3_EXECUTABLE`.
 
 - `commands_cli` checks command dispatch and JSON with a hardware substitute.
+- `profiles_cli` checks TOML versions and schema, XDG/HOME lookup, empty profiles,
+  CLI overrides (including default-valued overrides), relative certificate paths,
+  and signing with automatic token/certificate and PDF format selection.
 - `trust_cli` runs the actual CLI against local HTTP TSA/OCSP services and checks
   trust, transport errors, levels and failure preservation. It needs localhost
   sockets, not internet access or a physical token.

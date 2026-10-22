@@ -18,10 +18,57 @@ sin red; también se admiten `-l B-T` y `-l B-LT`. PDF usa PAdES automáticament
 confianza del sistema sigue activa. Si faltan evidencias o falla un sello, no se
 guarda la salida.
 
+## Perfiles de firmado
+
+`sign -p bccr doc.pdf` (o `--profile bccr`) carga el perfil con `label = "bccr"`
+de `$XDG_CONFIG_HOME/crsign/crsign.toml`. Si la variable no está definida o está
+vacía, en Linux y macOS se usa `~/.config/crsign/crsign.toml`; en Windows se usa
+la carpeta local de datos de aplicaciones que resuelve GLib.
+
+```toml
+version = 0.1
+
+[[profiles]]
+name = "BCCR"
+label = "bccr"
+token = "pkcs11:token=..."
+cert_id = "00ff"
+algorithm = "rsa-pss"
+hash = "sha384"
+tsa = { ca = "certs/tsa-root.pem", intermediates = "certs/tsa-chain.pem" }
+
+[[profiles]]
+label = "automatico"
+```
+
+Solo `label` es obligatorio en cada perfil y debe ser único. `name` es
+descriptivo. Todos los parámetros de firmado son opcionales: al omitirlos se
+conservan los valores predeterminados y la selección automática de token,
+certificado, TSA y formato. El perfil `automatico` equivale a firmar sin perfil.
+
+Los argumentos explícitos prevalecen independientemente de su posición:
+`sign -p bccr -t "pkcs11:token=Other" doc.pdf` sustituye el token del perfil.
+También se admiten `level`, `format`, `mime_type`, `detached` (booleano), `ca`,
+`intermediates`, `no_bundled_certs` (booleano), `cert_bundles` (lista de nombres)
+y `tsa.url`, además de `tsa.ca` y `tsa.intermediates`. Los valores de algoritmos,
+hashes, niveles y formatos son los mismos que acepta la CLI. Una selección
+explícita con `--cert-bundle` o `--no-bundled-certs` reemplaza la selección de
+bundles del perfil.
+
+Las rutas de certificados relativas se resuelven desde la carpeta de
+`crsign.toml`; las rutas pasadas por CLI siguen siendo relativas al directorio
+de trabajo. No se expanden `~` ni variables de entorno dentro del TOML.
+El archivo solo se lee al usar `-p`, que se admite exclusivamente para firmar.
+Se rechazan TOML inválido, etiquetas duplicadas, campos desconocidos del perfil
+seleccionado y versiones no compatibles. La versión es obligatoria; por ahora
+se acepta `0.1` tanto numérico como texto (`"0.1"`), sin migración automática.
+
 ## Construcción
 
-Requiere CMake, un compilador C, glibc (argp), libssig y libcurl >= 7.85.
-La interfaz gráfica también requiere pkg-config y GTK 4.
+Requiere CMake, un compilador C, glibc (argp), libssig, libcurl >= 7.85,
+pkg-config, GLib y tomlc17 (API con `toml_get`, por ejemplo 20260501).
+La interfaz gráfica también requiere GTK 4. GLib y tomlc17 se usan igualmente
+en compilaciones headless; el entorno Nix incluye ambas dependencias.
 
 ```sh
 cmake -S . -B build -DCMAKE_PREFIX_PATH=/ruta/instalacion/libssig -DBUILD_TESTING=OFF
