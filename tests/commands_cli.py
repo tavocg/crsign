@@ -17,7 +17,7 @@ with tempfile.TemporaryDirectory(prefix='sign-commands-') as directory:
     env['SIGN_MOCK_DATA'] = str(source)
 
     def run(*args, success=True, structured=False):
-        result = subprocess.run([sign, *(['-l', 'B-B'] if args and str(args[0]) not in ('tokens', 'verify', '--json', '--gui') and '--help' not in args else []), *map(str, args)], cwd=root, env=env,
+        result = subprocess.run([sign, *(['-l', 'B-B'] if args and str(args[0]) not in ('tokens', 'verify', 't', 'v', '--json', '--gui') and '--help' not in args else []), *map(str, args)], cwd=root, env=env,
                                 capture_output=True, text=True, timeout=10)
         assert (result.returncode == 0) == success, (args, result.stdout, result.stderr)
         return json.loads(result.stdout) if structured else result
@@ -35,6 +35,9 @@ with tempfile.TemporaryDirectory(prefix='sign-commands-') as directory:
         result = subprocess.run(args, cwd=root, env=env, capture_output=True, text=True)
         assert result.returncode == 0 and json.loads(result.stdout)['level'] == 'B-B'
         target.unlink()
+    assert output('t') == output('tokens')
+    assert output('--json', 't', '--all') == output('--json', 'tokens', '--all')
+    assert run('t').stdout == run('tokens').stdout
     tokens = output('tokens')
     assert tokens['command'] == 'tokens' and tokens['ok']
     assert tokens['count'] == len(tokens['tokens']) == 1
@@ -134,6 +137,9 @@ with tempfile.TemporaryDirectory(prefix='sign-commands-') as directory:
     assert not output('verify', 'missing.p7m', success=False)['ok']
     invalid = output('verify', source, success=False)
     assert invalid['command'] == 'verify' and not invalid['signature_valid']
+    assert output('v', source, success=False) == invalid
+    assert output('--json', 'v', source, success=False) == invalid
+    assert run('v', source, success=False).stdout == run('verify', source, success=False).stdout
     for name in ('tokens', 'verify'):
         (root / name).write_bytes(b'input')
         assert output('./' + name, '-o', name + '.p7m')['command'] == 'sign'

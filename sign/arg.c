@@ -176,7 +176,7 @@ static void positional_parse(
     sign_args*         args,
     char*              arg
 ) {
-	if (state->arg_num == 0 && !strcmp(arg, "verify")) {
+	if (state->arg_num == 0 && (!strcmp(arg, "verify") || !strcmp(arg, "v"))) {
 		if (args->command != SIGN_COMMAND_SIGN) {
 			argp_error(state, "Conflicting commands");
 		}
@@ -184,7 +184,7 @@ static void positional_parse(
 		return;
 	}
 
-	if (state->arg_num == 0 && !strcmp(arg, "tokens")) {
+	if (state->arg_num == 0 && (!strcmp(arg, "tokens") || !strcmp(arg, "t"))) {
 		if (args->command != SIGN_COMMAND_SIGN) {
 			argp_error(state, "Conflicting commands");
 		}
@@ -310,7 +310,7 @@ static error_t parse_option(int key, char* arg, struct argp_state* state) {
 static const struct argp parser = {
     .options = options,
     .parser = parse_option,
-    .args_doc = "FILE [-o OUTPUT]\nverify FILE\ntokens",
+    .args_doc = "FILE [-o OUTPUT]\nverify FILE (alias: v)\ntokens (alias: t)",
     .doc = "Sign: AdES signing and verification. System trust is used by "
            "default."
 };
