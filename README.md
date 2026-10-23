@@ -6,17 +6,10 @@ validación de largo plazo.
 ## Uso
 
 ```sh
-sign tokens # listar tokens
-sign doc.pdf -A 'http://tsa.sinpe.fi.cr/tsaHttp/' # firmar
+sign tokens                # listar tokens
+sign doc.pdf               # firmar
 sign verify doc-signed.pdf # verificar
 ```
-
-La firma usa B-LTA por defecto y requiere `-A URL`. `-l B-B` permite firmar
-sin red; también se admiten `-l B-T` y `-l B-LT`. PDF usa PAdES automáticamente;
-`-f cades|pades` permite elegir el formato. Para LT/LTA se pueden aportar
-`--ca-file`, `--intermediates`, `--tsa-ca-file` y `--tsa-intermediates`; la
-confianza del sistema sigue activa. Si faltan evidencias o falla un sello, no se
-guarda la salida.
 
 ## Representación gráfica de la firma PDF
 
@@ -52,19 +45,29 @@ por ejemplo `2026-10-22T19:23:41-06:00`, en formato
 la fecha visible no sustituye el sello de tiempo de una TSA. Si el certificado no
 incluye un nombre utilizable, se puede proporcionar una imagen con `-S`.
 
-Los perfiles admiten las mismas opciones; las rutas relativas de imágenes
-parten de la carpeta de `crsign.toml`. Los argumentos CLI prevalecen, y una
-altura o ancho explícito sustituye la dimensión que tuviera el perfil:
+Cada perfil puede elegir su imagen mediante `signature_image`. Las rutas
+relativas parten de la carpeta de `crsign.toml`; `-S FILE` prevalece sobre la
+imagen del perfil. Si no hay imagen en el perfil ni en la CLI, se genera la marca
+predeterminada. La página, las coordenadas y el tamaño se indican exclusivamente
+mediante argumentos CLI; no se admiten `page_number`, `x`, `y`, `width` ni `height`
+en TOML.
 
 ```toml
+version = 0.1
+
 [[profiles]]
 label = "visible"
-page_number = 1
-x = 36
-y = 48
-width = 144
-# signature_image = "marca.svg" # omitir para generar la marca
+signature_image = "marca.svg"
 ```
+
+```sh
+sign -p visible documento.pdf -n 1 -x 36 -y 48 -w 180
+sign -p visible documento.pdf -n 1 -x 36 -y 48 -S otra.png -h 60
+```
+
+La imagen del perfil solo se usa al solicitar una firma visible con `-n`, `-x`
+e `-y`; sin estos argumentos se conserva el firmado invisible. El tamaño sigue
+usando el ancho predeterminado de 144 puntos si no se indica `-w` o `-h`.
 
 La apariencia se incorpora en `/AP` del widget del campo de firma, siguiendo
 [ISO 32000-1, sección 12.7.4.5](https://developer.adobe.com/document-services/docs/assets/35e4369068f86065372c18787171a17e/PDF_ISO_32000-1.pdf),

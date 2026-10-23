@@ -87,7 +87,7 @@ int main(int argc, char** argv) {
                                      cert,
                                      params,
                                      &output,
-                                     &appearance
+                                     appearance.page_number ? &appearance : NULL
                                  )
 	                              : LIBSSIG_ERROR_ARGUMENT;
 	ok = ok && status == LIBSSIG_OK;

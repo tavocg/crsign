@@ -46,8 +46,8 @@ interpreter with `Python3_EXECUTABLE`.
   CLI overrides (including default-valued overrides), relative certificate paths,
   and signing with automatic token/certificate and PDF format selection.
 - `appearance_cli` decodes SVG, PNG and JPEG, checks EXIF orientation, aspect
-  ratio, placement limits, default certificate text/RFC 3339 dates and profile
-  overrides, then signs and verifies real PDF signatures without a card.
+  ratio, placement limits, default certificate text/RFC 3339 dates, profile image
+  defaults, CLI overrides and rejection of TOML geometry, then signs and verifies real PDF signatures without a card.
 - `pdf_appearance` verifies real signatures on rotated/cropped pages, UserUnit,
   existing annotations, selected page, failure cleanup and appearance tampering.
   `pdf_appearance_render` also checks orientation, coordinates and transparency

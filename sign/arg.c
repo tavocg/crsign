@@ -376,11 +376,7 @@ bool arg_setting(
 	return true;
 }
 
-static void args_validate(
-    struct argp_state* state,
-    const sign_args*   args,
-    bool               final
-) {
+static void args_validate(struct argp_state* state, const sign_args* args) {
 	bool verify = args->command == SIGN_COMMAND_VERIFY;
 	bool tokens = args->command == SIGN_COMMAND_TOKENS;
 	if (args->no_bundled_certs && args->cert_bundle_count) {
@@ -424,7 +420,7 @@ static void args_validate(
 	    args->detached) {
 		argp_error(state, "PAdES cannot use --detached");
 	}
-	if (final && (args->appearance.page_number || args->appearance_options)) {
+	if (args->appearance.page_number || args->appearance_options) {
 		if (!args->appearance.page_number ||
 		    (args->appearance_options &
 		     (SIGN_APPEARANCE_X | SIGN_APPEARANCE_Y)) !=
@@ -567,7 +563,7 @@ static error_t parse_option(int key, char* arg, struct argp_state* state) {
 		if (context->modules->len && args->command == SIGN_COMMAND_VERIFY) {
 			argp_error(state, "--module requires signing or tokens");
 		}
-		args_validate(state, args, false);
+		args_validate(state, args);
 		if ((args->command == SIGN_COMMAND_SIGN && args->input) ||
 		    args->command == SIGN_COMMAND_TOKENS) {
 			bool cli_bundles = args->cert_bundle_count ||
@@ -608,21 +604,6 @@ static error_t parse_option(int key, char* arg, struct argp_state* state) {
 				args->cert_bundle_count = 0;
 				args->no_bundled_certs = false;
 			}
-			/* An explicit CLI dimension replaces the profile's dimension. */
-			for (guint i = 0; i < context->settings->len; ++i) {
-				cli_setting s = g_array_index(
-				    context->settings,
-				    cli_setting,
-				    i
-				);
-				if (s.key == 'w' || s.key == 'h') {
-					args->appearance_options &= ~(
-					    SIGN_APPEARANCE_WIDTH | SIGN_APPEARANCE_HEIGHT
-					);
-					args->appearance.width = args->appearance.height = 0;
-					break;
-				}
-			}
 			for (guint i = 0; i < context->settings->len; ++i) {
 				cli_setting setting = g_array_index(
 				    context->settings,
@@ -639,7 +620,7 @@ static error_t parse_option(int key, char* arg, struct argp_state* state) {
 					argp_error(state, "%s", error);
 				}
 			}
-			args_validate(state, args, true);
+			args_validate(state, args);
 		}
 		break;
 	default:

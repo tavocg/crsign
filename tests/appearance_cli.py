@@ -111,17 +111,40 @@ with tempfile.TemporaryDirectory(prefix='crsign-appearance-') as directory:
     run(*common, '-S', broken, success=False)
     config = root / 'config' / 'crsign' / 'crsign.toml'
     config.parent.mkdir(parents=True)
-    config.write_text('version=0.1\n[[profiles]]\nlabel="mark"\npage_number=1\nx=24\ny=36.5\nheight=48\nsignature_image="mark.svg"\n')
+    profile = 'version=0.1\n[[profiles]]\nlabel="mark"\nsignature_image="mark.svg"\n'
+    config.write_text(profile)
     (config.parent / 'mark.svg').write_bytes(svg.read_bytes())
     def options(*a):
         return json.loads(run(source, '-p', 'mark', *a, program=args_driver).stdout)
     a = options()
-    assert a['page_number'] == 1 and a['x'] == 24 and a['y'] == 36.5 and a['height'] == 48
+    assert a['page_number'] == 0 and a['width'] == 0 and a['height'] == 0
     assert Path(a['signature_image']) == config.parent / 'mark.svg'
-    a = options('-w', '160', '-x', '30')
-    assert a['width'] == 160 and a['height'] == 0 and a['x'] == 30
-    run(source, '-o', output, '-p', 'mark', '-w', '160')
-    # A partial profile and partial CLI geometry can be combined in either order.
-    config.write_text('version=0.1\n[[profiles]]\nlabel="mark"\npage_number=1\nx=24\n')
-    run(source, '-o', output, '-p', 'mark', '-y', '36')
+    # Selecting a profile image alone keeps signing invisible, without loading it.
+    run(source, '-o', output, '-p', 'mark')
+    assert b'/Subtype /Image' not in output.read_bytes()
+    run(source, '-o', output, '-p', 'mark', *geometry)
+    assert rect_size() == (144, 72)
+    for size in (('-w', '160'), ('-h', '80')):
+        run(source, '-o', output, '-p', 'mark', *geometry, *size)
+        assert rect_size() == (160, 80)
+    override = root / 'override.svg'
+    override.write_text("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 90 30'><rect width='90' height='30' fill='blue'/></svg>")
+    for arguments in (('-S', override, '-p', 'mark'), ('-p', 'mark', '-S', override)):
+        run(source, '-o', output, *geometry, *arguments, '-w', '180')
+        assert rect_size() == (180, 60)
+    # A missing profile asset is only an error when visible signing is requested.
+    (config.parent / 'mark.svg').unlink()
+    run(source, '-o', output, '-p', 'mark')
+    run(source, '-o', output, '-p', 'mark', *geometry, success=False)
+    run(source, '-o', output, '-p', 'mark', *geometry, '-S', override)
+    for incomplete in (('-n', '1'), ('-x', '24'), ('-h', '48')):
+        run(source, '-o', output, '-p', 'mark', *incomplete, success=False)
+    # Geometry belongs exclusively to CLI arguments.
+    for field in ('page_number=1', 'x=24', 'y=36', 'width=144', 'height=48'):
+        config.write_text(profile + field + '\n')
+        result = run(source, '-p', 'mark', *geometry, program=args_driver, success=False)
+        assert b'Unknown profile field' in result.stderr
+    for invalid in ('signature_image=42', 'signature_image=""'):
+        config.write_text('version=0.1\n[[profiles]]\nlabel="mark"\n' + invalid + '\n')
+        run(source, '-p', 'mark', *geometry, program=args_driver, success=False)
 print('Visible PDF signature checks passed')
