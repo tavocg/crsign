@@ -29,6 +29,7 @@ jobs:
           nix develop --command cmake -S . -B build
           -DCMAKE_BUILD_TYPE=Release
           -DHEADLESS=OFF
+          -DBUILD_TESTING=ON
           -Dlibssig_DIR="$GITHUB_WORKSPACE/build-libssig"
           -DSIGN_TEST_LIBSSIG=ON
           -DLIBSSIG_TEST_CONFORMANCE=ON

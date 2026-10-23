@@ -1,12 +1,14 @@
 # Sign tests
 
+Tests are disabled by default. Enable them explicitly with `-DBUILD_TESTING=ON`.
+GTK is enabled by default; add `-DHEADLESS=ON` for a CLI-only test build.
 Initialize the pinned suite and its nested ETSI schema modules:
 
 ```sh
 git submodule update --init --recursive
 nix develop --command cmake -S tests/libssig -B build-libssig -DBUILD_TESTING=OFF
 nix develop --command cmake --build build-libssig --parallel
-nix develop --command cmake -S . -B build -Dlibssig_DIR="$PWD/build-libssig" -DHEADLESS=ON
+nix develop --command cmake -S . -B build -Dlibssig_DIR="$PWD/build-libssig" -DBUILD_TESTING=ON
 nix develop --command cmake --build build --parallel
 nix develop --command ctest --test-dir build --parallel 4 --output-on-failure
 ```

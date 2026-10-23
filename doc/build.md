@@ -36,11 +36,26 @@ proveedor. Se conservan [las instrucciones de compilación nativa y empaquetado
 manual](../packaging/README.md) para preparar futuros releases.
 
 ```sh
-cmake -S . -B build -DCMAKE_PREFIX_PATH=/ruta/instalacion/libssig -DBUILD_TESTING=OFF
+cmake -S . -B build -DCMAKE_PREFIX_PATH=/ruta/instalacion/libssig
 cmake --build build
 ./build/sign --gui
 ```
 
-Para compilar sin GTK, añade `-DHEADLESS=ON`. Las pruebas requieren Python 3
-y el ejecutable `openssl`; pueden omitirse con `-DBUILD_TESTING=OFF`.
+Por defecto se compila con GTK (`HEADLESS=OFF`) y sin pruebas (`BUILD_TESTING=OFF`).
+Para compilar sin GTK, añade `-DHEADLESS=ON`.
+
+Para habilitar las pruebas, configura explícitamente `-DBUILD_TESTING=ON`:
+
+```sh
+cmake -S . -B build -DBUILD_TESTING=ON
+cmake --build build
+ctest --test-dir build --output-on-failure
+```
+
+Consulta [las instrucciones de pruebas](../tests/README.md) para preparar los
+submódulos y las dependencias de las suites. Python 3 y el ejecutable `openssl`
+también se utilizan durante la construcción para generar el catálogo de certificados.
+
+CMake conserva las opciones de un directorio de compilación existente. Si allí
+se habían habilitado las pruebas, usa `-DBUILD_TESTING=OFF` para desactivarlas.
 

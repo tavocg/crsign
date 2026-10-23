@@ -28,7 +28,7 @@ jobs:
         run: |
           export PKG_CONFIG_PATH="$(brew --prefix libxml2)/lib/pkgconfig:$(brew --prefix openssl@3)/lib/pkgconfig:$(brew --prefix libmagic)/lib/pkgconfig"
           sdk="$(xcrun --show-sdk-path)"
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DHEADLESS=OFF \
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DHEADLESS=OFF -DBUILD_TESTING=ON \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 -DSIGN_TEST_LIBSSIG=OFF \
             -DCMAKE_PREFIX_PATH="$PWD/build/native-prefix;$(brew --prefix argp-standalone);$(brew --prefix openssl@3)" \
             -DCURL_NO_CURL_CMAKE=TRUE -DCURL_LIBRARY="$sdk/usr/lib/libcurl.tbd" -DCURL_INCLUDE_DIR="$sdk/usr/include"
@@ -76,7 +76,7 @@ jobs:
           cmake --install build-libssig
       - name: Configure and build CRSign
         run: |
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DHEADLESS=OFF \
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DHEADLESS=OFF -DBUILD_TESTING=ON \
             -DSIGN_TEST_LIBSSIG=OFF -DCMAKE_PREFIX_PATH="$(cygpath -m "$PWD/build/native-prefix");$(cygpath -m "$MINGW_PREFIX")"
           cmake --build build --parallel 4
       - name: Test CLI and native stores

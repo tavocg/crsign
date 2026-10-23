@@ -54,7 +54,7 @@ cmake -S tests/libssig -B build-libssig -DCMAKE_BUILD_TYPE=Release \
 cmake --build build-libssig --parallel 4
 cmake --install build-libssig
 
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DHEADLESS=OFF \
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DHEADLESS=OFF -DBUILD_TESTING=ON \
   -DSIGN_TEST_LIBSSIG=OFF -DCMAKE_PREFIX_PATH="$PWD/build/native-prefix"
 cmake --build build --parallel 4
 ctest --test-dir build --parallel 4 --output-on-failure
