@@ -130,12 +130,13 @@ on any host without Windows/macOS tools. `portable_runtime` runs a relocated
 resource driver from a directory with spaces and Unicode, checks image-cache
 relocation, explicit resource overrides and cache read failures.
 
-`native-build.yml` builds CLI and GTK applications on Windows UCRT64 and macOS,
-runs the CLI and native trust suites, then bundles and launches the relocated
-package with development-library paths removed. The package check verifies a
-real CMS/CAdES signature and, for GTK, opens the existing application window.
-All four variants passed the [native matrix](https://github.com/tavocg/crsign/actions/runs/39879818514)
-on Windows x86_64 and macOS arm64. The POSIX PIN tests drain PTY output while
+`native-build.yml` builds the complete GTK application (`HEADLESS=OFF`) on
+Windows UCRT64 and macOS, and runs the CLI and native trust suites. `build.yml`
+builds and tests the GTK application on Linux. Neither workflow packages binaries
+or uploads artifacts. The packaging scripts remain available for manual use;
+their package check verifies a real CMS/CAdES signature and opens GTK from a
+relocated installation with development-library paths removed.
+The POSIX PIN tests drain PTY output while
 the child runs, inspect modes through the retained master, and feed bounded
 input chunks to avoid overflowing BSD terminal queues. Loopback HTTP fixtures
 avoid reverse DNS lookups. See

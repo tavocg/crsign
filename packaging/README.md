@@ -1,16 +1,13 @@
-# Compilación y paquetes nativos
+# Compilación nativa y empaquetado manual
 
-`native-build.yml` compila la aplicación completa en Windows UCRT64 y macOS,
-con dos variantes: CLI (`HEADLESS=ON`) y GTK (`HEADLESS=OFF`). Ejecuta las pruebas
-de CLI, almacenes nativos y recursos; produce ZIP en Windows y tar.gz en macOS.
-Los artefactos se publican en la ejecución de Actions, sin crear releases ni
-publicar el sitio. La variante GTK conserva la interfaz que ya tiene el proyecto.
+`native-build.yml` compila y prueba la aplicación completa con GTK
+(`HEADLESS=OFF`) en Windows UCRT64 y macOS. `build.yml` hace lo mismo en Linux.
+La CI ejecuta las pruebas de CLI, almacenes y recursos, sin generar archivos
+distribuibles ni subir artefactos.
 
-Las cuatro variantes completaron la [matriz nativa](https://github.com/tavocg/crsign/actions/runs/39879818514)
-en Windows x86_64 y macOS arm64: compilación, pruebas de CLI y almacenes,
-generación de paquetes y ejecución tras trasladarlos a una ruta con espacios y
-Unicode. GTK también abrió la ventana desde el paquete trasladado. Los
-artefactos descargables están en esa ejecución. El firmado con un token físico
+Los scripts de empaquetado se conservan para ejecutarlos manualmente cuando se
+preparen releases con las fuentes y el programa. Las secciones de empaquetado
+de este documento describen ese proceso opcional. El firmado con un token físico
 se valida por separado con el controlador del proveedor.
 
 ## Dependencias

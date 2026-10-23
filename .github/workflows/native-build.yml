@@ -1,4 +1,4 @@
-name: Native build and package
+name: Native GTK build
 
 on: [push, pull_request, workflow_dispatch]
 permissions:
@@ -6,12 +6,8 @@ permissions:
 
 jobs:
   macos:
-    name: macOS (headless=${{ matrix.headless }})
+    name: macOS (GTK)
     runs-on: macos-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        headless: ["ON", "OFF"]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -25,14 +21,14 @@ jobs:
           export PKG_CONFIG_PATH="$(brew --prefix libxml2)/lib/pkgconfig:$(brew --prefix openssl@3)/lib/pkgconfig:$(brew --prefix libmagic)/lib/pkgconfig"
           cmake -S tests/libssig -B build-libssig -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 -DOPENSSL_ROOT_DIR="$(brew --prefix openssl@3)" \
-            -DLIBSSIG_EMBED_MAGIC_DATABASE=ON -DCMAKE_INSTALL_PREFIX="$PWD/build/native-prefix"
+            -DCMAKE_INSTALL_PREFIX="$PWD/build/native-prefix"
           cmake --build build-libssig --parallel 4
           cmake --install build-libssig
       - name: Configure and build CRSign
         run: |
           export PKG_CONFIG_PATH="$(brew --prefix libxml2)/lib/pkgconfig:$(brew --prefix openssl@3)/lib/pkgconfig:$(brew --prefix libmagic)/lib/pkgconfig"
           sdk="$(xcrun --show-sdk-path)"
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DHEADLESS=${{ matrix.headless }} \
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DHEADLESS=OFF \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 -DSIGN_TEST_LIBSSIG=OFF \
             -DCMAKE_PREFIX_PATH="$PWD/build/native-prefix;$(brew --prefix argp-standalone);$(brew --prefix openssl@3)" \
             -DCURL_NO_CURL_CMAKE=TRUE -DCURL_LIBRARY="$sdk/usr/lib/libcurl.tbd" -DCURL_INCLUDE_DIR="$sdk/usr/include"
@@ -44,30 +40,10 @@ jobs:
           cmake -S tests/libssig/tests/system_trust -B build/system-trust -DCMAKE_BUILD_TYPE=Release -DOPENSSL_ROOT_DIR="$(brew --prefix openssl@3)"
           cmake --build build/system-trust --parallel 4
           ctest --test-dir build/system-trust --output-on-failure
-      - name: Package and test relocation
-        run: |
-          python3 scripts/package-native.py --build build --libssig-build build-libssig \
-            --library-prefix build/native-prefix --dependency-prefix "$(brew --prefix)" \
-            --dependency-prefix "$(brew --prefix libmagic)" --dependency-prefix "$(brew --prefix libxml2)" \
-            --dependency-prefix "$(brew --prefix openssl@3)" \
-            --destination "build/dist/CRSign-macos-$(uname -m)-headless-${{ matrix.headless }}"
-          gui=()
-          if [ '${{ matrix.headless }}' = OFF ]; then gui=(--gui); fi
-          python3 scripts/test-native-package.py "build/dist/CRSign-macos-$(uname -m)-headless-${{ matrix.headless }}" \
-            --openssl "$(brew --prefix openssl@3)/bin/openssl" "${gui[@]}"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: CRSign-macos-headless-${{ matrix.headless }}
-          path: build/dist/*.tar.gz
-          if-no-files-found: error
 
   windows:
-    name: Windows UCRT64 (headless=${{ matrix.headless }})
+    name: Windows UCRT64 (GTK)
     runs-on: windows-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        headless: ["ON", "OFF"]
     defaults:
       run:
         shell: msys2 {0}
@@ -82,7 +58,6 @@ jobs:
           msystem: UCRT64
           update: true
           install: >-
-            git
             mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake
             mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-pkgconf
             mingw-w64-ucrt-x86_64-python mingw-w64-ucrt-x86_64-openssl
@@ -95,12 +70,12 @@ jobs:
       - name: Configure and install libssig
         run: |
           cmake -S tests/libssig -B build-libssig -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF \
-            -DLIBSSIG_EMBED_MAGIC_DATABASE=ON -DCMAKE_INSTALL_PREFIX="$PWD/build/native-prefix"
+            -DCMAKE_INSTALL_PREFIX="$PWD/build/native-prefix"
           cmake --build build-libssig --parallel 4
           cmake --install build-libssig
       - name: Configure and build CRSign
         run: |
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DHEADLESS=${{ matrix.headless }} \
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DHEADLESS=OFF \
             -DSIGN_TEST_LIBSSIG=OFF -DCMAKE_PREFIX_PATH="$(cygpath -m "$PWD/build/native-prefix");$(cygpath -m "$MINGW_PREFIX")"
           cmake --build build --parallel 4
       - name: Test CLI and native stores
@@ -110,17 +85,3 @@ jobs:
           cmake -S tests/libssig/tests/system_trust -B build/system-trust -G Ninja -DCMAKE_BUILD_TYPE=Release
           cmake --build build/system-trust --parallel 4
           ctest --test-dir build/system-trust --output-on-failure
-      - name: Package and test relocation
-        run: |
-          python scripts/package-native.py --build build --libssig-build build-libssig \
-            --library-prefix build/native-prefix --dependency-prefix "$MINGW_PREFIX" \
-            --destination "build/dist/CRSign-windows-x86_64-headless-${{ matrix.headless }}"
-          gui=()
-          if [ '${{ matrix.headless }}' = OFF ]; then gui=(--gui); fi
-          python scripts/test-native-package.py "build/dist/CRSign-windows-x86_64-headless-${{ matrix.headless }}" \
-            --openssl "$MINGW_PREFIX/bin/openssl.exe" "${gui[@]}"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: CRSign-windows-x86_64-headless-${{ matrix.headless }}
-          path: build/dist/*.zip
-          if-no-files-found: error

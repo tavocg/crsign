@@ -208,15 +208,11 @@ redirigido, argumentos o variables de entorno. Los PIN que superen 1024 bytes
 se rechazan; no se truncan. El búfer se borra antes de liberarlo tras el intento de firma.
 Los tokens con teclado propio no solicitan un PIN en la CLI.
 
-La compilación y el empaquetado nativos se automatizan con una matriz de CI
-para Windows UCRT64 y macOS, en variantes CLI y GTK. Genera paquetes portables
-con bibliotecas transitivas, recursos de GTK y la base de libmagic incorporada.
-La matriz también comprueba la ejecución tras trasladar el paquete. Las cuatro
-variantes completaron la [validación nativa](https://github.com/tavocg/crsign/actions/runs/39879818514),
-incluida la verificación de una firma real y la apertura de GTK. El firmado con
-un token físico requiere una comprobación adicional con el controlador del proveedor.
-Consulta [las instrucciones de paquetes nativos](packaging/README.md) para
-compilar, generar los archivos y conocer los sistemas y arquitecturas de destino.
+La CI compila y prueba la aplicación completa con GTK (`HEADLESS=OFF`) en Linux,
+Windows UCRT64 y macOS. Los workflows no generan ni suben paquetes distribuibles.
+El firmado con un token físico se comprueba por separado con el controlador del
+proveedor. Se conservan [las instrucciones de compilación nativa y empaquetado
+manual](packaging/README.md) para preparar futuros releases.
 
 ```sh
 cmake -S . -B build -DCMAKE_PREFIX_PATH=/ruta/instalacion/libssig -DBUILD_TESTING=OFF
