@@ -25,7 +25,7 @@ elseif(UNIX)
 endif()
 option(BUILD_TESTING "Build the test suites" OFF)
 include(CTest)
-find_package(libssig 0.1.4 CONFIG REQUIRED)
+find_package(libssig 0.1.5 CONFIG REQUIRED)
 find_package(CURL 7.85 REQUIRED)
 find_package(OpenSSL REQUIRED COMPONENTS Crypto)
 include_directories(BEFORE SYSTEM "${OPENSSL_INCLUDE_DIR}")
@@ -34,6 +34,8 @@ find_package(Python3 COMPONENTS Interpreter REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GLIB REQUIRED IMPORTED_TARGET glib-2.0>=2.40)
 pkg_check_modules(GIO REQUIRED IMPORTED_TARGET gio-2.0)
+pkg_check_modules(JANSSON REQUIRED IMPORTED_TARGET jansson>=2.11)
+pkg_check_modules(P11_KIT REQUIRED IMPORTED_TARGET p11-kit-1)
 pkg_check_modules(IMAGES REQUIRED IMPORTED_TARGET librsvg-2.0>=2.52 gdk-pixbuf-2.0 cairo pangocairo)
 add_library(sign_image_deps INTERFACE)
 target_link_libraries(sign_image_deps INTERFACE PkgConfig::IMAGES)
@@ -49,7 +51,30 @@ target_link_libraries(sign_config_deps INTERFACE PkgConfig::GLIB "${TOMLC17_LIBR
 option(HEADLESS "Build without the GTK graphical interface" OFF)
 
 if(NOT HEADLESS)
-    pkg_check_modules(GTK4 REQUIRED IMPORTED_TARGET gtk4)
+    pkg_check_modules(GTK4 REQUIRED IMPORTED_TARGET gtk4>=4.10)
+    pkg_check_modules(ADWAITA REQUIRED IMPORTED_TARGET libadwaita-1>=1.4)
+    find_package(Intl REQUIRED)
+    add_subdirectory(po)
+    configure_file(sign/gui/config.h.in generated/sign/gui/config.h @ONLY)
+    add_library(sign_gui_deps INTERFACE)
+    target_link_libraries(sign_gui_deps INTERFACE PkgConfig::GTK4 PkgConfig::ADWAITA ${Intl_LIBRARIES})
+    target_include_directories(sign_gui_deps SYSTEM INTERFACE ${Intl_INCLUDE_DIRS})
+    target_include_directories(sign_gui_deps INTERFACE "${PROJECT_BINARY_DIR}/generated")
+    target_compile_definitions(sign_gui_deps INTERFACE SIGN_WITH_GUI GETTEXT_PACKAGE="crsign")
+    find_program(GLIB_COMPILE_RESOURCES_EXECUTABLE glib-compile-resources REQUIRED)
+    set(SIGN_GUI_RESOURCES "${PROJECT_BINARY_DIR}/generated/sign/gui/resources.c")
+    add_custom_command(OUTPUT "${SIGN_GUI_RESOURCES}"
+        COMMAND "${GLIB_COMPILE_RESOURCES_EXECUTABLE}"
+            "${PROJECT_SOURCE_DIR}/sign/gui/resources.gresource.xml"
+            --sourcedir "${PROJECT_SOURCE_DIR}" --generate-source --c-name sign_gui
+            --target "${SIGN_GUI_RESOURCES}"
+        DEPENDS sign/gui/resources.gresource.xml packaging/icon-rounded.svg sign/gui/style.css
+        VERBATIM)
+    add_library(sign_gui_resources OBJECT "${SIGN_GUI_RESOURCES}")
+    target_link_libraries(sign_gui_resources PRIVATE PkgConfig::GIO)
+    target_sources(sign_gui_deps INTERFACE $<TARGET_OBJECTS:sign_gui_resources>)
+    add_dependencies(sign_gui_deps sign_gui_resources)
+    add_dependencies(sign_gui_deps translations)
 endif()
 
 file(GLOB_RECURSE SIGN_SOURCES CONFIGURE_DEPENDS
@@ -58,7 +83,7 @@ file(GLOB_RECURSE SIGN_SOURCES CONFIGURE_DEPENDS
 list(FILTER SIGN_SOURCES EXCLUDE REGEX "_test\\.c$")
 
 if(HEADLESS)
-    list(FILTER SIGN_SOURCES EXCLUDE REGEX "/sign/gui\\.c$")
+    list(FILTER SIGN_SOURCES EXCLUDE REGEX "/sign/gui(\\.c$|/)")
 endif()
 
 # The catalogue is local and deterministic; configure never downloads certificates.
@@ -89,20 +114,14 @@ endif()
 
 add_executable(sign ${SIGN_SOURCES})
 
-target_link_libraries(sign PRIVATE Argp::Argp libssig::ssig CURL::libcurl OpenSSL::Crypto sign_config_deps PkgConfig::GIO sign_image_deps)
+target_link_libraries(sign PRIVATE Argp::Argp libssig::ssig CURL::libcurl OpenSSL::Crypto sign_config_deps PkgConfig::GIO sign_image_deps PkgConfig::JANSSON PkgConfig::P11_KIT)
 
 target_include_directories(sign PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
 )
 
 if(NOT HEADLESS)
-    target_link_libraries(sign PRIVATE
-        PkgConfig::GTK4
-    )
-
-    target_compile_definitions(sign PRIVATE
-        SIGN_WITH_GUI
-    )
+    target_link_libraries(sign PRIVATE sign_gui_deps)
 endif()
 
 target_compile_definitions(sign PRIVATE

@@ -1,0 +1,77 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+add_executable(gui_i18n_test i18n_test.c ../../sign/gui/i18n.c ../../sign/runtime.c)
+target_include_directories(gui_i18n_test PRIVATE "${PROJECT_SOURCE_DIR}")
+target_link_libraries(gui_i18n_test PRIVATE sign_gui_deps)
+target_compile_options(gui_i18n_test PRIVATE -Wall -Wextra -Wpedantic -Werror)
+foreach(language IN ITEMS en es)
+    add_test(NAME gui_i18n_${language} COMMAND "${CMAKE_COMMAND}" -E env
+        LC_ALL=en_US.UTF-8 LANGUAGE=${language} $<TARGET_FILE:gui_i18n_test> ${language})
+endforeach()
+
+if(NOT IS_ABSOLUTE "${CMAKE_INSTALL_LOCALEDIR}")
+    add_test(NAME gui_i18n_installed COMMAND "${Python3_EXECUTABLE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/installed_i18n.py" $<TARGET_FILE:gui_i18n_test>
+        "${PROJECT_BINARY_DIR}/locale" "${CMAKE_INSTALL_LOCALEDIR}")
+    set_tests_properties(gui_i18n_installed PROPERTIES
+        ENVIRONMENT "LC_ALL=en_US.UTF-8;LANGUAGE=es")
+endif()
+
+set(GUI_TEST_SOURCES
+    ../../sign/gui/window.c ../../sign/gui/about.c ../../sign/gui/validation.c
+    ../../sign/gui/devices.c ../../sign/gui/inventory.c ../../sign/gui/certificate.c
+    ../../sign/flow.c ../../sign/execution.c ../../sign/sign.c ../../sign/modules.c
+    ../../sign/appearance.c ../../sign/pin.c ../../sign/terminal.c ../../sign/http.c
+    ../../sign/timestamp/authority.c ../../sign/trust.c
+    ../../sign/gui/i18n.c ../../sign/runtime.c ../../sign/gui/settings.c
+    ../../sign/preferences.c ../../sign/config.c ../../sign/arg.c ../../sign/options.c
+    ../../sign/json.c ../../sign/io.c ../../sign/certs/certs.c "${SIGN_CERT_CATALOG}")
+add_executable(gui_navigation_test navigation_test.c ${GUI_TEST_SOURCES})
+add_executable(gui_validation_test validation_test.c ${GUI_TEST_SOURCES})
+add_executable(gui_drop_test drop_test.c ${GUI_TEST_SOURCES})
+set(GUI_DEVICE_TEST_SOURCES ${GUI_TEST_SOURCES})
+list(REMOVE_ITEM GUI_DEVICE_TEST_SOURCES "${SIGN_CERT_CATALOG}")
+add_executable(gui_devices_test devices_test.c ${GUI_DEVICE_TEST_SOURCES} $<TARGET_OBJECTS:bundle_catalog>)
+foreach(target IN ITEMS gui_navigation_test gui_validation_test gui_drop_test gui_devices_test)
+    target_compile_definitions(${target} PRIVATE SIGN_VERSION="${PROJECT_VERSION}")
+    target_include_directories(${target} PRIVATE "${PROJECT_SOURCE_DIR}")
+    target_link_libraries(${target} PRIVATE sign_gui_deps sign_config_deps
+        Argp::Argp libssig::ssig OpenSSL::Crypto PkgConfig::GIO
+        CURL::libcurl sign_image_deps PkgConfig::JANSSON PkgConfig::P11_KIT)
+    target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic -Werror)
+endforeach()
+# Native builds compile the test; Linux can exercise real allocations in Xvfb.
+if(UNIX AND NOT APPLE)
+    find_program(XVFB_RUN_EXECUTABLE xvfb-run)
+    find_program(DBUS_RUN_SESSION_EXECUTABLE dbus-run-session)
+    if(XVFB_RUN_EXECUTABLE AND DBUS_RUN_SESSION_EXECUTABLE)
+        set(GUI_TEST_COMMAND "${CMAKE_COMMAND}" -E env
+            LC_ALL=en_US.UTF-8 LANGUAGE=es GDK_BACKEND=x11 GSK_RENDERER=cairo GTK_A11Y=none
+            ADW_DISABLE_PORTAL=1 GIO_USE_VFS=local GSETTINGS_BACKEND=memory G_DEBUG=fatal-criticals
+            "${DBUS_RUN_SESSION_EXECUTABLE}" --config-file "${CMAKE_CURRENT_SOURCE_DIR}/session.conf"
+            -- "${XVFB_RUN_EXECUTABLE}" -a "--server-args=-screen 0 1280x1024x24")
+        add_test(NAME gui_navigation COMMAND ${GUI_TEST_COMMAND}
+            $<TARGET_FILE:gui_navigation_test> "${CMAKE_CURRENT_BINARY_DIR}/snapshots")
+        if(EXISTS "${PROJECT_SOURCE_DIR}/tests/libssig/tests/document_sign_fixture.c")
+            add_test(NAME gui_validation COMMAND ${GUI_TEST_COMMAND}
+                "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/validation_test.py"
+                $<TARGET_FILE:gui_validation_test> $<TARGET_FILE:flow_crypto_driver>
+                "${CMAKE_CURRENT_BINARY_DIR}/snapshots")
+            set_tests_properties(gui_validation PROPERTIES TIMEOUT 45 RESOURCE_LOCK gtk_display)
+        endif()
+        set_tests_properties(gui_navigation PROPERTIES TIMEOUT 30 RESOURCE_LOCK gtk_display)
+        if(TARGET device_fixture)
+            add_test(NAME gui_devices COMMAND ${GUI_TEST_COMMAND}
+                "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/devices_test.py"
+                $<TARGET_FILE:gui_devices_test> $<TARGET_FILE:device_fixture>
+                "${BUNDLE_FIXTURES}" "${CMAKE_CURRENT_BINARY_DIR}/snapshots" "${OPENSSL_EXECUTABLE}")
+            set_tests_properties(gui_devices PROPERTIES TIMEOUT 60 RESOURCE_LOCK gtk_display)
+        endif()
+        find_program(XDOTOOL_EXECUTABLE xdotool)
+        if(XDOTOOL_EXECUTABLE)
+            add_test(NAME gui_native_drop COMMAND ${GUI_TEST_COMMAND}
+                "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/drop_test.py"
+                $<TARGET_FILE:gui_drop_test> "${XDOTOOL_EXECUTABLE}")
+            set_tests_properties(gui_native_drop PROPERTIES TIMEOUT 75 RESOURCE_LOCK gtk_display)
+        endif()
+    endif()
+endif()

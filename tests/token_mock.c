@@ -165,3 +165,18 @@ libssig_status libssig_sign(
 	}
 	return LIBSSIG_OK;
 }
+
+/* Hardware-free routing fixture: cryptographic appearances have independent
+ * real-signature coverage in pdf_appearance and appearance_cli. */
+libssig_status libssig_sign_pdf(
+    const libssig_context*        ctx,
+    const libssig_sign_params*    params,
+    const libssig_pdf_appearance* appearance,
+    libssig_signature*            signature
+) {
+	if (!appearance || !appearance->pixels || !appearance->page_number ||
+	    params->format != LIBSSIG_FORMAT_PADES) {
+		return LIBSSIG_ERROR_ARGUMENT;
+	}
+	return libssig_sign(ctx, params, signature);
+}

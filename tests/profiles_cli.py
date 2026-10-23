@@ -57,7 +57,6 @@ algorithm = "rsa-pss"
 hash = "sha384"
 level = "B-B"
 format = "xades"
-mime_type = "text/plain"
 detached = true
 ca = "roots.pem"
 intermediates = "chain.pem"
@@ -66,7 +65,7 @@ tsa = { url = "https://tsa.example/", ca = "tsa.pem", intermediates = "tsa-chain
 ''')
     profile_cli = ['-t', 'pkcs11:token=Mock', '-k', '00ff', '-a', 'rsa-pss',
                    '-H', 'sha384', '-l', 'B-B', '-f', 'xades',
-                   '--mime-type', 'text/plain', '--detached', '--cert-bundle', 'bccr',
+                   '--detached', '--cert-bundle', 'bccr',
                    '--ca-file', config.parent / 'roots.pem',
                    '--intermediates', config.parent / 'chain.pem',
                    '-A', 'https://tsa.example/', '--tsa-ca-file', config.parent / 'tsa.pem',
@@ -87,6 +86,9 @@ tsa = { url = "https://tsa.example/", ca = "tsa.pem", intermediates = "tsa-chain
     write('no_bundled_certs = false\ndetached = false\ntsa = {}\n')
     assert options('-p', 'bccr') == defaults
 
+    write('token = ""\ncert_id = ""\nhash = ""\ntsa = { url = "", ca = "" }\n')
+    assert options('-p', 'bccr') == defaults
+
     # TOML table syntax, absolute paths, multiple and empty profiles.
     absolute = root / 'absolute.pem'
     write(f'''hash = 'SHA512'
@@ -102,6 +104,18 @@ label = "empty"
     for command in [('verify', source), ('--gui',)]:
         run(*command, '-p', 'bccr', success=False)
 
+    # All signing defaults can be global; profile and CLI values take precedence.
+    config.write_text('version=0.1\nalgorithm="rsa-pss"\nhash="sha384"\n'
+                      'token="pkcs11:token=Global"\ncert_bundles=["bccr"]\n'
+                      '[[profiles]]\nlabel="bccr"\nhash="sha512"\ntoken=""\nno_bundled_certs=true\n')
+    global_options = options()
+    assert global_options['hash'] == options('-H', 'sha384')['hash']
+    selected = options('-p', 'bccr')
+    assert selected['token'] is None
+    assert selected['hash'] == options('-H', 'sha512')['hash']
+    assert selected['no_bundled_certs'] and selected['cert_bundles'] == []
+    assert options('-p', 'bccr', '-t', 'cli')['token'] == 'cli'
+
     # Validation failures identify the selected file and never produce output.
     invalid_profiles = [
         ('hash = "sha1"', 'Unknown value'),
@@ -110,10 +124,10 @@ label = "empty"
         ('format = "cms"', 'Use cades'),
         ('level = "B-X"', 'Unknown value'),
         ('token = {}', 'Invalid type'),
-        ('token = ""', 'Empty profile field'),
         ('cert_id = 10', 'Invalid type'),
         ('detached = "true"', 'Invalid type'),
         ('hashh = "sha384"', 'Unknown profile field'),
+        ('mime_type = "text/plain"', 'Unknown profile field'),
         ('tsa = "url"', 'Invalid type'),
         ('tsa = { cca = "root" }', 'Unknown profile field'),
         ('tsa = { ca = false }', 'Invalid type'),
@@ -130,7 +144,7 @@ label = "empty"
         assert message in result.stderr and config.as_posix() in result.stderr, result.stderr
     for document in ['version = 0.2', 'version = "1.0"', 'version = true',
                      '[[profiles]]\nlabel = "bccr"', 'version = 0.1\nprofiles = {}',
-                     'version = 0.1\nprofiles = [1]', 'version = 0.1\nunknown = true',
+                     'version = 0.1\nprofiles = [1]', 'version = 0.1\nunknown = true', 'version = 0.1\nmime_type = "text/plain"',
                      'version = 0.1\n[[profiles]]\nlabel = "bccr"\nhash = "sha384"\nhash = "sha512"']:
         config.write_text(document)
         result = run(source, '-p', 'bccr', success=False)

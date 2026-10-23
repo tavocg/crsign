@@ -174,216 +174,102 @@ static const struct argp_option options[] = {
     {0}
 };
 
-static bool setting_error(char* error, size_t size, const char* format, ...) {
-	va_list ap;
-	va_start(ap, format);
-	vsnprintf(error, size, format, ap);
-	va_end(ap);
-	return false;
-}
-
-static int choice_parse(
-    const char*        value,
-    const char* const* choices,
-    int                count
-) {
-	for (int i = 0; i < count; ++i) {
-		if (!g_ascii_strcasecmp(value, choices[i])) {
-			return i;
-		}
-	}
-	return -1;
-}
-
 bool arg_setting(
     sign_args*  args,
     int         key,
     const char* value,
     char*       error,
-    size_t      error_size
+    size_t      size
 ) {
-	const char* const algorithms[] = {"rsa-pkcs", "rsa-pss", "ecdsa"};
-	const char* const hashes[] = {"sha256", "sha384", "sha512"};
-	const char* const levels[] = {"B-LTA", "B-B", "B-T", "B-LT"};
-	const char* const formats[] = {"cades", "cms", "pades", "xades", "jades"};
-	int               choice = 0;
+	sign_option option;
 	switch (key) {
-	case 'n': {
-		char* end = NULL;
-		errno = 0;
-		guint64 page = g_ascii_strtoull(value, &end, 10);
-		if (!value[0] || g_ascii_isspace(value[0]) || value[0] == '-' ||
-		    value[0] == '+' || errno || *end || !page || page > UINT_MAX) {
-			return setting_error(
-			    error,
-			    error_size,
-			    "--page-number requires a positive page number starting at 1"
-			);
-		}
-		args->appearance.page_number = (unsigned int)page;
-		break;
-	}
-	case 'x':
-	case 'y':
-	case 'w':
-	case 'h': {
-		char* end = NULL;
-		errno = 0;
-		double amount = g_ascii_strtod(value, &end);
-		if (!value[0] || g_ascii_isspace(value[0]) || errno || *end ||
-		    !isfinite(amount) || amount < 0) {
-			return setting_error(
-			    error,
-			    error_size,
-			    "Appearance coordinates and sizes require finite nonnegative "
-			    "numbers in PDF points"
-			);
-		}
-		if ((key == 'w' || key == 'h') && (amount < SIGN_APPEARANCE_MIN_SIZE ||
-		                                   amount > SIGN_APPEARANCE_MAX_SIZE)) {
-			return setting_error(
-			    error,
-			    error_size,
-			    "Appearance width and height must be between 12 and 720 PDF "
-			    "points"
-			);
-		}
-		if (key == 'x') {
-			args->appearance.x = amount;
-			args->appearance_options |= SIGN_APPEARANCE_X;
-		}
-		if (key == 'y') {
-			args->appearance.y = amount;
-			args->appearance_options |= SIGN_APPEARANCE_Y;
-		}
-		if (key == 'w') {
-			args->appearance.width = amount;
-			args->appearance.height = 0;
-			args->appearance_options |= SIGN_APPEARANCE_WIDTH;
-		}
-		if (key == 'h') {
-			args->appearance.height = amount;
-			args->appearance.width = 0;
-			args->appearance_options |= SIGN_APPEARANCE_HEIGHT;
-		}
-		break;
-	}
-	case 'i':
-		if (!value[0]) {
-			return setting_error(
-			    error,
-			    error_size,
-			    "--signature-image requires a nonempty path"
-			);
-		}
-		args->appearance_file = value;
-		args->appearance_options |= SIGN_APPEARANCE_FILE;
-		break;
 	case 'o':
-		args->output = value;
+		option = SIGN_OPTION_OUTPUT;
 		break;
 	case 't':
-		args->uri = value;
+		option = SIGN_OPTION_TOKEN;
 		break;
 	case 'k':
-		args->id = value;
+		option = SIGN_OPTION_CERT_ID;
 		break;
 	case 'a':
-		choice = choice_parse(
-		    !g_ascii_strcasecmp(value, "rsa") ? "rsa-pkcs" : value,
-		    algorithms,
-		    3
-		);
-		if (choice >= 0) {
-			args->algo = (libssig_algo)choice;
-		}
+		option = SIGN_OPTION_ALGORITHM;
 		break;
 	case 'H':
-		choice = choice_parse(value, hashes, 3);
-		if (choice >= 0) {
-			args->hash = (libssig_hash)choice;
-		}
+		option = SIGN_OPTION_HASH;
 		break;
 	case 'l':
-		choice = choice_parse(value, levels, 4);
-		if (choice >= 0) {
-			args->level = (libssig_level)choice;
-		}
+		option = SIGN_OPTION_LEVEL;
 		break;
 	case 'f':
-		choice = choice_parse(value, formats, 5);
-		if (choice == LIBSSIG_FORMAT_CMS) {
-			return setting_error(
-			    error,
-			    error_size,
-			    "Use cades, pades, xades or jades"
-			);
-		}
-		if (choice >= 0) {
-			args->format = (libssig_format)choice;
-		}
-		args->format_explicit = true;
+		option = SIGN_OPTION_FORMAT;
 		break;
 	case 'A':
-		args->authority = value;
+		option = SIGN_OPTION_AUTHORITY;
+		break;
+	case 'n':
+		option = SIGN_OPTION_PAGE_NUMBER;
+		break;
+	case 'x':
+		option = SIGN_OPTION_X;
+		break;
+	case 'y':
+		option = SIGN_OPTION_Y;
+		break;
+	case 'w':
+		option = SIGN_OPTION_WIDTH;
+		break;
+	case 'h':
+		option = SIGN_OPTION_HEIGHT;
+		break;
+	case 'i':
+		option = SIGN_OPTION_IMAGE;
 		break;
 	case CA_FILE:
-		args->ca_file = value;
-		return true;
+		option = SIGN_OPTION_CA_FILE;
+		break;
 	case INTERMEDIATES:
-		args->intermediates = value;
-		return true;
+		option = SIGN_OPTION_INTERMEDIATES;
+		break;
 	case TSA_CA_FILE:
-		args->tsa_ca_file = value;
-		return true;
+		option = SIGN_OPTION_TSA_CA_FILE;
+		break;
 	case TSA_INTERMEDIATES:
-		args->tsa_intermediates = value;
-		return true;
+		option = SIGN_OPTION_TSA_INTERMEDIATES;
+		break;
 	case NO_BUNDLED_CERTS:
-		args->no_bundled_certs = !strcmp(value, "true");
-		return true;
+		option = SIGN_OPTION_NO_BUNDLED_CERTS;
+		break;
 	case CERT_BUNDLE:
-		if (!certs_bundle_known(value)) {
-			return setting_error(
-			    error,
-			    error_size,
-			    "Unknown certificate bundle: %s",
-			    value
-			);
-		}
-		if (args->cert_bundle_count == G_N_ELEMENTS(args->cert_bundles)) {
-			return setting_error(
-			    error,
-			    error_size,
-			    "Too many certificate bundles (maximum 32)"
-			);
-		}
-		args->cert_bundles[args->cert_bundle_count++] = value;
-		return true;
+		option = SIGN_OPTION_CERT_BUNDLE;
+		break;
 	case DETACHED:
-		args->detached = !strcmp(value, "true");
+		option = SIGN_OPTION_DETACHED;
 		break;
 	case MIME_TYPE:
-		args->mime_type = value;
+		option = SIGN_OPTION_MIME_TYPE;
 		break;
 	default:
-		return setting_error(error, error_size, "Unknown signing option");
+		snprintf(error, size, "Unknown signing option");
+		return false;
 	}
-	if (choice < 0) {
-		return setting_error(error, error_size, "Unknown value: %s", value);
+	if (!sign_options_set(&args->options, option, value, error, size)) {
+		return false;
 	}
-	args->signing_options = true;
+	if (key != CA_FILE && key != INTERMEDIATES && key != TSA_CA_FILE &&
+	    key != TSA_INTERMEDIATES && key != NO_BUNDLED_CERTS &&
+	    key != CERT_BUNDLE) {
+		args->signing_options = true;
+	}
 	return true;
 }
 
 static void args_validate(struct argp_state* state, const sign_args* args) {
 	bool verify = args->command == SIGN_COMMAND_VERIFY;
 	bool tokens = args->command == SIGN_COMMAND_TOKENS;
-	if (args->no_bundled_certs && args->cert_bundle_count) {
-		argp_error(
-		    state,
-		    "--no-bundled-certs and --cert-bundle are mutually exclusive"
-		);
+	char detail[512];
+	if (!sign_options_validate(&args->options, detail, sizeof(detail))) {
+		argp_error(state, "%s", detail);
 	}
 	if (args->gui) {
 		if (state->argc > 2) {
@@ -392,7 +278,7 @@ static void args_validate(struct argp_state* state, const sign_args* args) {
 		return;
 	}
 
-	if (!args->input && !tokens) {
+	if (!args->options.input && !tokens) {
 		if (state->argc > 1) {
 			argp_error(state, "A file is required");
 		}
@@ -406,42 +292,16 @@ static void args_validate(struct argp_state* state, const sign_args* args) {
 		);
 	}
 
-	if (tokens && (args->input || args->ca_file || args->intermediates ||
-	               args->tsa_ca_file || args->tsa_intermediates ||
-	               args->no_bundled_certs || args->cert_bundle_count)) {
+	if (tokens &&
+	    (args->options.input || args->options.ca_file ||
+	     args->options.intermediates || args->options.tsa_ca_file ||
+	     args->options.tsa_intermediates || args->options.no_bundled_certs ||
+	     args->options.cert_bundle_count)) {
 		argp_error(state, "tokens accepts no file or trust options");
 	}
 
 	if (!tokens && (args->all_certificates || args->content)) {
 		argp_error(state, "--all and --content require tokens");
-	}
-
-	if (!verify && !tokens && args->format == LIBSSIG_FORMAT_PADES &&
-	    args->detached) {
-		argp_error(state, "PAdES cannot use --detached");
-	}
-	if (args->appearance.page_number || args->appearance_options) {
-		if (!args->appearance.page_number ||
-		    (args->appearance_options &
-		     (SIGN_APPEARANCE_X | SIGN_APPEARANCE_Y)) !=
-		        (SIGN_APPEARANCE_X | SIGN_APPEARANCE_Y)) {
-			argp_error(
-			    state,
-			    "A visible PDF signature requires -n PAGE, -x X and -y Y"
-			);
-		}
-		if ((args->appearance_options &
-		     (SIGN_APPEARANCE_WIDTH | SIGN_APPEARANCE_HEIGHT)) ==
-		    (SIGN_APPEARANCE_WIDTH | SIGN_APPEARANCE_HEIGHT)) {
-			argp_error(
-			    state,
-			    "Use only --width or --height; the other dimension preserves "
-			    "the aspect ratio"
-			);
-		}
-		if (args->format_explicit && args->format != LIBSSIG_FORMAT_PADES) {
-			argp_error(state, "A visible signature requires PDF/PAdES");
-		}
 	}
 }
 
@@ -466,10 +326,10 @@ static void positional_parse(
 		return;
 	}
 
-	if (args->input) {
+	if (args->options.input) {
 		argp_error(state, "Only one input file is supported");
 	}
-	args->input = arg;
+	args->options.input = arg;
 }
 
 static error_t parse_option(int key, char* arg, struct argp_state* state) {
@@ -564,10 +424,10 @@ static error_t parse_option(int key, char* arg, struct argp_state* state) {
 			argp_error(state, "--module requires signing or tokens");
 		}
 		args_validate(state, args);
-		if ((args->command == SIGN_COMMAND_SIGN && args->input) ||
+		if ((args->command == SIGN_COMMAND_SIGN && args->options.input) ||
 		    args->command == SIGN_COMMAND_TOKENS) {
-			bool cli_bundles = args->cert_bundle_count ||
-			                   args->no_bundled_certs;
+			bool cli_bundles = args->options.cert_bundle_count ||
+			                   args->options.no_bundled_certs;
 			sign_args resolved = {0};
 			if (!config_load(
 			        &resolved,
@@ -580,18 +440,20 @@ static error_t parse_option(int key, char* arg, struct argp_state* state) {
 			if (args->command == SIGN_COMMAND_TOKENS) {
 				/* Listing uses module selection without applying signing
 				 * options. */
-				resolved = (sign_args){.modules = resolved.modules,
-				                       .config = resolved.config};
+				resolved = (sign_args){
+				    .options = {.modules = resolved.options.modules},
+				    .config = resolved.config
+				};
 			}
 			if (context->modules->len) {
-				resolved.modules = (libssig_string_list){
+				resolved.options.modules = (libssig_string_list){
 				    .items = (const char**)context->modules->pdata,
 				    .count = context->modules->len
 				};
 			}
 			/* Command/UI options do not belong to the signing profile. */
 			resolved.command = args->command;
-			resolved.input = args->input;
+			resolved.options.input = args->options.input;
 			resolved.gui = args->gui;
 			resolved.json = args->json;
 			resolved.all_certificates = args->all_certificates;
@@ -601,8 +463,8 @@ static error_t parse_option(int key, char* arg, struct argp_state* state) {
 			/* A CLI bundle selection replaces the profile's entire selection.
 			 */
 			if (cli_bundles) {
-				args->cert_bundle_count = 0;
-				args->no_bundled_certs = false;
+				args->options.cert_bundle_count = 0;
+				args->options.no_bundled_certs = false;
 			}
 			for (guint i = 0; i < context->settings->len; ++i) {
 				cli_setting setting = g_array_index(
@@ -655,7 +517,8 @@ sign_args arg_parse(int argc, char** argv) {
 		g_ptr_array_add(context.modules, NULL);
 		context.args.cli_modules = (char**)
 		    g_ptr_array_free(context.modules, false);
-		context.args.modules.items = (const char**)context.args.cli_modules;
+		context.args.options.modules.items = (const char**)
+		                                         context.args.cli_modules;
 	} else {
 		g_ptr_array_free(context.modules, true);
 	}

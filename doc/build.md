@@ -1,8 +1,9 @@
 # Construcción
 
-Requiere CMake, un compilador C99, argp, libssig >= 0.1.4, libcurl >= 7.85,
-pkg-config, GLib >= 2.40/GIO, librsvg >= 2.52, GdkPixbuf, Cairo/PangoCairo y tomlc17 (API con `toml_get`, por ejemplo 20260501).
-La interfaz gráfica también requiere GTK 4. GLib/GIO y tomlc17 se usan igualmente
+Requiere CMake, un compilador C99, argp, libssig >= 0.1.5, libcurl >= 7.85,
+pkg-config, GLib >= 2.40/GIO, Jansson >= 2.11, p11-kit, librsvg >= 2.52, GdkPixbuf, Cairo/PangoCairo y tomlc17 (API con `toml_get`, por ejemplo 20260501).
+La interfaz gráfica también requiere GTK >= 4.10, libadwaita >= 1.4 y GNU gettext
+(herramientas `msgfmt`, `msgmerge` y `xgettext`, además de libintl cuando no forma parte de libc). GLib/GIO y tomlc17 se usan igualmente
 en compilaciones headless, junto con los decodificadores de imágenes; el entorno Nix incluye estas dependencias.
 En Windows/macOS, libssig requiere OpenSSL >= 3.5 para consultar el propósito de
 validación. Windows enlaza con Crypt32 y macOS con Security/CoreFoundation
@@ -59,3 +60,7 @@ también se utilizan durante la construcción para generar el catálogo de certi
 CMake conserva las opciones de un directorio de compilación existente. Si allí
 se habían habilitado las pruebas, usa `-DBUILD_TESTING=OFF` para desactivarlas.
 
+
+El ejecutable de desarrollo queda en `./build/sign`. Los catálogos de traducción
+se construyen junto con la GUI; no requieren activar `BUILD_TESTING`. Consulta
+[la guía de la interfaz](gui.md) y [las instrucciones de traducción](../po/README.md).

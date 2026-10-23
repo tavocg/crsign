@@ -1,14 +1,52 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+#include <gio/gio.h>
 #include <sign/certs/certs.h>
 #include <sign/trust.h>
+#include <stdio.h>
 #include <stdlib.h>
 
-bool trust_load(const sign_args* args, sign_trust* trust) {
-	return file_read(args->ca_file, &trust->ca) &&
-	       file_read(args->intermediates, &trust->intermediates) &&
-	       file_read(args->tsa_ca_file, &trust->tsa_ca) &&
-	       file_read(args->tsa_intermediates, &trust->tsa_intermediates) &&
-	       certs_load(args, trust);
+bool trust_load_full(
+    const sign_options* args,
+    sign_trust*         trust,
+    GError**            error
+) {
+	char detail[512];
+	if (!file_load(args->ca_file, &trust->ca, detail, sizeof(detail)) ||
+	    !file_load(
+	        args->intermediates,
+	        &trust->intermediates,
+	        detail,
+	        sizeof(detail)
+	    ) ||
+	    !file_load(args->tsa_ca_file, &trust->tsa_ca, detail, sizeof(detail)) ||
+	    !file_load(
+	        args->tsa_intermediates,
+	        &trust->tsa_intermediates,
+	        detail,
+	        sizeof(detail)
+	    )) {
+		g_set_error_literal(error, G_IO_ERROR, G_IO_ERROR_FAILED, detail);
+		return false;
+	}
+	if (!certs_load(args, trust)) {
+		g_set_error_literal(
+		    error,
+		    G_IO_ERROR,
+		    G_IO_ERROR_FAILED,
+		    "Cannot load certificate bundles"
+		);
+		return false;
+	}
+	return true;
+}
+bool trust_load(const sign_options* args, sign_trust* trust) {
+	GError* error = NULL;
+	bool    ok = trust_load_full(args, trust, &error);
+	if (!ok) {
+		fprintf(stderr, "sign: %s\n", error->message);
+	}
+	g_clear_error(&error);
+	return ok;
 }
 void trust_free(sign_trust* trust) {
 	free(trust->fallback_ca.data);

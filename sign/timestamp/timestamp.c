@@ -26,7 +26,7 @@ static bool response_fetch(
 }
 
 bool timestamp_apply(
-    const sign_args*   args,
+    const sign_options*   args,
     const sign_trust*  trust,
     libssig_signature* signature
 ) {

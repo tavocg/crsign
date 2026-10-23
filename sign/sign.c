@@ -11,8 +11,9 @@
 #include <string.h>
 
 static const libssig_token* token_find(
-    const sign_args*          args,
-    const libssig_token_list* tokens
+    const sign_options*       args,
+    const libssig_token_list* tokens,
+    GError**                  error
 ) {
 	const libssig_token* match = NULL;
 	for (size_t i = 0; i < tokens->count; ++i) {
@@ -21,13 +22,23 @@ static const libssig_token* token_find(
 			continue;
 		}
 		if (match) {
-			fputs("sign: multiple tokens; select one with -t URI\n", stderr);
+			g_set_error_literal(
+			    error,
+			    G_IO_ERROR,
+			    G_IO_ERROR_FAILED,
+			    "multiple matching tokens; select a token URI"
+			);
 			return NULL;
 		}
 		match = token;
 	}
 	if (!match) {
-		fputs("sign: no matching hardware token\n", stderr);
+		g_set_error_literal(
+		    error,
+		    G_IO_ERROR,
+		    G_IO_ERROR_NOT_FOUND,
+		    "no matching hardware token"
+		);
 	}
 	return match;
 }
@@ -55,8 +66,9 @@ static bool id_matches(const char* id, const libssig_certificate* cert) {
 }
 
 static const libssig_certificate* certificate_find(
-    const sign_args*                args,
-    const libssig_certificate_list* certs
+    const sign_options*             args,
+    const libssig_certificate_list* certs,
+    GError**                        error
 ) {
 	const libssig_certificate* match = NULL;
 	for (size_t i = 0; i < certs->count; ++i) {
@@ -65,16 +77,23 @@ static const libssig_certificate* certificate_find(
 			continue;
 		}
 		if (match) {
-			fputs(
-			    "sign: multiple certificates; select one with -k ID_HEX\n",
-			    stderr
+			g_set_error_literal(
+			    error,
+			    G_IO_ERROR,
+			    G_IO_ERROR_FAILED,
+			    "multiple matching certificates; select a certificate ID"
 			);
 			return NULL;
 		}
 		match = cert;
 	}
 	if (!match) {
-		fputs("sign: no matching signing certificate\n", stderr);
+		g_set_error_literal(
+		    error,
+		    G_IO_ERROR,
+		    G_IO_ERROR_NOT_FOUND,
+		    "no matching signing certificate"
+		);
 	}
 	return match;
 }
@@ -94,13 +113,15 @@ static bool pin_required(const libssig_token* token) {
 }
 
 static libssig_status token_sign(
-    const sign_args*           args,
+    const sign_options*        args,
     const sign_buffer*         input,
     const libssig_context*     ctx,
     const sign_trust*          trust,
     const libssig_token*       token,
     const libssig_certificate* cert,
-    libssig_signature*         signature
+    libssig_signature*         signature,
+    const sign_execution*      execution,
+    GError**                   error
 ) {
 	libssig_pdf_appearance appearance = {0};
 	unsigned char*         pixels = NULL;
@@ -108,9 +129,42 @@ static libssig_status token_sign(
 		return LIBSSIG_ERROR_ARGUMENT;
 	}
 	sign_buffer pin = {0};
-	if (pin_required(token) && !pin_read(args->pincmd, &pin)) {
-		g_free(pixels);
-		return LIBSSIG_ERROR_ARGUMENT;
+	if (pin_required(token)) {
+		bool ok = execution && execution->request_pin;
+		if (!ok) {
+			g_set_error_literal(
+			    error,
+			    G_IO_ERROR,
+			    G_IO_ERROR_NOT_INITIALIZED,
+			    "A PIN provider is required at execution time"
+			);
+		}
+		if (ok) {
+			ok = execution
+			         ->request_pin(token, &pin, execution->user_data, error);
+		}
+		if (ok && (!pin.data || pin.len > SIGN_PIN_LIMIT)) {
+			g_set_error_literal(
+			    error,
+			    G_IO_ERROR,
+			    G_IO_ERROR_INVALID_ARGUMENT,
+			    "Invalid PIN provider response"
+			);
+			ok = false;
+		}
+		if (!ok) {
+			if (error && !*error) {
+				g_set_error_literal(
+				    error,
+				    G_IO_ERROR,
+				    G_IO_ERROR_FAILED,
+				    "Cannot obtain PIN"
+				);
+			}
+			pin_free(&pin);
+			g_free(pixels);
+			return LIBSSIG_ERROR_ARGUMENT;
+		}
 	}
 	libssig_verify_params validation = {0};
 	trust_verify_params(trust, &validation);
@@ -144,10 +198,12 @@ static libssig_status token_sign(
 }
 
 bool sign_create(
-    const sign_args*   args,
-    const sign_buffer* input,
-    const sign_trust*  trust,
-    libssig_signature* signature
+    const sign_options*   args,
+    const sign_buffer*    input,
+    const sign_trust*     trust,
+    libssig_signature*    signature,
+    const sign_execution* execution,
+    GError**              error
 ) {
 	libssig_context          ctx = {0};
 	libssig_token_list       tokens = {0};
@@ -157,17 +213,21 @@ bool sign_create(
 		status = libssig_tokens(&ctx, &tokens, 0);
 	}
 	const libssig_token* token = status == LIBSSIG_OK
-	                                 ? token_find(args, &tokens)
+	                                 ? token_find(args, &tokens, error)
 	                                 : NULL;
 	if (token) {
 		status = libssig_certificates(&ctx, token, &certs, 0);
 	}
 	const libssig_certificate* cert = token && status == LIBSSIG_OK
-	                                      ? certificate_find(args, &certs)
+	                                      ? certificate_find(
+	                                            args,
+	                                            &certs,
+	                                            error
+	                                        )
 	                                      : NULL;
 	if (cert) {
-		char*     authority = NULL;
-		sign_args resolved = *args;
+		char*        authority = NULL;
+		sign_options resolved = *args;
 		if (timestamp_authority(args, trust, cert, &authority)) {
 			resolved.authority = authority;
 			status = token_sign(
@@ -177,7 +237,9 @@ bool sign_create(
 			    trust,
 			    token,
 			    cert,
-			    signature
+			    signature,
+			    execution,
+			    error
 			);
 		} else {
 			status = LIBSSIG_ERROR_ARGUMENT;
@@ -185,10 +247,12 @@ bool sign_create(
 		free(authority);
 	}
 	bool ok = cert && status == LIBSSIG_OK;
-	if (!ok) {
-		fprintf(
-		    stderr,
-		    "sign: signing failed (status=%d, CK_RV=0x%lx)\n",
+	if (!ok && error && !*error) {
+		g_set_error(
+		    error,
+		    G_IO_ERROR,
+		    G_IO_ERROR_FAILED,
+		    "Signing failed (status=%d, CK_RV=0x%lx)",
 		    (int)status,
 		    signature->ck_rv
 		);

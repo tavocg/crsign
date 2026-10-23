@@ -23,23 +23,29 @@
         {
           default = pkgs.mkShell {
             name = "crsign";
+            LOCALE_ARCHIVE = "${pkgs.glibcLocales}/lib/locale/locale-archive";
 
             packages = with pkgs; [
-              gcc clang-tools cmake poppler-utils
+              gcc clang-tools cmake poppler-utils xvfb-run xdotool
               (python3.withPackages (pythonPkgs: with pythonPkgs; [
                 cryptography lxml jsonschema pyhanko
               ]))
             ];
-            nativeBuildInputs = with pkgs; [ pkg-config ];
+            nativeBuildInputs = with pkgs; [ pkg-config gettext ];
             buildInputs = with pkgs; [
-              gtk4 glib librsvg gdk-pixbuf cairo tomlc17 curl openssl p11-kit file qpdf zlib jansson libxml2
+              gtk4 libadwaita glib librsvg gdk-pixbuf cairo tomlc17 curl openssl p11-kit file qpdf zlib jansson libxml2
               # FindPkgConfig also queries GTK private dependencies for static linking.
               libsysprof-capture pcre2 util-linux libselinux libsepol
-              fribidi libthai libdatrie libxdmcp libxau dav1d
+              fribidi libthai libdatrie libxdmcp libxau dav1d appstream
             ];
 
             shellHook = ''
               export CMAKE_PREFIX_PATH="$HOME/Projects/libssig/build''${CMAKE_PREFIX_PATH:+:$CMAKE_PREFIX_PATH}"
+              # Unwrapped GTK binaries also need the schema paths collected by
+              # Nix's GLib setup hook, including on runners without a desktop.
+              if [[ -n "''${GSETTINGS_SCHEMAS_PATH:-}" ]]; then
+                export XDG_DATA_DIRS="$GSETTINGS_SCHEMAS_PATH''${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
+              fi
 
               if [[ $- == *i* ]]; then
                 PS1="(crsign) $PS1"

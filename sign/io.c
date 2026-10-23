@@ -111,7 +111,13 @@ bool file_read(const char* path, sign_buffer* bytes) {
 	return true;
 }
 
-bool file_write(const char* path, const unsigned char* data, size_t len) {
+bool file_save(
+    const char*          path,
+    const unsigned char* data,
+    size_t               len,
+    char*                detail,
+    size_t               detail_size
+) {
 	GError* error = NULL;
 	GFile*  file = g_file_new_for_path(path);
 	/* Exclusive creation: never replace an existing file or follow its link. */
@@ -140,11 +146,26 @@ bool file_write(const char* path, const unsigned char* data, size_t len) {
 		}
 	}
 	if (!ok) {
-		fprintf(stderr, "sign: %s: %s\n", path, error->message);
+		snprintf(
+		    detail,
+		    detail_size,
+		    "%s: %s",
+		    path,
+		    error ? error->message : "Cannot write file"
+		);
 	}
 	g_clear_error(&error);
 	g_object_unref(file);
 	return ok;
+}
+
+bool file_write(const char* path, const unsigned char* data, size_t len) {
+	char error[512];
+	if (!file_save(path, data, len, error, sizeof(error))) {
+		fprintf(stderr, "sign: %s\n", error);
+		return false;
+	}
+	return true;
 }
 
 char* file_signed_path(const char* input) {

@@ -150,3 +150,20 @@ the child runs, inspect modes through the retained master, and feed bounded
 input chunks to avoid overflowing BSD terminal queues. Loopback HTTP fixtures
 avoid reverse DNS lookups. See
 [packaging/README.md](../packaging/README.md) for dependencies and artifact layout.
+
+The GTK build also registers `gui_i18n_en` and `gui_i18n_es` to check real gettext
+catalog loading without opening a window. `gui_i18n_installed` verifies the
+catalog path and translations after relocating an executable into an installation prefix. On Linux with `xvfb-run` and
+`dbus-run-session`, `gui_navigation` creates a real GTK window in a virtual
+session and checks all five views, the collapsed sidebar toggle, automatic
+closing on selection and restoration when widened. The Nix shell includes Xvfb.
+The navigation executable is compiled on native platforms as well.
+
+`flows` checks strict JSON parsing/schema, canonical paths and serialization,
+PIN/configuration isolation, sequential stop-on-error, exclusive outputs,
+reentrant calls and actual contention between threads. `flow_signatures` uses an
+OpenSSL-backed PKCS#11 fixture with the production flow executor to sign arbitrary
+binary data as CAdES/XAdES/JAdES and PDF with/without an appearance; the real CLI
+verifies every signature against a temporary explicit fixture anchor. Neither
+flow test driver depends on argp or GTK. Their test-only PIN provider uses fixed
+fake credentials and never opens a terminal.

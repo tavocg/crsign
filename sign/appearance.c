@@ -198,7 +198,7 @@ static void raster_size(
 }
 
 bool appearance_prepare(
-    const sign_args*           args,
+    const sign_options*           args,
     const libssig_certificate* cert,
     libssig_pdf_appearance*    appearance,
     unsigned char**            pixels

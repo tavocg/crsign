@@ -7,32 +7,32 @@
  * See LICENSE in the project root for the GNU General Public License.
  */
 
-#include <gtk/gtk.h>
+#include <adwaita.h>
 #include <sign/gui.h>
+#include <sign/gui/i18n.h>
+#include <sign/gui/window.h>
 
 static const char APPLICATION_ID[] = "org.crsign.Sign";
-static const char WINDOW_TITLE[] = "Sign";
 
 static void activate(GtkApplication* app, gpointer user_data) {
 	(void)user_data;
-	GtkWidget* window = gtk_application_window_new(app);
-	gtk_window_set_title(GTK_WINDOW(window), WINDOW_TITLE);
-	gtk_window_set_default_size(GTK_WINDOW(window), 320, 160);
-	gtk_window_set_child(GTK_WINDOW(window), gtk_label_new("Hello, world!"));
-	gtk_window_present(GTK_WINDOW(window));
+	GtkWindow* window = gtk_application_get_active_window(app);
+	if (!window) {
+		window = GTK_WINDOW(sign_window_new(app));
+	}
+	gtk_window_present(window);
 }
 
 int gui_run(char* program_name) {
-	g_set_application_name("Sign");
+	gui_i18n_init();
+	g_set_application_name("CRSign");
 	char*           argv[] = {program_name, NULL};
-	GtkApplication* app = gtk_application_new(
+	AdwApplication* app = adw_application_new(
 	    APPLICATION_ID,
 	    G_APPLICATION_DEFAULT_FLAGS
 	);
-
 	g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
 	int status = g_application_run(G_APPLICATION(app), 1, argv);
 	g_object_unref(app);
-
 	return status;
 }

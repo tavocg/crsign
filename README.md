@@ -6,6 +6,7 @@ validación de largo plazo.
 ## Uso
 
 ```sh
+sign --gui                 # abrir la interfaz gráfica
 sign tokens                # listar tokens
 sign doc.pdf               # firmar
 sign verify doc-signed.pdf # verificar

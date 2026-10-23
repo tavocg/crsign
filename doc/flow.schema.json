@@ -1,0 +1,323 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CRSign flow v1",
+  "description": "An ordered collection of arbitrary files to sign or verify. PINs and commands are not part of the format.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "documents"
+  ],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "const": 1
+    },
+    "documents": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1024,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "input"
+        ],
+        "properties": {
+          "input": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[^\\u0000]+$"
+          },
+          "output": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[^\\u0000]+$"
+          },
+          "mime_type": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[^\\u0000]+$"
+          },
+          "ca": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[^\\u0000]+$"
+          },
+          "intermediates": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[^\\u0000]+$"
+          },
+          "token": {
+            "type": "string",
+            "pattern": "^pkcs11:[^?]*$"
+          },
+          "cert_id": {
+            "type": "string",
+            "pattern": "^([0-9a-fA-F]{2})+$"
+          },
+          "algorithm": {
+            "enum": [
+              "rsa-pkcs",
+              "rsa-pss",
+              "ecdsa"
+            ],
+            "default": "rsa-pkcs"
+          },
+          "hash": {
+            "enum": [
+              "sha256",
+              "sha384",
+              "sha512"
+            ],
+            "default": "sha256"
+          },
+          "level": {
+            "enum": [
+              "B-B",
+              "B-T",
+              "B-LT",
+              "B-LTA"
+            ],
+            "default": "B-LTA"
+          },
+          "format": {
+            "enum": [
+              "cades",
+              "pades",
+              "xades",
+              "jades"
+            ]
+          },
+          "detached": {
+            "type": "boolean",
+            "default": false
+          },
+          "no_bundled_certs": {
+            "type": "boolean",
+            "default": false
+          },
+          "modules": {
+            "type": "array",
+            "maxItems": 1024,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[^\\u0000]+$"
+            }
+          },
+          "cert_bundles": {
+            "type": "array",
+            "maxItems": 32,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[^\\u0000]+$"
+            }
+          },
+          "tsa": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "url": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[^\\u0000]+$"
+              },
+              "ca": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[^\\u0000]+$"
+              },
+              "intermediates": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[^\\u0000]+$"
+              }
+            }
+          },
+          "appearance": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "enabled"
+            ],
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "image": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[^\\u0000]+$"
+              },
+              "page_number": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 4294967295
+              },
+              "x": {
+                "type": "number",
+                "minimum": 0
+              },
+              "y": {
+                "type": "number",
+                "minimum": 0
+              },
+              "width": {
+                "type": "number",
+                "minimum": 12,
+                "maximum": 720
+              },
+              "height": {
+                "type": "number",
+                "minimum": 12,
+                "maximum": 720
+              }
+            },
+            "allOf": [
+              {
+                "not": {
+                  "required": [
+                    "width",
+                    "height"
+                  ]
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "enabled": {
+                      "const": true
+                    }
+                  }
+                },
+                "then": {
+                  "required": [
+                    "page_number",
+                    "x",
+                    "y"
+                  ]
+                }
+              }
+            ]
+          },
+          "operation": {
+            "type": "string",
+            "enum": [
+              "sign",
+              "verify"
+            ],
+            "default": "sign"
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[^\\u0000]+$"
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "required": [
+                "format"
+              ],
+              "properties": {
+                "format": {
+                  "const": "pades"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "detached": {
+                  "const": false
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "appearance"
+              ],
+              "properties": {
+                "appearance": {
+                  "properties": {
+                    "enabled": {
+                      "const": true
+                    }
+                  }
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "format": {
+                  "const": "pades"
+                },
+                "detached": {
+                  "const": false
+                }
+              }
+            }
+          },
+          {
+            "not": {
+              "required": [
+                "no_bundled_certs",
+                "cert_bundles"
+              ],
+              "properties": {
+                "no_bundled_certs": {
+                  "const": true
+                },
+                "cert_bundles": {
+                  "minItems": 1
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "operation"
+              ],
+              "properties": {
+                "operation": {
+                  "const": "verify"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "output": false,
+                "mime_type": false,
+                "token": false,
+                "cert_id": false,
+                "algorithm": false,
+                "hash": false,
+                "level": false,
+                "format": false,
+                "detached": false,
+                "modules": false,
+                "appearance": false,
+                "tsa": {
+                  "properties": {
+                    "url": false
+                  }
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "content": false
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

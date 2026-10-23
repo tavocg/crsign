@@ -147,8 +147,13 @@ sys.stdout.buffer.write(outputs[mode])
     write(['missing-pincmd-FAKE-SECRET'])
     assert b'cannot start pincmd' in sign_file(success=False).stderr
 
+    write('')
+    assert options()['pincmd'] == []
+    write(command('fail'), profile_command='')
+    assert options('-p', 'bccr')['pincmd'] == []
+
     # Invalid settings are rejected even without -p, and never execute commands.
-    for invalid in [True, 12, {}, [1], [''], ' ', '', '"unterminated', 'foo\x00bar']:
+    for invalid in [True, 12, {}, [1], [''], ' ', '"unterminated', 'foo\x00bar']:
         write(invalid)
         result = options(success=False)
         assert 'pincmd' in result.stderr and config.as_posix() in result.stderr.replace('\\', '/')

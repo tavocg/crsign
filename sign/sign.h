@@ -2,14 +2,17 @@
 #ifndef SIGN_SIGN_H
 #define SIGN_SIGN_H
 
-#include <sign/arg.h>
+#include <sign/execution.h>
+#include <sign/options.h>
 #include <sign/trust.h>
 
 bool sign_create(
-    const sign_args*   args,
-    const sign_buffer* input,
-    const sign_trust*  trust,
-    libssig_signature* signature
+    const sign_options*   args,
+    const sign_buffer*    input,
+    const sign_trust*     trust,
+    libssig_signature*    signature,
+    const sign_execution* execution,
+    GError**              error
 );
 
 #endif

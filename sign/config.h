@@ -12,6 +12,15 @@ bool config_load(
     char*       error,
     size_t      error_size
 );
+/* Shared location and complete schema validation for configuration editors. */
+char* config_path(void);
+bool  config_validate_source(
+     const char* text,
+     size_t      len,
+     const char* directory,
+     char*       error,
+     size_t      error_size
+ );
 void config_free(struct sign_config* config);
 
 #endif

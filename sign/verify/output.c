@@ -50,15 +50,15 @@ static void verification_error(libssig_status status) {
 
 static void signer_profile_json(const libssig_verify_signer* signer) {
 	fputs(",\"level\":", stdout);
-	json_string(level_name(signer));
+	json_print_string(level_name(signer));
 	printf(
 	    ",\"level_detected\":%s,\"level_validated\":%s,\"history\":",
 	    json_bool(signer->level_detected),
 	    json_bool(signer->level_validated)
 	);
-	json_string(history_name(signer->history));
+	json_print_string(history_name(signer->history));
 	fputs(",\"validation_time\":", stdout);
-	json_string(signer->validation_time[0] ? signer->validation_time : NULL);
+	json_print_string(signer->validation_time[0] ? signer->validation_time : NULL);
 	printf(",\"revocation_checked\":%s", json_bool(signer->revocation_checked));
 }
 
@@ -95,11 +95,11 @@ static void anchor_json(
 	char hex[65];
 	certs_anchor_hex(anchor, hex);
 	fputs("{\"source\":", stdout);
-	json_string(anchor_source(anchor));
+	json_print_string(anchor_source(anchor));
 	fputs(",\"sha256\":", stdout);
-	json_string(hex);
+	json_print_string(hex);
 	fputs(",\"bundle\":", stdout);
-	json_string(certs_anchor_bundle(args, anchor));
+	json_print_string(certs_anchor_bundle(&args->options, anchor));
 	putchar('}');
 }
 
@@ -113,7 +113,7 @@ static void anchor_text(
 	}
 	char hex[65];
 	certs_anchor_hex(anchor, hex);
-	const char* bundle = certs_anchor_bundle(args, anchor);
+	const char* bundle = certs_anchor_bundle(&args->options, anchor);
 	printf("%s trust: %s", label, anchor_source(anchor));
 	if (bundle) {
 		printf(" (%s)", bundle);
@@ -135,7 +135,7 @@ static void timestamp_json(
 	    (int)stamp->status,
 	    stamp->trust_error
 	);
-	json_string(stamp->time[0] ? stamp->time : NULL);
+	json_print_string(stamp->time[0] ? stamp->time : NULL);
 	fputs(",\"anchor\":", stdout);
 	anchor_json(args, &stamp->anchor);
 	putchar('}');
@@ -164,7 +164,7 @@ static void verify_json(
 			putchar(',');
 		}
 		printf("{\"trust_error\":%ld,\"mime_type\":", signer->trust_error);
-		json_string(signer->mime_type);
+		json_print_string(signer->mime_type);
 		fputs(",\"certificate_der_hex\":", stdout);
 		json_hex(signer->cert_der, signer->cert_der_len);
 		fputs(",\"anchor\":", stdout);
@@ -178,7 +178,7 @@ static void verify_json(
 	}
 	fputs("],\"format\":", stdout);
 	const char* formats[] = {"cades", "cms", "pades", "xades", "jades"};
-	json_string(result->count ? formats[result->format] : NULL);
+	json_print_string(result->count ? formats[result->format] : NULL);
 	puts("}");
 }
 

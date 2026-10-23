@@ -1,5 +1,15 @@
 # Ejemplos y configuración
 
+Los [flows JSON de firmado y validación](flows.md) son la base interna para ejecutar lotes desde la GUI.
+
+## Interfaz gráfica
+
+```sh
+sign --gui
+```
+
+Consulta [la guía de la GUI](gui.md) para la navegación adaptable y los idiomas.
+
 ## Representación gráfica de la firma PDF
 
 ```sh
@@ -32,6 +42,18 @@ algorithm = "rsa-pss"
 hash = "sha384"
 tsa = { ca = "certs/tsa-root.pem", intermediates = "certs/tsa-chain.pem" }
 ```
+
+Las opciones de firmado también pueden indicarse globalmente, antes de
+`[[profiles]]`. La prioridad es argumentos CLI, perfil, valores globales y
+valores predeterminados. Omitir un campo en un perfil hereda el valor global;
+un campo explícitamente vacío (`token = ""`, `hash = ""` o `modules = []`)
+restaura la selección automática o el valor predeterminado, ignorando el global.
+La etiqueta de un perfil siempre debe ser una cadena no vacía y única.
+`mime_type` no es un ajuste TOML; el motor detecta el tipo de contenido al firmar.
+La selección de bundles de un perfil reemplaza la selección global del grupo.
+
+La [sección Ajustes de la GUI](gui.md#ajustes-y-perfiles) permite crear y editar
+este archivo y sus perfiles con guardado automático.
 
 `pincmd` permite obtener el PIN de un comando, tanto globalmente (antes de
 `[[profiles]]`) como por perfil:

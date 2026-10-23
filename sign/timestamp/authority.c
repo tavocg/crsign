@@ -201,7 +201,7 @@ static bool sia_select(const sign_trust* trust, char** url) {
 }
 
 static bool catalogue_select(
-    const sign_args* args,
+    const sign_options* args,
     STACK_OF(X509) * chain,
     char** url
 ) {
@@ -235,7 +235,7 @@ static bool catalogue_select(
 }
 
 bool timestamp_authority(
-    const sign_args*           args,
+    const sign_options*           args,
     const sign_trust*          trust,
     const libssig_certificate* cert,
     char**                     url
