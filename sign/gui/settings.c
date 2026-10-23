@@ -557,7 +557,9 @@ static void choice(
 }
 static void input_free(gpointer data) {
 	setting_input* input = data;
-	g_clear_object(&input->choices);
+	if (input->choices) {
+		g_object_unref(input->choices);
+	}
 	g_free(input);
 }
 static void sign_settings_dispose(GObject* object) {
