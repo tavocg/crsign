@@ -45,6 +45,17 @@ def interactive(command, data=b'1234\n', *, status=0, send_signal=None, env=None
             os.write(master, data)
         if send_signal:
             process.send_signal(send_signal)
+        # BSD terminals drain output before restoring attributes. Consume the
+        # masked prompt while the child runs, before waiting for its exit.
+        deadline = time.monotonic() + 5
+        while process.poll() is None:
+            if time.monotonic() >= deadline:
+                raise subprocess.TimeoutExpired(command, 5)
+            if select.select([master], [], [], 0.05)[0]:
+                try:
+                    transcript += os.read(master, 4096)
+                except BlockingIOError:
+                    pass
         stdout, _ = process.communicate(timeout=5)
         assert process.returncode == status, (command, process.returncode, stdout, transcript)
         assert termios.tcgetattr(slave) == initial, 'terminal settings were not restored'
