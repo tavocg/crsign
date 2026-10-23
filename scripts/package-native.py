@@ -60,7 +60,7 @@ class Bundle:
         if key in self.copied:
             if source == target.resolve():
                 return target
-            if self.copied[key] != source:
+            if self.copied[key] != source and not self.copied[key].samefile(source):
                 raise RuntimeError(f'Runtime filename collision: {source} and {self.copied[key]}')
             return target
         self.copied[key] = source

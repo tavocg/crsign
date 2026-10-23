@@ -1,10 +1,13 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Exercise the actual curl transport against a loopback HTTP server."""
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import faulthandler
 import os
 import subprocess
 import sys
 import threading
+
+faulthandler.dump_traceback_later(15)
 
 seen = []
 environment = dict(os.environ, NO_PROXY='127.0.0.1,localhost', no_proxy='127.0.0.1,localhost')

@@ -129,7 +129,7 @@ with tempfile.TemporaryDirectory(prefix='sign-commands-') as directory:
         signed_format = output(source, '-f', fmt, '-o', f'format-{fmt}.signed')
         assert signed_format['ok'] and signed_format['format'] == fmt
 
-    destination = root / 'signed "ñ".p7m'
+    destination = root / ('signed ñ.p7m' if os.name == 'nt' else 'signed "ñ".p7m')
     signed = output(source, '-o', destination)
     assert signed['command'] == 'sign' and signed['ok']
     assert signed['output'] == str(destination) and signed['len'] == source.stat().st_size

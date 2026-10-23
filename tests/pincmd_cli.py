@@ -1,12 +1,15 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Global/profile PIN helpers, precedence, bounded output and failure privacy."""
 import json
+import faulthandler
 import os
 from pathlib import Path
 import shlex
 import subprocess
 import sys
 import tempfile
+
+faulthandler.dump_traceback_later(15)
 
 sign, args_driver = sys.argv[1:]
 with tempfile.TemporaryDirectory(prefix='sign-pincmd-') as directory:

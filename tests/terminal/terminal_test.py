@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Real PTY tests: no echo, restored modes, cancellation and input bounds."""
 import errno
+import faulthandler
 import fcntl
 import json
 import os
@@ -14,9 +15,12 @@ import tempfile
 import termios
 import time
 
+faulthandler.dump_traceback_later(15)
+
 
 def interactive(command, data=b'1234\n', *, status=0, send_signal=None, env=None, stars=None):
     master, slave = os.openpty()
+    os.set_blocking(master, False)
     initial = termios.tcgetattr(slave)
 
     # Run terminal setup after exec: Python preexec_fn can deadlock on macOS.
@@ -31,7 +35,10 @@ def interactive(command, data=b'1234\n', *, status=0, send_signal=None, env=None
             assert process.poll() is None, (command, process.returncode, transcript)
             assert time.monotonic() < deadline, (command, transcript)
             if select.select([master], [], [], 0.1)[0]:
-                transcript += os.read(master, 4096)
+                try:
+                    transcript += os.read(master, 4096)
+                except BlockingIOError:
+                    pass
         during = termios.tcgetattr(slave)
         assert not during[3] & (termios.ECHO | termios.ECHONL), during
         if data:
@@ -45,7 +52,7 @@ def interactive(command, data=b'1234\n', *, status=0, send_signal=None, env=None
             try:
                 chunk = os.read(master, 4096)
             except OSError as error:
-                if error.errno == errno.EIO:
+                if error.errno in (errno.EIO, errno.EAGAIN, errno.EWOULDBLOCK):
                     break
                 raise
             if not chunk:
