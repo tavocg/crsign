@@ -30,6 +30,7 @@ void preferences_set(
 );
 /* Validates every profile before atomically replacing the file. Refuses to
  * replace externally changed files. Missing directories created only on save.
+ * Empty global settings are omitted; explicit empty profile overrides remain.
  * Comments/layout are normalized; all supported settings are retained. */
 bool preferences_save(sign_preferences* preferences, GError** error);
 #endif

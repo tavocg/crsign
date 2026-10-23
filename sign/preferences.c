@@ -195,9 +195,19 @@ static void quoted(GString* text, const char* value) {
 	}
 	g_string_append_c(text, '"');
 }
+static gboolean empty_setting(gpointer key, gpointer data, gpointer user_data) {
+	(void)key;
+	(void)user_data;
+	GVariant* value = data;
+	return (g_variant_is_of_type(value, G_VARIANT_TYPE_STRING) &&
+	        !g_variant_get_string(value, NULL)[0]) ||
+	       (g_variant_is_of_type(value, G_VARIANT_TYPE_STRING_ARRAY) &&
+	        g_variant_n_children(value) == 0);
+}
 static bool section_write(
     GString*                  text,
     sign_preferences_section* section,
+    bool                      omit_empty,
     GError**                  error
 ) {
 	GList* keys = g_hash_table_get_keys(section);
@@ -218,6 +228,9 @@ static bool section_write(
 			break;
 		}
 		GVariant* value = preferences_get(section, key);
+		if (omit_empty && empty_setting(NULL, value, NULL)) {
+			continue;
+		}
 		g_string_append_printf(text, "%s = ", key);
 		if (g_variant_is_of_type(value, G_VARIANT_TYPE_STRING)) {
 			quoted(text, g_variant_get_string(value, NULL));
@@ -253,13 +266,30 @@ static bool section_write(
 	g_list_free(keys);
 	return ok;
 }
-bool preferences_save(sign_preferences* p, GError** error) {
-	GString* text = g_string_new("version = 0.1\n");
-	bool     ok = section_write(text, p->global, error);
+static bool serialize(
+    sign_preferences* p,
+    GString*          text,
+    bool              normalize,
+    GError**          error
+) {
+	g_string_assign(text, "version = 0.1\n");
+	bool ok = section_write(text, p->global, normalize, error);
 	for (guint i = 0; ok && i < p->profiles->len; ++i) {
 		g_string_append(text, "\n[[profiles]]\n");
-		ok = section_write(text, g_ptr_array_index(p->profiles, i), error);
+		ok = section_write(
+		    text,
+		    g_ptr_array_index(p->profiles, i),
+		    false,
+		    error
+		);
 	}
+	return ok;
+}
+bool preferences_save(sign_preferences* p, GError** error) {
+	GString* text = g_string_new(NULL);
+	/* Validate explicit values before normalizing, so invalid or unknown empty
+	 * settings are reported rather than silently discarded. */
+	bool  ok = serialize(p, text, false, error);
 	char* directory = g_path_get_dirname(p->path);
 	char  detail[512];
 	if (ok && !config_validate_source(
@@ -271,6 +301,9 @@ bool preferences_save(sign_preferences* p, GError** error) {
 	          )) {
 		g_set_error_literal(error, G_IO_ERROR, G_IO_ERROR_INVALID_DATA, detail);
 		ok = false;
+	}
+	if (ok) {
+		ok = serialize(p, text, true, error);
 	}
 	GFile* file = g_file_new_for_path(p->path);
 	if (ok && !p->existed && g_file_query_exists(file, NULL)) {
@@ -312,6 +345,7 @@ bool preferences_save(sign_preferences* p, GError** error) {
 			g_free(p->etag);
 			p->etag = etag;
 			p->existed = true;
+			g_hash_table_foreach_remove(p->global, empty_setting, NULL);
 		}
 	}
 	g_object_unref(file);

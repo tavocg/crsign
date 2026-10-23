@@ -179,10 +179,59 @@ int main(void) {
 	loaded = preferences_load(&error);
 	g_assert_no_error(error);
 	text(preferences_global(loaded), "hash", "");
+	text(preferences_global(loaded), "tsa.ca", "");
+	preferences_set(
+	    preferences_global(loaded),
+	    "modules",
+	    g_variant_new_strv(NULL, 0)
+	);
+	preferences_set(
+	    preferences_global(loaded),
+	    "pincmd",
+	    g_variant_new_strv(NULL, 0)
+	);
 	g_assert_true(preferences_save(loaded, &error));
 	g_assert_no_error(error);
 	after = read_file(path);
-	g_assert_cmpstr(after, ==, "version = 0.1\nhash = \"\"\n");
+	g_assert_cmpstr(after, ==, "version = 0.1\n");
+	g_assert_null(preferences_get(preferences_global(loaded), "hash"));
+	g_assert_null(preferences_get(preferences_global(loaded), "tsa.ca"));
+	g_assert_null(preferences_get(preferences_global(loaded), "modules"));
+	g_assert_null(preferences_get(preferences_global(loaded), "pincmd"));
+	/* Booleans are values, not empty settings. Profile empties remain explicit.
+	 */
+	preferences_set(
+	    preferences_global(loaded),
+	    "detached",
+	    g_variant_new_boolean(false)
+	);
+	sign_preferences_section* automatic_profile = preferences_add(loaded);
+	text(automatic_profile, "label", "automatic");
+	text(automatic_profile, "hash", "");
+	preferences_set(automatic_profile, "modules", g_variant_new_strv(NULL, 0));
+	g_assert_true(preferences_save(loaded, &error));
+	g_assert_no_error(error);
+	sign_preferences* cleaned = preferences_load(&error);
+	g_assert_no_error(error);
+	g_assert_false(g_variant_get_boolean(
+	    preferences_get(preferences_global(cleaned), "detached")
+	));
+	g_assert_cmpstr(
+	    g_variant_get_string(
+	        preferences_get(preferences_profile(cleaned, 0), "hash"),
+	        NULL
+	    ),
+	    ==,
+	    ""
+	);
+	g_assert_cmpuint(
+	    g_variant_n_children(
+	        preferences_get(preferences_profile(cleaned, 0), "modules")
+	    ),
+	    ==,
+	    0
+	);
+	preferences_free(cleaned);
 	g_free(after);
 	preferences_free(loaded);
 	const char* invalid[] = {
