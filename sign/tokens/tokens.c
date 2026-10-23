@@ -8,7 +8,7 @@ int tokens_run(const sign_args* args) {
 	libssig_context           ctx = {0};
 	libssig_token_list        tokens = {0};
 	libssig_certificate_list* certs = NULL;
-	libssig_status            status = modules_open(args, &ctx);
+	libssig_status            status = modules_open(&args->options, &ctx);
 	if (status == LIBSSIG_OK) {
 		status = libssig_tokens(&ctx, &tokens, 0);
 	}

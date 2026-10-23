@@ -5,7 +5,7 @@ int main(int argc, char** argv) {
 	if (argc < 4 || argc > 6) {
 		return EXIT_FAILURE;
 	}
-	sign_args args = {
+	sign_options args = {
 	    .authority = argv[3],
 	    .tsa_ca_file = argc > 4 ? argv[4] : NULL,
 	    .tsa_intermediates = argc > 5 ? argv[5] : NULL,

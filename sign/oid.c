@@ -57,7 +57,7 @@ void oid_names_print(const libssig_string_list* items, bool json) {
 		}
 		const char* name = oid_name(items->items[i]);
 		if (json) {
-			json_string(name);
+			json_print_string(name);
 		} else {
 			fputs(name, stdout);
 		}

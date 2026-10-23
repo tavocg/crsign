@@ -3,6 +3,7 @@
 #include <gdk-pixbuf/gdk-pixbuf.h>
 #include <openssl/x509.h>
 #include <sign/appearance.h>
+#include <sign/arg.h>
 #include <sign/io.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -44,7 +45,7 @@ int main(int argc, char** argv) {
 	libssig_pdf_appearance appearance = {0};
 	unsigned char*         pixels = NULL;
 	ok = ok && len > 0 &&
-	     appearance_prepare(&args, &certificate, &appearance, &pixels);
+	     appearance_prepare(&args.options, &certificate, &appearance, &pixels);
 	const char* preview = g_getenv("SIGN_APPEARANCE_TEST_PREVIEW");
 	if (ok && preview && g_str_has_suffix(preview, ".svg")) {
 		char* svg = appearance_default_svg(&certificate);
@@ -74,7 +75,7 @@ int main(int argc, char** argv) {
 		}
 	}
 	sign_buffer input = {0};
-	ok = ok && file_read(args.input, &input);
+	ok = ok && file_read(args.options.input, &input);
 	libssig_sign_params params = {
 	    .data = input.data,
 	    .data_len = input.len,
@@ -101,7 +102,7 @@ int main(int argc, char** argv) {
 		     result.signature_valid;
 		libssig_verify_free(&result);
 	}
-	ok = ok && args.output && file_write(args.output, output.data, output.len);
+	ok = ok && args.options.output && file_write(args.options.output, output.data, output.len);
 	if (!ok) {
 		fprintf(stderr, "appearance fixture failed: %d\n", status);
 	}

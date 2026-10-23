@@ -23,6 +23,14 @@ bool file_load(
 );
 bool file_read(const char* path, sign_buffer* bytes);
 
+bool file_save(
+    const char*          path,
+    const unsigned char* data,
+    size_t               len,
+    char*                error,
+    size_t               error_size
+);
+
 bool file_write(const char* path, const unsigned char* data, size_t len);
 
 #endif

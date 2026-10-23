@@ -11,23 +11,23 @@ void operation_output(const sign_args* args, bool ok, size_t len) {
 		if (ok) {
 			const char* levels[] = {"B-LTA", "B-B", "B-T", "B-LT"};
 			fputs(",\"level\":", stdout);
-			json_string(levels[args->level]);
+			json_print_string(levels[args->options.level]);
 			fputs(",\"format\":", stdout);
 			const char* formats[] = {"cades", "cms", "pades", "xades", "jades"};
-			json_string(formats[args->format]);
+			json_print_string(formats[args->options.format]);
 			fputs(",\"output\":", stdout);
-			json_string(args->output);
+			json_print_string(args->options.output);
 			printf(
 			    ",\"len\":%zu,\"detached\":%s,\"timestamped\":%s",
 			    len,
-			    json_bool(args->detached),
-			    json_bool(args->level != LIBSSIG_LEVEL_B_B)
+			    json_bool(args->options.detached),
+			    json_bool(args->options.level != LIBSSIG_LEVEL_B_B)
 			);
 		} else {
 			fputs(",\"error\":\"Operation failed; see stderr\"", stdout);
 		}
 		puts("}");
 	} else if (ok && args->command == SIGN_COMMAND_SIGN) {
-		printf("Signed: %s (%zu bytes)\n", args->output, len);
+		printf("Signed: %s (%zu bytes)\n", args->options.output, len);
 	}
 }

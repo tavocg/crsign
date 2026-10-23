@@ -1,5 +1,7 @@
 # Ejemplos y configuración
 
+Los [flows JSON de firmado](flows.md) son la base interna para ejecutar lotes desde la GUI.
+
 ## Interfaz gráfica
 
 ```sh

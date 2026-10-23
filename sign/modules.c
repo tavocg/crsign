@@ -2,7 +2,7 @@
 #include <sign/modules.h>
 #include <stdio.h>
 
-libssig_status modules_open(const sign_args* args, libssig_context* ctx) {
+libssig_status modules_open(const sign_options* args, libssig_context* ctx) {
 	if (!args->modules.count) {
 		return libssig_context_open(ctx);
 	}

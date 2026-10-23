@@ -1,7 +1,7 @@
 # Construcción
 
 Requiere CMake, un compilador C99, argp, libssig >= 0.1.4, libcurl >= 7.85,
-pkg-config, GLib >= 2.40/GIO, librsvg >= 2.52, GdkPixbuf, Cairo/PangoCairo y tomlc17 (API con `toml_get`, por ejemplo 20260501).
+pkg-config, GLib >= 2.40/GIO, Jansson >= 2.11, p11-kit, librsvg >= 2.52, GdkPixbuf, Cairo/PangoCairo y tomlc17 (API con `toml_get`, por ejemplo 20260501).
 La interfaz gráfica también requiere GTK >= 4.10, libadwaita >= 1.4 y GNU gettext
 (herramientas `msgfmt`, `msgmerge` y `xgettext`, además de libintl cuando no forma parte de libc). GLib/GIO y tomlc17 se usan igualmente
 en compilaciones headless, junto con los decodificadores de imágenes; el entorno Nix incluye estas dependencias.

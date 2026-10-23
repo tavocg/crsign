@@ -14,7 +14,7 @@ bool certs_bundle_known(const char* name) {
 	return false;
 }
 
-bool certs_bundle_selected(const sign_args* args, const char* name) {
+bool certs_bundle_selected(const sign_options* args, const char* name) {
 	if (!args->cert_bundle_count) {
 		return true;
 	}
@@ -85,7 +85,7 @@ static bool intermediates_prepare(sign_buffer* buffer) {
 	return ok;
 }
 
-bool certs_load(const sign_args* args, sign_trust* trust) {
+bool certs_load(const sign_options* args, sign_trust* trust) {
 	if (args->no_bundled_certs) {
 		return true;
 	}
@@ -125,7 +125,7 @@ void certs_anchor_hex(const libssig_trust_anchor* anchor, char hex[65]) {
 }
 
 const char* certs_anchor_bundle(
-    const sign_args*            args,
+    const sign_options*            args,
     const libssig_trust_anchor* anchor
 ) {
 	if (anchor->source != LIBSSIG_TRUST_FALLBACK) {

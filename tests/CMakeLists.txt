@@ -25,7 +25,7 @@ set_tests_properties(trust_cli PROPERTIES TIMEOUT 90)
 # Exercise the real CLI without a card, PIN or installed PKCS#11 module.
 add_executable(sign_mock ${SIGN_SOURCES} token_mock.c)
 target_include_directories(sign_mock PRIVATE "${PROJECT_SOURCE_DIR}")
-target_link_libraries(sign_mock PRIVATE Argp::Argp libssig::ssig CURL::libcurl OpenSSL::Crypto sign_config_deps PkgConfig::GIO sign_image_deps)
+target_link_libraries(sign_mock PRIVATE Argp::Argp libssig::ssig CURL::libcurl OpenSSL::Crypto sign_config_deps PkgConfig::GIO sign_image_deps PkgConfig::JANSSON PkgConfig::P11_KIT)
 target_compile_definitions(sign_mock PRIVATE SIGN_VERSION="${PROJECT_VERSION}")
 target_compile_options(sign_mock PRIVATE "$<$<COMPILE_LANGUAGE:C>:-Wall;-Wextra;-Wpedantic;-Werror>")
 if(NOT HEADLESS)
@@ -66,10 +66,10 @@ set(BUNDLE_SOURCES ${SIGN_SOURCES})
 list(REMOVE_ITEM BUNDLE_SOURCES "${SIGN_CERT_CATALOG}")
 add_library(bundle_catalog OBJECT "${BUNDLE_CATALOG}")
 target_include_directories(bundle_catalog PRIVATE "${PROJECT_SOURCE_DIR}")
-target_link_libraries(bundle_catalog PRIVATE libssig::ssig)
+target_link_libraries(bundle_catalog PRIVATE libssig::ssig PkgConfig::GLIB)
 add_executable(sign_bundles ${BUNDLE_SOURCES} $<TARGET_OBJECTS:bundle_catalog>)
 target_include_directories(sign_bundles PRIVATE "${PROJECT_SOURCE_DIR}")
-target_link_libraries(sign_bundles PRIVATE Argp::Argp libssig::ssig CURL::libcurl OpenSSL::Crypto sign_config_deps PkgConfig::GIO sign_image_deps)
+target_link_libraries(sign_bundles PRIVATE Argp::Argp libssig::ssig CURL::libcurl OpenSSL::Crypto sign_config_deps PkgConfig::GIO sign_image_deps PkgConfig::JANSSON PkgConfig::P11_KIT)
 target_compile_definitions(sign_bundles PRIVATE SIGN_VERSION="${PROJECT_VERSION}")
 target_compile_options(sign_bundles PRIVATE "$<$<COMPILE_LANGUAGE:C>:-Wall;-Wextra;-Wpedantic;-Werror>")
 if(NOT HEADLESS)
@@ -108,7 +108,7 @@ add_test(NAME http_transport COMMAND "${Python3_EXECUTABLE}"
     "${CMAKE_CURRENT_SOURCE_DIR}/http_test.py" $<TARGET_FILE:http_driver>)
 set_tests_properties(http_transport PROPERTIES TIMEOUT 30 LABELS "integration")
 
-add_executable(args_driver args_driver.c ../sign/arg.c ../sign/config.c
+add_executable(args_driver args_driver.c ../sign/arg.c ../sign/options.c ../sign/config.c
     ../sign/json.c ../sign/io.c ../sign/certs/certs.c "${SIGN_CERT_CATALOG}")
 target_include_directories(args_driver PRIVATE "${PROJECT_SOURCE_DIR}")
 target_link_libraries(args_driver PRIVATE Argp::Argp libssig::ssig OpenSSL::Crypto sign_config_deps PkgConfig::GIO)
@@ -170,7 +170,7 @@ set_tests_properties(portable_runtime PROPERTIES TIMEOUT 30)
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/libssig/tests/document_sign_fixture.c")
     # Both the renderer and the library produce a cryptographically valid PDF here.
     add_executable(appearance_driver appearance_driver.c ../sign/appearance.c
-        ../sign/arg.c ../sign/config.c ../sign/io.c ../sign/certs/certs.c
+        ../sign/arg.c ../sign/options.c ../sign/config.c ../sign/io.c ../sign/certs/certs.c
         "${SIGN_CERT_CATALOG}" libssig/tests/document_sign_fixture.c)
     target_include_directories(appearance_driver PRIVATE "${PROJECT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/libssig")
     target_link_libraries(appearance_driver PRIVATE Argp::Argp libssig::ssig OpenSSL::Crypto
@@ -186,3 +186,5 @@ endif()
 if(NOT HEADLESS)
     add_subdirectory(gui)
 endif()
+
+add_subdirectory(flows)

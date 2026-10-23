@@ -34,6 +34,8 @@ find_package(Python3 COMPONENTS Interpreter REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GLIB REQUIRED IMPORTED_TARGET glib-2.0>=2.40)
 pkg_check_modules(GIO REQUIRED IMPORTED_TARGET gio-2.0)
+pkg_check_modules(JANSSON REQUIRED IMPORTED_TARGET jansson>=2.11)
+pkg_check_modules(P11_KIT REQUIRED IMPORTED_TARGET p11-kit-1)
 pkg_check_modules(IMAGES REQUIRED IMPORTED_TARGET librsvg-2.0>=2.52 gdk-pixbuf-2.0 cairo pangocairo)
 add_library(sign_image_deps INTERFACE)
 target_link_libraries(sign_image_deps INTERFACE PkgConfig::IMAGES)
@@ -99,7 +101,7 @@ endif()
 
 add_executable(sign ${SIGN_SOURCES})
 
-target_link_libraries(sign PRIVATE Argp::Argp libssig::ssig CURL::libcurl OpenSSL::Crypto sign_config_deps PkgConfig::GIO sign_image_deps)
+target_link_libraries(sign PRIVATE Argp::Argp libssig::ssig CURL::libcurl OpenSSL::Crypto sign_config_deps PkgConfig::GIO sign_image_deps PkgConfig::JANSSON PkgConfig::P11_KIT)
 
 target_include_directories(sign PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"

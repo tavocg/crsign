@@ -54,7 +54,7 @@ void json_text(const unsigned char* text, size_t len) {
 	putchar('"');
 }
 
-void json_string(const char* text) {
+void json_print_string(const char* text) {
 	json_text((const unsigned char*)text, text ? strlen(text) : 0);
 }
 
@@ -76,7 +76,7 @@ void json_strings(const libssig_string_list* items) {
 		if (i) {
 			putchar(',');
 		}
-		json_string(items->items[i]);
+		json_print_string(items->items[i]);
 	}
 	putchar(']');
 }

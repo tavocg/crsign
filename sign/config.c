@@ -128,7 +128,7 @@ static bool read_modules(
 	}
 	const char** paths = g_new0(const char*, (size_t)value.u.arr.size + 1);
 	g_ptr_array_add(config->allocations, paths);
-	args->modules = (libssig_string_list){.items = paths};
+	args->options.modules = (libssig_string_list){.items = paths};
 	for (int i = 0; i < value.u.arr.size; ++i) {
 		toml_datum_t item = value.u.arr.elem[i];
 		if (!valid_string(item) || !item.u.s[0]) {
@@ -141,13 +141,13 @@ static bool read_modules(
 		char* path = g_canonicalize_filename(item.u.s, directory);
 		g_ptr_array_add(config->allocations, path);
 		bool duplicate = false;
-		for (size_t j = 0; j < args->modules.count; ++j) {
+		for (size_t j = 0; j < args->options.modules.count; ++j) {
 			if (!strcmp(path, paths[j])) {
 				duplicate = true;
 			}
 		}
 		if (!duplicate) {
-			paths[args->modules.count++] = path;
+			paths[args->options.modules.count++] = path;
 		}
 	}
 	return true;
@@ -217,7 +217,7 @@ static bool read_fields(
 			continue;
 		}
 		if (value.type == TOML_ARRAY) {
-			args->cert_bundle_count = 0;
+			args->options.cert_bundle_count = 0;
 			for (int j = 0; j < value.u.arr.size; ++j) {
 				toml_datum_t item = value.u.arr.elem[j];
 				if (!valid_string(item)) {
@@ -254,7 +254,7 @@ static bool read_fields(
 		}
 		if (field->option == 'i') {
 			/* A profile image supplies a default, not a visibility request. */
-			args->appearance_options &= ~SIGN_APPEARANCE_FILE;
+			args->options.appearance_options &= ~SIGN_APPEARANCE_FILE;
 		}
 	}
 	return true;

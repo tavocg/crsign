@@ -23,7 +23,7 @@ static void certificate_json(const libssig_certificate* cert, bool content) {
 	json_strings(&cert->key_usage_names);
 	const char* statuses[] = {"unavailable", "valid", "invalid"};
 	fputs(",\"metadata_status\":", stdout);
-	json_string(statuses[cert->metadata_status]);
+	json_print_string(statuses[cert->metadata_status]);
 	fputs(",\"extended_key_usage\":", stdout);
 	if (cert->extended_key_usage_present) {
 		oid_names_print(&cert->extended_key_usage, true);
@@ -49,15 +49,15 @@ static void token_json(
     bool                            content
 ) {
 	fputs("{\"uri\":", stdout);
-	json_string(token->uri);
+	json_print_string(token->uri);
 	fputs(",\"label\":", stdout);
-	json_string(token->label);
+	json_print_string(token->label);
 	fputs(",\"manufacturer\":", stdout);
-	json_string(token->manufacturer);
+	json_print_string(token->manufacturer);
 	fputs(",\"model\":", stdout);
-	json_string(token->model);
+	json_print_string(token->model);
 	fputs(",\"serial\":", stdout);
-	json_string(token->serial);
+	json_print_string(token->serial);
 	printf(",\"flags\":%lu,\"flag_names\":", token->flags);
 	json_strings(&token->flag_names);
 	fputs(",\"certificates\":[", stdout);

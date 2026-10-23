@@ -8,7 +8,7 @@ int main(int argc, char** argv) {
 	if (argc != 6) {
 		return 2;
 	}
-	sign_args args = {0};
+	sign_options args = {0};
 	args.level = !strcmp(argv[3], "offline") ? LIBSSIG_LEVEL_B_B
 	                                         : LIBSSIG_LEVEL_B_LTA;
 	args.no_bundled_certs = !strcmp(argv[2], "none");
