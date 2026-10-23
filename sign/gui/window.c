@@ -13,8 +13,8 @@ static const struct {
 } sections[] = {
     {"home", N_("Home"), "user-home-symbolic"},
     {"sign", N_("Sign"), "document-edit-symbolic"},
-    {"verify", N_("Validate"), "emblem-ok-symbolic"},
-    {"settings", N_("Settings"), "preferences-system-symbolic"},
+    {"verify", N_("Validate"), "object-select-symbolic"},
+    {"settings", N_("Settings"), "emblem-system-symbolic"},
     {"about", N_("About"), "help-about-symbolic"},
 };
 
