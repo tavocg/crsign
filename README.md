@@ -16,8 +16,8 @@ sign verify doc-signed.pdf # verificar
 ```sh
 #           page number     x     y  imagen dimensiones
 sign documento.pdf -n 1 -x 36 -y 48
-sign documento.pdf -n 2 -x 36 -y 48 -S marca.png -w 180 # por defecto 144
-sign documento.pdf -n 1 -x 36 -y 48 -S marca.svg -h 60
+sign documento.pdf -n 2 -x 36 -y 48 -i marca.png -w 180 # por defecto 144
+sign documento.pdf -n 1 -x 36 -y 48 -i marca.svg -h 60
 ```
 
 > [!NOTE]
@@ -35,7 +35,7 @@ signature_image = "marca.svg"
 
 ```sh
 sign -p visible documento.pdf -n 1 -x 36 -y 48 -w 180
-sign -p visible documento.pdf -n 1 -x 36 -y 48 -S otra.png -h 60
+sign -p visible documento.pdf -n 1 -x 36 -y 48 -i otra.png -h 60
 ```
 
 La imagen del perfil solo se usa al solicitar una firma visible con `-n`, `-x`

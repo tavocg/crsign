@@ -39,7 +39,7 @@ static const config_field profile_fields[] = {
     {"intermediates", INTERMEDIATES, TOML_STRING, true},
     {"no_bundled_certs", NO_BUNDLED_CERTS, TOML_BOOLEAN, false},
     {"cert_bundles", CERT_BUNDLE, TOML_ARRAY, false},
-    {"signature_image", 'S', TOML_STRING, true},
+    {"signature_image", 'i', TOML_STRING, true},
     {"tsa", 0, TOML_TABLE, false},
 };
 static const config_field tsa_fields[] = {
@@ -252,7 +252,7 @@ static bool read_fields(
 		if (!arg_setting(args, field->option, text, error, size)) {
 			return false;
 		}
-		if (field->option == 'S') {
+		if (field->option == 'i') {
 			/* A profile image supplies a default, not a visibility request. */
 			args->appearance_options &= ~SIGN_APPEARANCE_FILE;
 		}

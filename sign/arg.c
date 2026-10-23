@@ -165,7 +165,7 @@ static const struct argp_option options[] = {
      "Image height instead of width (12–720 points; preserves aspect ratio)",
      0},
     {"signature-image",
-     'S',
+     'i',
      "FILE",
      0,
      "PDF appearance image (default: generated SVG with signer and date)",
@@ -268,7 +268,7 @@ bool arg_setting(
 		}
 		break;
 	}
-	case 'S':
+	case 'i':
 		if (!value[0]) {
 			return setting_error(
 			    error,
@@ -516,7 +516,7 @@ static error_t parse_option(int key, char* arg, struct argp_state* state) {
 	case 'y':
 	case 'w':
 	case 'h':
-	case 'S':
+	case 'i':
 	case 't':
 	case 'k':
 	case 'a':

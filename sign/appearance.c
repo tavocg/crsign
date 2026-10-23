@@ -220,7 +220,7 @@ bool appearance_prepare(
 		if (!source.data) {
 			fputs(
 			    "sign: cannot read the certificate name for the default mark; "
-			    "use -S FILE\n",
+			    "use -i FILE\n",
 			    stderr
 			);
 			return false;

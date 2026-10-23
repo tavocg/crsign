@@ -81,34 +81,34 @@ with tempfile.TemporaryDirectory(prefix='crsign-appearance-') as directory:
         return (coords[2] - coords[0], coords[3] - coords[1])
     for asset in (image, svg):
         for size in ((), ('-w', '160'), ('-h', '80')):
-            run(*common, '-S', asset, *size)
+            run(*common, '-i', asset, *size)
             assert rect_size() == ((144, 72) if not size else (160, 80))
     # Produce a JPEG with the same decoder library, then load it again.
     jpeg = root / 'image.jpg'
     env['SIGN_APPEARANCE_TEST_PREVIEW'] = str(jpeg)
-    run(*common, '-S', image)
+    run(*common, '-i', image)
     del env['SIGN_APPEARANCE_TEST_PREVIEW']
-    run(*common, '-S', jpeg)
+    run(*common, '-i', jpeg)
     # EXIF orientation 6 rotates the JPEG clockwise, changing its aspect ratio.
     exif = b'Exif\0\0II*\0\x08\0\0\0' + struct.pack('<H', 1) + struct.pack('<HHI', 0x112, 3, 1) + struct.pack('<H', 6) + b'\0\0' + b'\0' * 4
     rotated = root / 'oriented.jpg'
     rotated.write_bytes(jpeg.read_bytes()[:2] + b'\xff\xe1' + struct.pack('>H', len(exif) + 2) + exif + jpeg.read_bytes()[2:])
-    run(*common, '-S', rotated)
+    run(*common, '-i', rotated)
     assert rect_size() == (144, 288)
     for rotation in (90, 180, 270):
         source.write_bytes(pdf(rotation))
-        run(*common, '-S', image)
+        run(*common, '-i', image)
     source.write_bytes(pdf())
     for bad in (('-n', '2'), ('-x', '600'), ('-y', '790'), ('-w', '11'),
                 ('-h', '721'), ('-w', '12'), ('-w', '720'), ('-x', 'nan'),
                 ('-n', '0'), ('-n', '1.5'), ('-n', ' 1'), ('-x', '-1'),
-                ('-w', '80', '-h', '40'), ('-S', root / 'absent')):
-        run(*common, '-S', image, *bad, success=False)
-    for incomplete in (('-n', '1'), ('-x', '0', '-y', '0'), ('-S', image), ('-h', '48')):
+                ('-w', '80', '-h', '40'), ('-i', root / 'absent')):
+        run(*common, '-i', image, *bad, success=False)
+    for incomplete in (('-n', '1'), ('-x', '0', '-y', '0'), ('-i', image), ('-h', '48')):
         run(source, '-o', output, *incomplete, success=False)
     broken = root / 'broken.png'
     broken.write_bytes(b'not an image')
-    run(*common, '-S', broken, success=False)
+    run(*common, '-i', broken, success=False)
     config = root / 'config' / 'crsign' / 'crsign.toml'
     config.parent.mkdir(parents=True)
     profile = 'version=0.1\n[[profiles]]\nlabel="mark"\nsignature_image="mark.svg"\n'
@@ -129,14 +129,14 @@ with tempfile.TemporaryDirectory(prefix='crsign-appearance-') as directory:
         assert rect_size() == (160, 80)
     override = root / 'override.svg'
     override.write_text("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 90 30'><rect width='90' height='30' fill='blue'/></svg>")
-    for arguments in (('-S', override, '-p', 'mark'), ('-p', 'mark', '-S', override)):
+    for arguments in (('-i', override, '-p', 'mark'), ('-p', 'mark', '-i', override)):
         run(source, '-o', output, *geometry, *arguments, '-w', '180')
         assert rect_size() == (180, 60)
     # A missing profile asset is only an error when visible signing is requested.
     (config.parent / 'mark.svg').unlink()
     run(source, '-o', output, '-p', 'mark')
     run(source, '-o', output, '-p', 'mark', *geometry, success=False)
-    run(source, '-o', output, '-p', 'mark', *geometry, '-S', override)
+    run(source, '-o', output, '-p', 'mark', *geometry, '-i', override)
     for incomplete in (('-n', '1'), ('-x', '24'), ('-h', '48')):
         run(source, '-o', output, '-p', 'mark', *incomplete, success=False)
     # Geometry belongs exclusively to CLI arguments.
