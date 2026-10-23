@@ -7,8 +7,48 @@
 La ventana usa GTK 4 y libadwaita. Tiene seis vistas: Inicio, Firmar, Validar,
 Dispositivos, Ajustes y Acerca de. Ajustes permite editar la configuración y los perfiles;
 Acerca de muestra la identidad y los enlaces del proyecto. Validar permite
-procesar varios archivos firmados. Inicio y Firmar conservan por ahora su texto
-de identificación.
+procesar varios archivos firmados. Firmar permite preparar y ejecutar una cola de
+documentos. Inicio conserva por ahora su texto de identificación.
+
+## Firmar
+
+El selector del encabezado elige los ajustes globales o un perfil por nombre
+(o etiqueta cuando no tiene nombre). Se pueden arrastrar archivos o abrir el
+selector nativo. Se admiten documentos de cualquier tipo: un único PDF abre
+el lector inmediatamente; varios archivos abren la cola.
+
+En el lector, haz clic sobre una página para colocar la imagen con el tamaño
+predeterminado, o arrastra para definir su tamaño. Las coordenadas y medidas
+son puntos PDF sobre la página visible, considerando recorte, rotación y escala.
+Se conserva la relación de aspecto y se ajusta el tamaño entre los límites
+compartidos con la CLI (12–720 puntos por dimensión). Si no cabe, se muestra un
+error. El selector inferior cambia de página y la equis quita la representación.
+
+El botón de imagen permite elegir SVG, PNG, JPEG y los formatos disponibles en
+GdkPixbuf; el botón de restauración recupera la imagen del perfil o la marca
+predeterminada con el titular del certificado. La fecha y los datos definitivos
+de esa marca se generan al firmar. Si aún no hay un certificado seleccionable,
+la previsualización muestra un titular ilustrativo.
+
+«Continuar» vuelve a la cola; también se puede continuar sin firma gráfica.
+Cada archivo sin representación tiene un punto amarillo, y junto a «Firmar»
+aparece un aviso que permite continuar igualmente. Seleccionar un documento
+PDF de la cola vuelve a abrir su lector y conserva la representación elegida.
+Los documentos de otros tipos se firman sin representación gráfica.
+
+La GUI construye un [flow JSON versionado](flows.md) con los ajustes y rutas de
+cada documento. Se ejecuta un único flow a la vez y se detiene ante el primer
+fallo. El PIN se solicita al ejecutar mediante una ventana modal, salvo que
+el token tenga teclado propio o se haya configurado `pincmd`. Se conserva en
+memoria únicamente durante esa ejecución para reutilizarlo con el mismo token,
+y se borra después; no se incluye en el JSON ni en la configuración.
+Las salidas siguen los nombres de la CLI (`archivo-signed.ext`) y no se
+sobrescriben archivos existentes. Al cerrar la ventana se cancelan los
+siguientes documentos y no se escribe el resultado de una operación cancelada.
+
+El lector usa Poppler GLib y Cairo; comparte con el motor de firma los
+decodificadores de imágenes y los límites de tamaño. La firma criptográfica
+sigue realizándose mediante libssig.
 
 ## Dispositivos
 
@@ -17,6 +57,7 @@ explora, el icono de Dispositivos en el menú se sustituye por un spinner.
 Los lectores aparecen colapsados y agrupan los slots informados por el módulo
 PKCS#11. Dentro de cada slot se pueden desplegar certificados y llaves, con sus
 identificadores, algoritmos, tamaños en bits y los atributos públicos disponibles.
+El URI del token dispone de un botón para copiarlo al portapapeles.
 También se muestran el fabricante, modelo, número de serie, versiones, memoria
 y estado del PIN. No se solicita PIN ni se leen valores de llaves privadas.
 Algunos objetos no son visibles hasta iniciar sesión en el token.

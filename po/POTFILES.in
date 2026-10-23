@@ -4,3 +4,6 @@ sign/gui/about.c
 sign/gui/validation.c
 sign/gui/devices.c
 sign/gui/inventory.c
+sign/gui/file_drop.c
+sign/gui/pdf_view.c
+sign/gui/signing.c

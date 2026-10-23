@@ -33,7 +33,7 @@
             ];
             nativeBuildInputs = with pkgs; [ pkg-config gettext ];
             buildInputs = with pkgs; [
-              gtk4 libadwaita glib librsvg gdk-pixbuf cairo tomlc17 curl openssl p11-kit file qpdf zlib jansson libxml2
+              gtk4 libadwaita poppler glib librsvg gdk-pixbuf cairo tomlc17 curl openssl p11-kit file qpdf zlib jansson libxml2
               # FindPkgConfig also queries GTK private dependencies for static linking.
               libsysprof-capture pcre2 util-linux libselinux libsepol
               fribidi libthai libdatrie libxdmcp libxau dav1d appstream

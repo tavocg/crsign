@@ -19,6 +19,7 @@ endif()
 set(GUI_TEST_SOURCES
     ../../sign/gui/window.c ../../sign/gui/about.c ../../sign/gui/validation.c
     ../../sign/gui/devices.c ../../sign/gui/inventory.c ../../sign/gui/certificate.c
+    ../../sign/gui/file_drop.c ../../sign/gui/pdf_view.c ../../sign/gui/signing.c
     ../../sign/flow.c ../../sign/execution.c ../../sign/sign.c ../../sign/modules.c
     ../../sign/appearance.c ../../sign/pin.c ../../sign/terminal.c ../../sign/http.c
     ../../sign/timestamp/authority.c ../../sign/trust.c
@@ -31,7 +32,12 @@ add_executable(gui_drop_test drop_test.c ${GUI_TEST_SOURCES})
 set(GUI_DEVICE_TEST_SOURCES ${GUI_TEST_SOURCES})
 list(REMOVE_ITEM GUI_DEVICE_TEST_SOURCES "${SIGN_CERT_CATALOG}")
 add_executable(gui_devices_test devices_test.c ${GUI_DEVICE_TEST_SOURCES} $<TARGET_OBJECTS:bundle_catalog>)
-foreach(target IN ITEMS gui_navigation_test gui_validation_test gui_drop_test gui_devices_test)
+set(GUI_TEST_TARGETS gui_navigation_test gui_validation_test gui_drop_test gui_devices_test)
+if(EXISTS "${PROJECT_SOURCE_DIR}/tests/libssig/tests/document_sign_fixture.c")
+    add_executable(gui_signing_test signing_test.c ../flows/crypto_module.c ${GUI_TEST_SOURCES})
+    list(APPEND GUI_TEST_TARGETS gui_signing_test)
+endif()
+foreach(target IN LISTS GUI_TEST_TARGETS)
     target_compile_definitions(${target} PRIVATE SIGN_VERSION="${PROJECT_VERSION}")
     target_include_directories(${target} PRIVATE "${PROJECT_SOURCE_DIR}")
     target_link_libraries(${target} PRIVATE sign_gui_deps sign_config_deps
@@ -57,6 +63,11 @@ if(UNIX AND NOT APPLE)
                 $<TARGET_FILE:gui_validation_test> $<TARGET_FILE:flow_crypto_driver>
                 "${CMAKE_CURRENT_BINARY_DIR}/snapshots")
             set_tests_properties(gui_validation PROPERTIES TIMEOUT 45 RESOURCE_LOCK gtk_display)
+            add_test(NAME gui_signing COMMAND ${GUI_TEST_COMMAND}
+                "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/signing_test.py"
+                $<TARGET_FILE:gui_signing_test> $<TARGET_FILE:sign>
+                "${CMAKE_CURRENT_BINARY_DIR}/snapshots")
+            set_tests_properties(gui_signing PROPERTIES TIMEOUT 75 RESOURCE_LOCK gtk_display)
         endif()
         set_tests_properties(gui_navigation PROPERTIES TIMEOUT 30 RESOURCE_LOCK gtk_display)
         if(TARGET device_fixture)

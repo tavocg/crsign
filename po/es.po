@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: CRSign 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/tavocg/crsign/issues\n"
-"POT-Creation-Date: 2026-10-23 12:56-0600\n"
+"POT-Creation-Date: 2026-10-23 17:00-0600\n"
 "PO-Revision-Date: 2026-10-23 00:00-0600\n"
 "Last-Translator: Gustavo Calvo <tavo@tavo.cr>\n"
 "Language-Team: Spanish\n"
@@ -15,35 +15,35 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: sign/gui/window.c:16 sign/gui/window.c:151
+#: sign/gui/window.c:17 sign/gui/window.c:162
 msgid "Home"
 msgstr "Inicio"
 
-#: sign/gui/window.c:17
+#: sign/gui/window.c:18 sign/gui/signing.c:115 sign/gui/signing.c:1615
 msgid "Sign"
 msgstr "Firmar"
 
-#: sign/gui/window.c:18
+#: sign/gui/window.c:19
 msgid "Validate"
 msgstr "Validar"
 
-#: sign/gui/window.c:19
+#: sign/gui/window.c:20
 msgid "Devices"
 msgstr "Dispositivos"
 
-#: sign/gui/window.c:20
+#: sign/gui/window.c:21
 msgid "Settings"
 msgstr "Ajustes"
 
-#: sign/gui/window.c:21
+#: sign/gui/window.c:22
 msgid "About"
 msgstr "Acerca de"
 
-#: sign/gui/window.c:87
+#: sign/gui/window.c:98
 msgid "Menu"
 msgstr "Menú"
 
-#: sign/gui/window.c:161 sign/gui/window.c:165
+#: sign/gui/window.c:171 sign/gui/window.c:175
 msgid "Toggle menu"
 msgstr "Mostrar u ocultar el menú"
 
@@ -60,7 +60,7 @@ msgstr "Nuevo perfil"
 msgid "Changes not saved: %s"
 msgstr "Cambios sin guardar: %s"
 
-#: sign/gui/settings.c:435 sign/gui/devices.c:359
+#: sign/gui/settings.c:435 sign/gui/devices.c:388
 msgid "Module path"
 msgstr "Ruta del módulo"
 
@@ -68,7 +68,7 @@ msgstr "Ruta del módulo"
 msgid "Remove module"
 msgstr "Eliminar módulo"
 
-#: sign/gui/settings.c:467 sign/gui/settings.c:525
+#: sign/gui/settings.c:467 sign/gui/settings.c:525 sign/gui/signing.c:939
 msgid "Global"
 msgstr "Global"
 
@@ -138,7 +138,7 @@ msgstr ""
 "Global hereda el valor global. Automático usa el valor predeterminado del "
 "motor."
 
-#: sign/gui/settings.c:631 sign/gui/devices.c:244
+#: sign/gui/settings.c:631 sign/gui/devices.c:259
 msgid "Token URI"
 msgstr "URI del token"
 
@@ -303,23 +303,23 @@ msgstr "Archivo sin firma o formato no admitido"
 msgid "Validation failed"
 msgstr "Validación fallida"
 
-#: sign/gui/validation.c:166 sign/gui/devices.c:179
+#: sign/gui/validation.c:166 sign/gui/devices.c:184
 msgid "Certificate subject"
 msgstr "Titular del certificado"
 
-#: sign/gui/validation.c:167 sign/gui/devices.c:180
+#: sign/gui/validation.c:167 sign/gui/devices.c:185
 msgid "Certificate issuer"
 msgstr "Emisor del certificado"
 
-#: sign/gui/validation.c:168 sign/gui/devices.c:181
+#: sign/gui/validation.c:168 sign/gui/devices.c:186
 msgid "Valid from"
 msgstr "Válido desde"
 
-#: sign/gui/validation.c:169 sign/gui/devices.c:182
+#: sign/gui/validation.c:169 sign/gui/devices.c:187
 msgid "Valid until"
 msgstr "Válido hasta"
 
-#: sign/gui/validation.c:181 sign/gui/devices.c:194
+#: sign/gui/validation.c:181 sign/gui/devices.c:199
 msgid "Certificate SHA-256"
 msgstr "SHA-256 del certificado"
 
@@ -335,7 +335,7 @@ msgstr "Firma del sello de tiempo válida"
 msgid "Timestamp certificate trusted"
 msgstr "Certificado del sello de tiempo confiable"
 
-#: sign/gui/validation.c:207 sign/gui/validation.c:268 sign/gui/devices.c:58
+#: sign/gui/validation.c:207 sign/gui/validation.c:268 sign/gui/devices.c:63
 msgid "Not checked"
 msgstr "Sin comprobar"
 
@@ -351,7 +351,7 @@ msgstr "Contenido original"
 msgid "Details"
 msgstr "Detalles"
 
-#: sign/gui/validation.c:262 sign/gui/devices.c:85
+#: sign/gui/validation.c:262 sign/gui/devices.c:90
 msgid "Unknown"
 msgstr "Desconocido"
 
@@ -400,278 +400,274 @@ msgstr "Sello de tiempo de archivo"
 msgid "Only local files can be validated"
 msgstr "Solo se pueden validar archivos locales"
 
-#: sign/gui/validation.c:395
-msgid "Cannot create validation flow"
-msgstr "No se pudo preparar la validación"
-
-#: sign/gui/validation.c:461
+#: sign/gui/validation.c:402
 msgid "Waiting for another operation"
 msgstr "Esperando a que termine otra operación"
 
-#: sign/gui/validation.c:487
+#: sign/gui/validation.c:428
 msgid "Validating…"
 msgstr "Validando…"
 
-#: sign/gui/validation.c:516 sign/gui/validation.c:546
+#: sign/gui/validation.c:457 sign/gui/validation.c:487
 msgid "Queued"
 msgstr "En cola"
 
-#: sign/gui/validation.c:555
+#: sign/gui/validation.c:496
 msgid "Select original content…"
 msgstr "Elegir contenido original…"
 
-#: sign/gui/validation.c:622
+#: sign/gui/validation.c:563
 msgid "Select signed files"
 msgstr "Elegir archivos firmados"
 
-#: sign/gui/validation.c:673
+#: sign/gui/validation.c:614
 msgid "Select original content"
 msgstr "Elegir contenido original"
 
-#: sign/gui/validation.c:729
-msgid "No files were received from the file manager"
-msgstr "No se recibieron archivos del gestor de archivos"
-
-#: sign/gui/validation.c:969
+#: sign/gui/validation.c:735
 msgid "Drop signed files here"
 msgstr "Arrastra aquí los archivos firmados"
 
-#: sign/gui/validation.c:973
+#: sign/gui/validation.c:739
 msgid "Click to choose one or more files"
 msgstr "Haz clic para elegir uno o varios archivos"
 
-#: sign/gui/validation.c:998
+#: sign/gui/validation.c:764
 msgid "Clear results"
 msgstr "Limpiar resultados"
 
-#: sign/gui/devices.c:32 sign/gui/devices.c:45 sign/gui/devices.c:128
+#: sign/gui/devices.c:36 sign/gui/devices.c:50 sign/gui/devices.c:133
 msgid "Unavailable"
 msgstr "No disponible"
 
-#: sign/gui/devices.c:59
+#: sign/gui/devices.c:64
 msgid "Trusted chain found"
 msgstr "Se encontró una cadena de confianza"
 
-#: sign/gui/devices.c:65 sign/gui/devices.c:141 sign/gui/devices.c:145
+#: sign/gui/devices.c:70 sign/gui/devices.c:146 sign/gui/devices.c:150
 msgid "Certificate"
 msgstr "Certificado"
 
-#: sign/gui/devices.c:67
+#: sign/gui/devices.c:72
 msgid "Public key"
 msgstr "Llave pública"
 
-#: sign/gui/devices.c:69
+#: sign/gui/devices.c:74
 msgid "Private key"
 msgstr "Llave privada"
 
-#: sign/gui/devices.c:71
+#: sign/gui/devices.c:76
 msgid "Secret key"
 msgstr "Llave secreta"
 
-#: sign/gui/devices.c:108
+#: sign/gui/devices.c:113
 msgid "Object type"
 msgstr "Tipo de objeto"
 
-#: sign/gui/devices.c:110 sign/gui/devices.c:148
+#: sign/gui/devices.c:115 sign/gui/devices.c:153
 msgid "ID"
 msgstr "ID"
 
-#: sign/gui/devices.c:112 sign/gui/devices.c:151
+#: sign/gui/devices.c:117 sign/gui/devices.c:156
 #, c-format
 msgid "%lu bits"
 msgstr "%lu bits"
 
-#: sign/gui/devices.c:115
+#: sign/gui/devices.c:120
 msgid "Key size (associated certificate)"
 msgstr "Tamaño de llave (certificado asociado)"
 
-#: sign/gui/devices.c:116 sign/gui/devices.c:153
+#: sign/gui/devices.c:121 sign/gui/devices.c:158
 msgid "Key size"
 msgstr "Tamaño de llave"
 
-#: sign/gui/devices.c:120
+#: sign/gui/devices.c:125
 msgid "Key type"
 msgstr "Tipo de llave"
 
-#: sign/gui/devices.c:123
+#: sign/gui/devices.c:128
 msgid "PKCS#11 key type"
 msgstr "Tipo de llave PKCS#11"
 
-#: sign/gui/devices.c:127
+#: sign/gui/devices.c:132
 msgid "Signing attribute"
 msgstr "Atributo de firmado"
 
-#: sign/gui/devices.c:163
+#: sign/gui/devices.c:168
 msgid "Certificate data"
 msgstr "Datos del certificado"
 
-#: sign/gui/devices.c:164
+#: sign/gui/devices.c:169
 msgid "Unavailable or invalid X.509 certificate"
 msgstr "Certificado X.509 no disponible o inválido"
 
-#: sign/gui/devices.c:171
+#: sign/gui/devices.c:176
 msgid "Public key algorithm"
 msgstr "Algoritmo de llave pública"
 
-#: sign/gui/devices.c:200
+#: sign/gui/devices.c:205
 msgid "Content commitment key usage"
 msgstr "Uso de llave de compromiso de contenido"
 
-#: sign/gui/devices.c:201
+#: sign/gui/devices.c:206
 msgid "Not specified"
 msgstr "Sin especificar"
 
-#: sign/gui/devices.c:204
+#: sign/gui/devices.c:209
 msgid "System certificates"
 msgstr "Certificados del sistema"
 
-#: sign/gui/devices.c:207
+#: sign/gui/devices.c:212
 msgid "CRSign certificates (embedded / configured)"
 msgstr "Certificados de CRSign (incorporados / configurados)"
 
-#: sign/gui/devices.c:217
+#: sign/gui/devices.c:232
 #, c-format
 msgid "Slot %lu"
 msgstr "Slot %lu"
 
-#: sign/gui/devices.c:224
+#: sign/gui/devices.c:239
 msgid "Token present"
 msgstr "Token presente"
 
-#: sign/gui/devices.c:225
+#: sign/gui/devices.c:240
 msgid "No token inserted"
 msgstr "Sin tarjeta insertada"
 
-#: sign/gui/devices.c:229
+#: sign/gui/devices.c:244
 msgid "Slot ID"
 msgstr "ID del slot"
 
-#: sign/gui/devices.c:230
+#: sign/gui/devices.c:245
 msgid "Hardware slot"
 msgstr "Slot de hardware"
 
-#: sign/gui/devices.c:233
+#: sign/gui/devices.c:248
 msgid "Removable device"
 msgstr "Dispositivo extraíble"
 
-#: sign/gui/devices.c:237
+#: sign/gui/devices.c:252
 msgid "Device error"
 msgstr "Error del dispositivo"
 
-#: sign/gui/devices.c:243
+#: sign/gui/devices.c:258
 msgid "Token label"
 msgstr "Etiqueta del token"
 
-#: sign/gui/devices.c:245 sign/gui/devices.c:357
+#: sign/gui/devices.c:262
+msgid "Copy Token URI"
+msgstr "Copiar URI del token"
+
+#: sign/gui/devices.c:274 sign/gui/devices.c:386
 msgid "Manufacturer"
 msgstr "Fabricante"
 
-#: sign/gui/devices.c:246
+#: sign/gui/devices.c:275
 msgid "Model"
 msgstr "Modelo"
 
-#: sign/gui/devices.c:247
+#: sign/gui/devices.c:276
 msgid "Serial number"
 msgstr "Número de serie"
 
-#: sign/gui/devices.c:253
+#: sign/gui/devices.c:282
 msgid "Hardware version"
 msgstr "Versión de hardware"
 
-#: sign/gui/devices.c:260
+#: sign/gui/devices.c:289
 msgid "Firmware version"
 msgstr "Versión de firmware"
 
-#: sign/gui/devices.c:264
+#: sign/gui/devices.c:293
 msgid "Login required"
 msgstr "Requiere iniciar sesión"
 
-#: sign/gui/devices.c:269
+#: sign/gui/devices.c:298
 msgid "Protected PIN entry"
 msgstr "Entrada protegida del PIN"
 
-#: sign/gui/devices.c:274
+#: sign/gui/devices.c:303
 msgid "PIN locked"
 msgstr "PIN bloqueado"
 
-#: sign/gui/devices.c:279
+#: sign/gui/devices.c:308
 msgid "PIN final attempt"
 msgstr "Último intento de PIN"
 
-#: sign/gui/devices.c:282
+#: sign/gui/devices.c:311
 msgid "Minimum PIN length"
 msgstr "Longitud mínima del PIN"
 
-#: sign/gui/devices.c:283
+#: sign/gui/devices.c:312
 msgid "Maximum PIN length"
 msgstr "Longitud máxima del PIN"
 
-#: sign/gui/devices.c:284
+#: sign/gui/devices.c:313
 msgid "Public memory (bytes)"
 msgstr "Memoria pública (bytes)"
 
-#: sign/gui/devices.c:285
+#: sign/gui/devices.c:314
 msgid "Free public memory (bytes)"
 msgstr "Memoria pública libre (bytes)"
 
-#: sign/gui/devices.c:286
+#: sign/gui/devices.c:315
 msgid "Private memory (bytes)"
 msgstr "Memoria privada (bytes)"
 
-#: sign/gui/devices.c:287
+#: sign/gui/devices.c:316
 msgid "Free private memory (bytes)"
 msgstr "Memoria privada libre (bytes)"
 
-#: sign/gui/devices.c:290
+#: sign/gui/devices.c:319
 msgid "Visible objects"
 msgstr "Objetos visibles"
 
-#: sign/gui/devices.c:314 sign/gui/devices.c:358
+#: sign/gui/devices.c:343 sign/gui/devices.c:387
 msgid "PKCS#11 module"
 msgstr "Módulo PKCS#11"
 
-#: sign/gui/devices.c:340
+#: sign/gui/devices.c:369
 msgid "Unnamed reader"
 msgstr "Lector sin nombre"
 
-#: sign/gui/devices.c:360
+#: sign/gui/devices.c:389
 msgid "Library"
 msgstr "Biblioteca"
 
-#: sign/gui/devices.c:366
+#: sign/gui/devices.c:395
 msgid "Library version"
 msgstr "Versión de la biblioteca"
 
-#: sign/gui/devices.c:373
+#: sign/gui/devices.c:402
 msgid "PKCS#11 version"
 msgstr "Versión de PKCS#11"
 
-#: sign/gui/devices.c:386
+#: sign/gui/devices.c:415
 #, c-format
 msgid "Readers: %zu · Slots: %zu · Certificates: %zu · Keys: %zu"
 msgstr "Lectores: %zu · Slots: %zu · Certificados: %zu · Llaves: %zu"
 
-#: sign/gui/devices.c:393
+#: sign/gui/devices.c:422
 msgid "No readers found"
 msgstr "No se encontraron lectores"
 
-#: sign/gui/devices.c:431 sign/gui/devices.c:680
+#: sign/gui/devices.c:460 sign/gui/devices.c:709
 msgid "Scanning devices…"
 msgstr "Buscando dispositivos…"
 
-#: sign/gui/devices.c:513
+#: sign/gui/devices.c:542
 msgid "Cannot load the PKCS#11 modules"
 msgstr "No se pueden cargar los módulos PKCS#11"
 
-#: sign/gui/devices.c:534
+#: sign/gui/devices.c:563
 msgid "Cannot monitor devices"
 msgstr "No se pueden detectar cambios en los dispositivos"
 
-#: sign/gui/devices.c:691
+#: sign/gui/devices.c:720
 msgid "Refresh devices"
 msgstr "Actualizar dispositivos"
 
-#: sign/gui/devices.c:701
+#: sign/gui/devices.c:730
 msgid "Include software tokens and certificates"
 msgstr "Incluir tokens y certificados de software"
 
@@ -687,3 +683,170 @@ msgstr "No se pueden leer los certificados del sistema"
 #, c-format
 msgid "Cannot inspect devices (status %d)"
 msgstr "No se pueden consultar los dispositivos (estado %d)"
+
+#: sign/gui/file_drop.c:48
+msgid "No files were received from the file manager"
+msgstr "No se recibieron archivos del gestor de archivos"
+
+#: sign/gui/pdf_view.c:135
+msgid "Cannot read PDF page geometry"
+msgstr "No se puede leer la geometría de las páginas del PDF"
+
+#: sign/gui/pdf_view.c:154
+msgid "Invalid page number"
+msgstr "Número de página no válido"
+
+#: sign/gui/pdf_view.c:193
+msgid "Cannot render this PDF page"
+msgstr "No se puede mostrar esta página del PDF"
+
+#: sign/gui/pdf_view.c:238
+msgid "The signature image cannot fit at this position"
+msgstr "La imagen de firma no cabe en esta posición"
+
+#: sign/gui/signing.c:110 sign/gui/signing.c:1158
+msgid "Continue"
+msgstr "Continuar"
+
+#: sign/gui/signing.c:111 sign/gui/signing.c:1710
+msgid "Continue without graphical signature"
+msgstr "Continuar sin firma gráfica"
+
+#: sign/gui/signing.c:115
+msgid "Signing…"
+msgstr "Firmando…"
+
+#: sign/gui/signing.c:257
+msgid "Wait for the PDF preview to finish loading"
+msgstr "Espera a que termine de cargar la previsualización del PDF"
+
+#: sign/gui/signing.c:432
+msgid "Certificate holder"
+msgstr "Titular del certificado"
+
+#: sign/gui/signing.c:472
+msgid "Cannot preview this signature image"
+msgstr "No se puede previsualizar esta imagen de firma"
+
+#: sign/gui/signing.c:506 sign/gui/signing.c:611
+msgid "Graphical signatures are available for PDF files"
+msgstr "Las firmas gráficas están disponibles para archivos PDF"
+
+#: sign/gui/signing.c:538
+#, c-format
+msgid "of %u"
+msgstr "de %u"
+
+#: sign/gui/signing.c:635 sign/gui/signing.c:1544
+msgid "Documents to sign"
+msgstr "Documentos para firmar"
+
+#: sign/gui/signing.c:716
+msgid "Only local files can be signed"
+msgstr "Solo se pueden firmar archivos locales"
+
+#: sign/gui/signing.c:734
+msgid "The document queue is full"
+msgstr "La cola de documentos está llena"
+
+#: sign/gui/signing.c:760
+msgid "Remove document"
+msgstr "Eliminar documento"
+
+#: sign/gui/signing.c:808
+msgid "Choose documents to sign"
+msgstr "Seleccionar documentos para firmar"
+
+#: sign/gui/signing.c:835
+msgid "Only local images are supported"
+msgstr "Solo se admiten imágenes locales"
+
+#: sign/gui/signing.c:857 sign/gui/signing.c:1638
+msgid "Choose signature image"
+msgstr "Seleccionar imagen de firma"
+
+#: sign/gui/signing.c:859
+msgid "Signature images"
+msgstr "Imágenes de firma"
+
+#: sign/gui/signing.c:1133
+msgid "Token PIN"
+msgstr "PIN del token"
+
+#: sign/gui/signing.c:1140
+msgid "Enter the PIN to sign"
+msgstr "Introduce el PIN para firmar"
+
+#: sign/gui/signing.c:1153
+msgid "PIN"
+msgstr "PIN"
+
+#: sign/gui/signing.c:1157
+msgid "Cancel"
+msgstr "Cancelar"
+
+#: sign/gui/signing.c:1285
+msgid "PIN entry was cancelled or unavailable"
+msgstr "Se canceló la solicitud del PIN o no está disponible"
+
+#: sign/gui/signing.c:1327
+#, c-format
+msgid "Output already exists: %s"
+msgstr "El archivo de salida ya existe: %s"
+
+#: sign/gui/signing.c:1352 sign/gui/signing.c:1376
+msgid "Signing failed"
+msgstr "No se pudo firmar"
+
+#: sign/gui/signing.c:1372
+#, c-format
+msgid "Signed: %s"
+msgstr "Firmado: %s"
+
+#: sign/gui/signing.c:1377
+msgid "Not started"
+msgstr "Sin iniciar"
+
+#: sign/gui/signing.c:1384
+#, c-format
+msgid "Documents signed: %zu"
+msgstr "Documentos firmados: %zu"
+
+#: sign/gui/signing.c:1511
+msgid "Signing profile"
+msgstr "Perfil de firmado"
+
+#: sign/gui/signing.c:1538
+msgid "Add documents"
+msgstr "Agregar documentos"
+
+#: sign/gui/signing.c:1574
+msgid "Drop documents here or click to choose files"
+msgstr "Arrastra documentos aquí o haz clic para seleccionarlos"
+
+#: sign/gui/signing.c:1612
+msgid "Some files have no graphical signature"
+msgstr "Hay archivos sin representación gráfica de la firma"
+
+#: sign/gui/signing.c:1631
+msgid "Document queue"
+msgstr "Cola de documentos"
+
+#: sign/gui/signing.c:1646
+msgid "Use profile signature image"
+msgstr "Usar la imagen de firma del perfil"
+
+#: sign/gui/signing.c:1666
+msgid "Click or drag to place the graphical signature"
+msgstr "Haz clic o arrastra para colocar la firma gráfica"
+
+#: sign/gui/signing.c:1683
+msgid "Remove graphical signature"
+msgstr "Quitar firma gráfica"
+
+#: sign/gui/signing.c:1696
+msgid "Page"
+msgstr "Página"
+
+#~ msgid "Cannot create validation flow"
+#~ msgstr "No se pudo preparar la validación"

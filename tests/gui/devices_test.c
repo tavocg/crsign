@@ -5,6 +5,23 @@
 #include <sign/gui/inventory.h>
 #include <sign/gui/window.h>
 
+static void clipboard_read(
+    GObject*      source,
+    GAsyncResult* result,
+    gpointer      data
+) {
+	GError* error = NULL;
+	char*   text = gdk_clipboard_read_text_finish(
+        GDK_CLIPBOARD(source),
+        result,
+        &error
+    );
+	g_assert_no_error(error);
+	g_assert_nonnull(text);
+	g_assert_true(g_str_has_prefix(text, "pkcs11:"));
+	g_free(text);
+	*(bool*)data = true;
+}
 static bool contains(GtkWidget* widget, const char* text) {
 	if (GTK_IS_LABEL(widget) &&
 	    strstr(gtk_label_get_text(GTK_LABEL(widget)), text)) {
@@ -127,6 +144,24 @@ int main(int argc, char** argv) {
 	reader = ADW_EXPANDER_ROW(find_widget(content, ADW_TYPE_EXPANDER_ROW));
 	adw_expander_row_set_expanded(reader, TRUE);
 	snapshot(window, argv[2], "devices-expanded.png");
+	GtkWidget* copy = named(view, "devices-copy-token-uri");
+	g_assert_nonnull(copy);
+	g_signal_emit_by_name(copy, "clicked");
+	bool copied = false;
+	gdk_clipboard_read_text_async(
+	    gtk_widget_get_clipboard(copy),
+	    NULL,
+	    clipboard_read,
+	    &copied
+	);
+	gint64 copy_deadline = g_get_monotonic_time() + 3 * G_TIME_SPAN_SECOND;
+	while (!copied && g_get_monotonic_time() < copy_deadline) {
+		while (g_main_context_iteration(NULL, FALSE)) {
+		}
+		g_usleep(1000);
+	}
+	g_assert_true(copied);
+
 	GtkCheckButton* software = GTK_CHECK_BUTTON(
 	    named(view, "devices-software")
 	);

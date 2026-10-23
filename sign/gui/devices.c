@@ -24,7 +24,11 @@ static GParamSpec* properties[N_PROPERTIES];
 static const char* yes_no(bool value) {
 	return value ? _("Yes") : _("No");
 }
-static void field(AdwExpanderRow* parent, const char* name, const char* value) {
+static AdwActionRow* field(
+    AdwExpanderRow* parent,
+    const char*     name,
+    const char*     value
+) {
 	AdwActionRow* row = ADW_ACTION_ROW(adw_action_row_new());
 	adw_preferences_row_set_use_markup(ADW_PREFERENCES_ROW(row), FALSE);
 	adw_preferences_row_set_title(ADW_PREFERENCES_ROW(row), name);
@@ -35,6 +39,7 @@ static void field(AdwExpanderRow* parent, const char* name, const char* value) {
 	adw_action_row_set_subtitle_lines(row, 0);
 	adw_preferences_row_set_title_selectable(ADW_PREFERENCES_ROW(row), TRUE);
 	adw_expander_row_add_row(parent, GTK_WIDGET(row));
+	return row;
 }
 static void number(
     AdwExpanderRow* parent,
@@ -209,6 +214,16 @@ static void render_certificate(
 	);
 }
 
+static void copy_token_uri(GtkButton* button, gpointer data) {
+	(void)data;
+	const char* uri = g_object_get_data(G_OBJECT(button), "token-uri");
+	if (uri) {
+		gdk_clipboard_set_text(
+		    gtk_widget_get_clipboard(GTK_WIDGET(button)),
+		    uri
+		);
+	}
+}
 static void render_slot(
     AdwExpanderRow*        parent,
     libssig_device_slot*   slot,
@@ -241,7 +256,21 @@ static void render_slot(
 	}
 	libssig_token* token = &slot->token;
 	field(row, _("Token label"), token->label);
-	field(row, _("Token URI"), token->uri);
+	AdwActionRow* uri_row = field(row, _("Token URI"), token->uri);
+	GtkWidget*    copy = gtk_button_new_from_icon_name("edit-copy-symbolic");
+	gtk_widget_set_name(copy, "devices-copy-token-uri");
+	gtk_widget_set_tooltip_text(copy, _("Copy Token URI"));
+	gtk_widget_add_css_class(copy, "flat");
+	gtk_widget_set_valign(copy, GTK_ALIGN_CENTER);
+	gtk_widget_set_sensitive(copy, token->uri && *token->uri);
+	g_object_set_data_full(
+	    G_OBJECT(copy),
+	    "token-uri",
+	    g_strdup(token->uri),
+	    g_free
+	);
+	g_signal_connect(copy, "clicked", G_CALLBACK(copy_token_uri), NULL);
+	adw_action_row_add_suffix(uri_row, copy);
 	field(row, _("Manufacturer"), token->manufacturer);
 	field(row, _("Model"), token->model);
 	field(row, _("Serial number"), token->serial);

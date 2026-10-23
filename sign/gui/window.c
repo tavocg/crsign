@@ -3,6 +3,7 @@
 #include <sign/gui/devices.h>
 #include <sign/gui/i18n.h>
 #include <sign/gui/settings.h>
+#include <sign/gui/signing.h>
 #include <sign/gui/validation.h>
 #include <sign/gui/window.h>
 #include <string.h>
@@ -26,6 +27,7 @@ struct _SignWindow {
 	AdwOverlaySplitView* split_view;
 	GtkStack*            pages;
 	GtkLabel*            title;
+	GtkWidget *          title_box, *profile_selector;
 };
 
 G_DEFINE_TYPE(SignWindow, sign_window, ADW_TYPE_APPLICATION_WINDOW)
@@ -62,7 +64,8 @@ static void section_selected(
 		return;
 	}
 	if (!strcmp(sections[index].id, "verify") ||
-	    !strcmp(sections[index].id, "devices")) {
+	    !strcmp(sections[index].id, "devices") ||
+	    !strcmp(sections[index].id, "sign")) {
 		/* Apply valid pending preferences before either worker reads its
 		 * configuration. Invalid drafts remain unsaved. */
 		sign_settings_flush(
@@ -73,6 +76,14 @@ static void section_selected(
 	if (!strcmp(sections[index].id, "devices")) {
 		sign_devices_refresh(
 		    SIGN_DEVICES(gtk_stack_get_child_by_name(self->pages, "devices"))
+		);
+	}
+	bool signing = !strcmp(sections[index].id, "sign");
+	gtk_widget_set_visible(GTK_WIDGET(self->title), !signing);
+	gtk_widget_set_visible(self->profile_selector, signing);
+	if (signing) {
+		sign_signing_reload_profiles(
+		    SIGN_SIGNING(gtk_stack_get_child_by_name(self->pages, "sign"))
 		);
 	}
 	gtk_label_set_label(self->title, _(sections[index].title));
@@ -150,10 +161,9 @@ static GtkWidget* create_content(SignWindow* self) {
 	GtkWidget* header = adw_header_bar_new();
 	self->title = GTK_LABEL(gtk_label_new(_("Home")));
 	gtk_widget_add_css_class(GTK_WIDGET(self->title), "title");
-	adw_header_bar_set_title_widget(
-	    ADW_HEADER_BAR(header),
-	    GTK_WIDGET(self->title)
-	);
+	self->title_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+	gtk_box_append(GTK_BOX(self->title_box), GTK_WIDGET(self->title));
+	adw_header_bar_set_title_widget(ADW_HEADER_BAR(header), self->title_box);
 
 	GtkWidget* toggle = gtk_toggle_button_new();
 	gtk_widget_set_name(toggle, "menu-toggle");
@@ -189,6 +199,21 @@ static GtkWidget* create_content(SignWindow* self) {
 	);
 	gtk_stack_set_transition_duration(self->pages, 150);
 	for (guint i = 0; i < G_N_ELEMENTS(sections); ++i) {
+		if (!strcmp(sections[i].id, "sign")) {
+			GtkWidget* signing = sign_signing_new();
+			self->profile_selector = sign_signing_profile_selector(
+			    SIGN_SIGNING(signing)
+			);
+			gtk_box_append(GTK_BOX(self->title_box), self->profile_selector);
+			gtk_widget_set_visible(self->profile_selector, FALSE);
+			gtk_stack_add_titled(
+			    self->pages,
+			    signing,
+			    sections[i].id,
+			    _(sections[i].title)
+			);
+			continue;
+		}
 		if (!strcmp(sections[i].id, "verify")) {
 			gtk_stack_add_titled(
 			    self->pages,

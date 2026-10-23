@@ -6,6 +6,7 @@
 #include <sign/gui/devices.h>
 #include <sign/gui/i18n.h>
 #include <sign/gui/settings.h>
+#include <sign/gui/signing.h>
 #include <sign/gui/validation.h>
 #include <sign/gui/window.h>
 #include <string.h>
@@ -232,7 +233,12 @@ int main(int argc, char** argv) {
 		);
 		g_assert_cmpstr(gtk_stack_get_visible_child_name(stack), ==, ids[i]);
 		GtkWidget* page = gtk_stack_get_visible_child(stack);
-		if (i == 2) {
+		if (i == 1) {
+			g_assert_true(SIGN_IS_SIGNING(page));
+			g_assert_true(
+			    gtk_widget_get_visible(named(window, "sign-profile"))
+			);
+		} else if (i == 2) {
 			g_assert_true(SIGN_IS_VALIDATION(page));
 		} else if (i == 3) {
 			g_assert_true(SIGN_IS_DEVICES(page));
