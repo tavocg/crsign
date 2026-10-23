@@ -12,6 +12,9 @@ bundles = Path(bundles).resolve()
 with tempfile.TemporaryDirectory(prefix='crsign-gui-devices-') as directory:
     root = Path(directory)
     env = os.environ.copy()
+    # Nix's OpenSSL gives this variable precedence over SSL_CERT_FILE. Keep
+    # the synthetic system trust store independent of the runner's CA bundle.
+    env.pop('NIX_SSL_CERT_FILE', None)
     env['XDG_CONFIG_HOME'] = str(root/'config')
     env['LIBSSIG_DEVICE_CERT'] = str(root/'signer.der')
     env['LIBSSIG_DEVICE_PHASE'] = str(root/'phase')
