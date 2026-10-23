@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-#define _POSIX_C_SOURCE 200809L
+#include <libssig/trust_store.h>
 #include <openssl/err.h>
 #include <openssl/pem.h>
 #include <openssl/x509v3.h>
@@ -90,13 +90,13 @@ static STACK_OF(X509) *
 	if (!untrusted || !store || !ctx || !certs_parse(inter, untrusted)) {
 		goto done;
 	}
-	/* An unavailable system store must not prevent explicit/fallback anchors.
-	 */
-	X509_STORE_set_default_paths(store);
-	ERR_clear_error();
 	if (!roots_add(store, ca)) {
 		goto done;
 	}
+	/* Discovery is best effort; explicit anchors can still supply a chain.
+	 * The loader installs native policy checks before adding certificates. */
+	libssig_trust_store_load_system(store);
+	ERR_clear_error();
 	for (int i = 0; i < 2; ++i) {
 		if (!X509_STORE_CTX_init(ctx, store, cert, untrusted)) {
 			break;
@@ -148,7 +148,11 @@ static bool url_select(char** url, const char* candidate) {
 	if (*url) {
 		return !strcmp(*url, candidate);
 	}
-	*url = strdup(candidate);
+	size_t len = strlen(candidate);
+	*url = malloc(len + 1);
+	if (*url) {
+		memcpy(*url, candidate, len + 1);
+	}
 	return *url != NULL;
 }
 
@@ -181,7 +185,11 @@ static bool sia_select(const sign_trust* trust, char** url) {
 			if (!url_valid(data, len)) {
 				continue;
 			}
-			char* candidate = strndup((const char*)data, (size_t)len);
+			char* candidate = malloc((size_t)len + 1);
+			if (candidate) {
+				memcpy(candidate, data, (size_t)len);
+				candidate[len] = 0;
+			}
 			ok = candidate && url_select(url, candidate);
 			free(candidate);
 		}

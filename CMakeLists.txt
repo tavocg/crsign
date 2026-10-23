@@ -14,18 +14,41 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+find_package(Argp REQUIRED)
+
 include(GNUInstallDirs)
+if(APPLE)
+    set(CMAKE_INSTALL_RPATH "@executable_path/../lib")
+elseif(UNIX)
+    set(CMAKE_INSTALL_RPATH "$ORIGIN/../${CMAKE_INSTALL_LIBDIR}")
+endif()
+option(BUILD_TESTING "Build the test suites" OFF)
 include(CTest)
-find_package(libssig CONFIG REQUIRED)
+find_package(libssig 0.1.4 CONFIG REQUIRED)
 find_package(CURL 7.85 REQUIRED)
 find_package(OpenSSL REQUIRED COMPONENTS Crypto)
+include_directories(BEFORE SYSTEM "${OPENSSL_INCLUDE_DIR}")
 find_program(OPENSSL_EXECUTABLE openssl REQUIRED)
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(GLIB REQUIRED IMPORTED_TARGET glib-2.0>=2.40)
+pkg_check_modules(GIO REQUIRED IMPORTED_TARGET gio-2.0)
+pkg_check_modules(IMAGES REQUIRED IMPORTED_TARGET librsvg-2.0>=2.52 gdk-pixbuf-2.0 cairo pangocairo)
+add_library(sign_image_deps INTERFACE)
+target_link_libraries(sign_image_deps INTERFACE PkgConfig::IMAGES)
+if(UNIX)
+    target_link_libraries(sign_image_deps INTERFACE m)
+endif()
+find_path(TOMLC17_INCLUDE_DIR tomlc17.h REQUIRED)
+find_library(TOMLC17_LIBRARY NAMES tomlc17 REQUIRED)
+add_library(sign_config_deps INTERFACE)
+target_include_directories(sign_config_deps INTERFACE "${TOMLC17_INCLUDE_DIR}")
+target_link_libraries(sign_config_deps INTERFACE PkgConfig::GLIB "${TOMLC17_LIBRARY}")
 
 option(HEADLESS "Build without the GTK graphical interface" OFF)
 
 if(NOT HEADLESS)
-    find_package(PkgConfig REQUIRED)
     pkg_check_modules(GTK4 REQUIRED IMPORTED_TARGET gtk4)
 endif()
 
@@ -56,9 +79,17 @@ if(NOT SIGN_CERT_RESULT EQUAL 0)
 endif()
 list(APPEND SIGN_SOURCES "${SIGN_CERT_CATALOG}")
 
+if(WIN32)
+    enable_language(RC)
+    configure_file(packaging/windows.rc.in "${CMAKE_CURRENT_BINARY_DIR}/windows.rc" @ONLY)
+    set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/windows.rc" PROPERTIES
+        OBJECT_DEPENDS "${PROJECT_SOURCE_DIR}/packaging/windows.manifest")
+    list(APPEND SIGN_SOURCES "${CMAKE_CURRENT_BINARY_DIR}/windows.rc")
+endif()
+
 add_executable(sign ${SIGN_SOURCES})
 
-target_link_libraries(sign PRIVATE libssig::ssig CURL::libcurl OpenSSL::Crypto)
+target_link_libraries(sign PRIVATE Argp::Argp libssig::ssig CURL::libcurl OpenSSL::Crypto sign_config_deps PkgConfig::GIO sign_image_deps)
 
 target_include_directories(sign PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -79,10 +110,7 @@ target_compile_definitions(sign PRIVATE
 )
 
 target_compile_options(sign PRIVATE
-    -Wall
-    -Wextra
-    -Wpedantic
-    -Werror
+    "$<$<COMPILE_LANGUAGE:C>:-Wall;-Wextra;-Wpedantic;-Werror>"
 )
 
 install(TARGETS sign

@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+#include <glib.h>
 #include <libssig/libssig.h>
 #include <sign/io.h>
 #include <stdlib.h>
@@ -7,6 +8,13 @@
 libssig_status libssig_context_open(libssig_context* ctx) {
 	(void)ctx;
 	return getenv("SIGN_MOCK_FAIL") ? LIBSSIG_ERROR_MODULES : LIBSSIG_OK;
+}
+libssig_status libssig_context_open_modules(
+    libssig_context*           ctx,
+    const libssig_string_list* paths
+) {
+	(void)paths;
+	return libssig_context_open(ctx);
 }
 void libssig_context_close(libssig_context* ctx) {
 	(void)ctx;
@@ -25,6 +33,10 @@ libssig_status libssig_tokens(
 	if (!tokens->items) {
 		return LIBSSIG_ERROR_MEMORY;
 	}
+	static const char* pin_flags[] = {
+	    "login-required",
+	    "protected-authentication-path"
+	};
 	tokens->count = 1;
 	tokens->items[0] = (libssig_token){
 	    .uri = "pkcs11:token=Mock",
@@ -32,6 +44,11 @@ libssig_status libssig_tokens(
 	    .manufacturer = "Test",
 	    .model = "Mock",
 	    .serial = "123",
+	    .flag_names = {
+	        pin_flags,
+	        getenv("SIGN_MOCK_LOGIN") ? (getenv("SIGN_MOCK_PROTECTED") ? 2 : 1)
+	                                  : 0
+	    },
 	};
 	return LIBSSIG_OK;
 }
@@ -106,6 +123,19 @@ libssig_status libssig_sign(
 	(void)ctx;
 	if (!params->token || !params->cert || !params->data) {
 		return LIBSSIG_ERROR_ARGUMENT;
+	}
+	if (getenv("SIGN_MOCK_LOGIN")) {
+		bool        protected = getenv("SIGN_MOCK_PROTECTED") != NULL;
+		const char* expected = g_getenv("SIGN_MOCK_EXPECTED_PIN");
+		if (!expected) {
+			expected = "1234";
+		}
+		if ((protected && (params->pin || params->pin_len)) ||
+		    (!protected &&
+		     (!params->pin || params->pin_len != strlen(expected) ||
+		      memcmp(params->pin, expected, params->pin_len)))) {
+			return LIBSSIG_ERROR_ARGUMENT;
+		}
 	}
 	if (getenv("SIGN_MOCK_SIGN_FAIL")) {
 		return LIBSSIG_ERROR_PKCS11;

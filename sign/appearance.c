@@ -1,0 +1,296 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+#include <cairo.h>
+#include <gdk-pixbuf/gdk-pixbuf.h>
+#include <librsvg/rsvg.h>
+#include <limits.h>
+#include <math.h>
+#include <openssl/x509.h>
+#include <pango/pangocairo.h>
+#include <sign/appearance.h>
+#include <sign/io.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+/* No base URI is supplied: user SVGs cannot load neighbouring files. */
+char* appearance_default_svg(const libssig_certificate* cert) {
+	if (!cert || !cert->der || !cert->der_len || cert->der_len > LONG_MAX) {
+		return NULL;
+	}
+	const unsigned char* der = cert->der;
+	X509*                x509 = d2i_X509(NULL, &der, (long)cert->der_len);
+	if (!x509) {
+		return NULL;
+	}
+	X509_NAME*     subject = X509_get_subject_name(x509);
+	unsigned char* name = NULL;
+	int            length = -1;
+	const int      fields[] = {NID_commonName, NID_organizationName};
+	for (size_t i = 0; i < G_N_ELEMENTS(fields) && length <= 0; ++i) {
+		int index = X509_NAME_get_index_by_NID(subject, fields[i], -1);
+		OPENSSL_free(name);
+		name = NULL;
+		length = index < 0 ? -1
+		                   : ASN1_STRING_to_UTF8(
+		                         &name,
+		                         X509_NAME_ENTRY_get_data(
+		                             X509_NAME_get_entry(subject, index)
+		                         )
+		                     );
+	}
+	char* escaped = length > 0 ? g_markup_escape_text((const char*)name, length)
+	                           : NULL;
+	PangoContext* context = pango_font_map_create_context(
+	    pango_cairo_font_map_get_default()
+	);
+	PangoLayout*          layout = pango_layout_new(context);
+	PangoFontDescription* font = pango_font_description_from_string(
+	    "sans-serif"
+	);
+	pango_font_description_set_absolute_size(font, 26 * PANGO_SCALE);
+	pango_layout_set_font_description(layout, font);
+	if (length > 0) {
+		pango_layout_set_text(layout, (const char*)name, length);
+	}
+	int name_width = 0;
+	pango_layout_get_pixel_size(layout, &name_width, NULL);
+	char font_size[G_ASCII_DTOSTR_BUF_SIZE];
+	g_ascii_dtostr(
+	    font_size,
+	    sizeof(font_size),
+	    name_width > 550 ? 26.0 * 550 / name_width : 26.0
+	);
+	pango_font_description_free(font);
+	g_object_unref(layout);
+	g_object_unref(context);
+	OPENSSL_free(name);
+	X509_free(x509);
+	if (!escaped) {
+		return NULL;
+	}
+	GDateTime* now = g_date_time_new_from_unix_local(
+	    g_get_real_time() / G_USEC_PER_SEC
+	);
+	char* date = g_date_time_format(now, "%Y-%m-%dT%H:%M:%S%:z");
+	/* Measure with the same font engine used by librsvg to fit long names. */
+	char* svg = g_strdup_printf(
+	    "<svg xmlns='http://www.w3.org/2000/svg' width='600' height='200' "
+	    "viewBox='0 0 600 200'>"
+	    "<rect x='2' y='2' width='596' height='196' rx='12' fill='white' "
+	    "stroke='#24516c' stroke-width='4'/>"
+	    "<path d='M24 50l14 14 26-30' fill='none' stroke='#24516c' "
+	    "stroke-width='6'/>"
+	    "<g font-family='sans-serif' fill='#183747'>"
+	    "<text x='82' y='62' font-size='27' font-weight='bold'>Firmado "
+	    "digitalmente</text>"
+	    "<text x='24' y='116' font-size='%s'>%s</text>"
+	    "<text x='24' y='168' font-size='23'>%s</text></g></svg>",
+	    font_size,
+	    escaped,
+	    date
+	);
+	g_free(date);
+	g_date_time_unref(now);
+	g_free(escaped);
+	return svg;
+}
+
+static bool dimensions(libssig_pdf_appearance* a, double width, double height) {
+	if (!isfinite(width) || !isfinite(height) || width <= 0 || height <= 0) {
+		return false;
+	}
+	if (a->height > 0) {
+		a->width = a->height * width / height;
+	} else {
+		if (a->width == 0) {
+			a->width = SIGN_APPEARANCE_DEFAULT_WIDTH;
+		}
+		a->height = a->width * height / width;
+	}
+	return isfinite(a->width) && isfinite(a->height) &&
+	       a->width >= SIGN_APPEARANCE_MIN_SIZE &&
+	       a->height >= SIGN_APPEARANCE_MIN_SIZE &&
+	       a->width <= SIGN_APPEARANCE_MAX_SIZE &&
+	       a->height <= SIGN_APPEARANCE_MAX_SIZE;
+}
+
+static bool svg_pixels(
+    RsvgHandle*             svg,
+    libssig_pdf_appearance* a,
+    unsigned char**         pixels
+) {
+	double width = 0, height = 0;
+	if (!rsvg_handle_get_intrinsic_size_in_pixels(svg, &width, &height)) {
+		gboolean      has_box = FALSE;
+		RsvgRectangle box;
+		rsvg_handle_get_intrinsic_dimensions(
+		    svg,
+		    NULL,
+		    NULL,
+		    NULL,
+		    NULL,
+		    &has_box,
+		    &box
+		);
+		if (!has_box) {
+			return false;
+		}
+		width = box.width;
+		height = box.height;
+	}
+	if (!dimensions(a, width, height)) {
+		return false;
+	}
+	int              w = (int)ceil(a->width * 4), h = (int)ceil(a->height * 4);
+	cairo_surface_t* surface = cairo_image_surface_create(
+	    CAIRO_FORMAT_ARGB32,
+	    w,
+	    h
+	);
+	cairo_t*      cr = cairo_create(surface);
+	RsvgRectangle viewport = {0, 0, w, h};
+	GError*       error = NULL;
+	bool ok = rsvg_handle_render_document(svg, cr, &viewport, &error) &&
+	          cairo_status(cr) == CAIRO_STATUS_SUCCESS &&
+	          cairo_surface_status(surface) == CAIRO_STATUS_SUCCESS;
+	if (ok) {
+		cairo_surface_flush(surface);
+		unsigned char* data = cairo_image_surface_get_data(surface);
+		int            stride = cairo_image_surface_get_stride(surface);
+		*pixels = g_malloc((size_t)w * h * 4);
+		for (int y = 0; y < h; ++y) {
+			for (int x = 0; x < w; ++x) {
+				uint32_t pixel;
+				memcpy(&pixel, data + (size_t)y * stride + x * 4, 4);
+				unsigned int   alpha = pixel >> 24;
+				unsigned char* dest = *pixels + ((size_t)y * w + x) * 4;
+				dest[0] = alpha ? (((pixel >> 16) & 255) * 255 + alpha / 2) /
+				                      alpha
+				                : 0;
+				dest[1] = alpha
+				              ? (((pixel >> 8) & 255) * 255 + alpha / 2) / alpha
+				              : 0;
+				dest[2] = alpha ? ((pixel & 255) * 255 + alpha / 2) / alpha : 0;
+				dest[3] = alpha;
+			}
+		}
+		a->pixel_width = w;
+		a->pixel_height = h;
+		a->row_stride = (size_t)w * 4;
+	}
+	g_clear_error(&error);
+	cairo_destroy(cr);
+	cairo_surface_destroy(surface);
+	return ok;
+}
+
+static void raster_size(
+    GdkPixbufLoader* loader,
+    int              width,
+    int              height,
+    gpointer         data
+) {
+	bool* oversized = data;
+	if (width <= 0 || height <= 0 || width > 4096 || height > 4096) {
+		*oversized = true;
+		gdk_pixbuf_loader_set_size(loader, 1, 1);
+	}
+}
+
+bool appearance_prepare(
+    const sign_args*           args,
+    const libssig_certificate* cert,
+    libssig_pdf_appearance*    appearance,
+    unsigned char**            pixels
+) {
+	*appearance = args->appearance;
+	*pixels = NULL;
+	if (!appearance->page_number) {
+		return true;
+	}
+	sign_buffer source = {0};
+	char        error[256];
+	if (args->appearance_file) {
+		if (!file_load(args->appearance_file, &source, error, sizeof(error))) {
+			fprintf(stderr, "sign: %s\n", error);
+			return false;
+		}
+	} else {
+		source.data = (unsigned char*)appearance_default_svg(cert);
+		if (!source.data) {
+			fputs(
+			    "sign: cannot read the certificate name for the default mark; "
+			    "use -i FILE\n",
+			    stderr
+			);
+			return false;
+		}
+		source.len = strlen((char*)source.data);
+	}
+	bool        ok = false;
+	RsvgHandle* svg = NULL;
+	if (source.len <= 32 * 1024 * 1024) {
+		svg = rsvg_handle_new_from_data(source.data, source.len, NULL);
+	}
+	if (svg) {
+		ok = svg_pixels(svg, appearance, pixels);
+		g_object_unref(svg);
+	} else if (source.len <= 32 * 1024 * 1024) {
+		GdkPixbufLoader* loader = gdk_pixbuf_loader_new();
+		bool             oversized = false;
+		g_signal_connect(
+		    loader,
+		    "size-prepared",
+		    G_CALLBACK(raster_size),
+		    &oversized
+		);
+		bool loaded = gdk_pixbuf_loader_write(
+		    loader,
+		    source.data,
+		    source.len,
+		    NULL
+		);
+		loaded = gdk_pixbuf_loader_close(loader, NULL) && loaded;
+		GdkPixbuf* image = loaded && !oversized
+		                       ? gdk_pixbuf_loader_get_pixbuf(loader)
+		                       : NULL;
+		GdkPixbuf* oriented = image
+		                          ? gdk_pixbuf_apply_embedded_orientation(image)
+		                          : NULL;
+		if (oriented) {
+			int w = gdk_pixbuf_get_width(oriented),
+			    h = gdk_pixbuf_get_height(oriented);
+			ok = dimensions(appearance, w, h);
+			if (ok) {
+				int channels = gdk_pixbuf_get_n_channels(oriented);
+				int stride = gdk_pixbuf_get_rowstride(oriented);
+				const unsigned char* data = gdk_pixbuf_read_pixels(oriented);
+				*pixels = g_malloc((size_t)w * h * 4);
+				for (int y = 0; y < h; ++y) {
+					for (int x = 0; x < w; ++x) {
+						const unsigned char* src = data + (size_t)y * stride +
+						                           x * channels;
+						unsigned char* dst = *pixels + ((size_t)y * w + x) * 4;
+						memcpy(dst, src, 3);
+						dst[3] = channels == 4 ? src[3] : 255;
+					}
+				}
+				appearance->pixel_width = w;
+				appearance->pixel_height = h;
+				appearance->row_stride = (size_t)w * 4;
+			}
+			g_object_unref(oriented);
+		}
+		g_object_unref(loader);
+	}
+	free(source.data);
+	if (!ok) {
+		fputs(
+		    "sign: invalid signature image or derived size outside 12–720 PDF "
+		    "points (raster limit: 4096×4096)\n",
+		    stderr
+		);
+	}
+	appearance->pixels = *pixels;
+	return ok;
+}

@@ -20,30 +20,39 @@
 
 #include <sign/arg.h>
 #include <sign/operation.h>
+#include <sign/runtime.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #ifdef SIGN_WITH_GUI
 #include <sign/gui.h>
-#else
-#include <stdio.h>
-#include <stdlib.h>
 #endif
 
 int main(int argc, char** argv) {
 	sign_args args = arg_parse(argc, argv);
 
 	if (args.input || args.command == SIGN_COMMAND_TOKENS) {
-		return operation_run(&args);
+		int result = operation_run(&args);
+		arg_free(&args);
+		return result;
 	}
 
 	if (!args.gui) {
-		arg_help(argv[0]);
+		arg_help(args.argv[0]);
+		arg_free(&args);
 		return 0;
 	}
 
 #ifdef SIGN_WITH_GUI
-	return gui_run(argv[0]);
+	if (!runtime_init()) {
+		arg_free(&args);
+		return EXIT_FAILURE;
+	}
+	int result = gui_run(args.argv[0]);
 #else
 	fprintf(stderr, "sign: GUI unavailable in this headless build\n");
-	return EXIT_FAILURE;
+	int result = EXIT_FAILURE;
 #endif
+	arg_free(&args);
+	return result;
 }

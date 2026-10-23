@@ -8,12 +8,14 @@ import subprocess
 import sys
 import tempfile
 import threading
+from unittest.mock import patch
 
 sign, driver, openssl, fixtures = sys.argv[1:]
 fixtures = Path(fixtures)
 with tempfile.TemporaryDirectory(prefix='sign-bundles-') as directory:
     root = Path(directory)
     env = os.environ.copy()
+    env['XDG_CONFIG_HOME'] = str(root / 'config')
     env.pop('NIX_SSL_CERT_FILE', None)
     env['SSL_CERT_FILE'] = str(root / 'missing-root.pem')
     env['SSL_CERT_DIR'] = str(root / 'missing-directory')
@@ -96,7 +98,8 @@ ess_cert_id_chain = no
             self.end_headers()
             self.wfile.write(body)
 
-    server = http.server.HTTPServer(('127.0.0.1', 0), Handler)
+    with patch('socket.getfqdn', return_value='localhost'):
+        server = http.server.HTTPServer(('127.0.0.1', 0), Handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:

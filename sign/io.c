@@ -1,75 +1,149 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-#define _POSIX_C_SOURCE 200809L
-#include <fcntl.h>
+#include <gio/gio.h>
 #include <limits.h>
 #include <sign/io.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
-bool file_read(const char* path, sign_buffer* bytes) {
+bool file_load(
+    const char*  path,
+    sign_buffer* bytes,
+    char*        error,
+    size_t       error_size
+) {
 	if (!path) {
 		return true;
 	}
 
-	FILE* file = fopen(path, "rb");
-	if (!file) {
-		perror(path);
-		return false;
-	}
-
-	long len = -1;
-	if (fseek(file, 0, SEEK_END) == 0) {
-		len = ftell(file);
-	}
-
-	bool ok = len >= 0 && len <= INT_MAX && fseek(file, 0, SEEK_SET) == 0;
+	GError*           cause = NULL;
+	GFile*            file = g_file_new_for_path(path);
+	GFileInputStream* stream = g_file_read(file, NULL, &cause);
+	g_object_unref(file);
+	GFileInfo*     info = stream ? g_file_input_stream_query_info(
+                                   stream,
+                                   G_FILE_ATTRIBUTE_STANDARD_SIZE,
+                                   NULL,
+                                   &cause
+                               )
+	                             : NULL;
+	goffset        size = info ? g_file_info_get_size(info) : -1;
+	bool           ok = info && size >= 0 && size <= INT_MAX;
+	unsigned char* data = NULL;
 	if (ok) {
-		bytes->data = malloc(len ? (size_t)len : 1);
-		ok = bytes->data &&
-		     fread(bytes->data, 1, (size_t)len, file) == (size_t)len;
-		bytes->len = (size_t)len;
+		data = malloc((size_t)size + 1);
+		if (!data) {
+			g_set_error_literal(
+			    &cause,
+			    G_IO_ERROR,
+			    G_IO_ERROR_NO_SPACE,
+			    "Cannot allocate input buffer"
+			);
+			ok = false;
+		}
+	} else if (info) {
+		g_set_error(
+		    &cause,
+		    G_IO_ERROR,
+		    G_IO_ERROR_FAILED,
+		    "Cannot read file (maximum %d bytes)",
+		    INT_MAX
+		);
 	}
-
-	if (fclose(file) != 0) {
+	if (ok) {
+		gsize count = 0;
+		ok = g_input_stream_read_all(
+		    G_INPUT_STREAM(stream),
+		    data,
+		    (gsize)size,
+		    &count,
+		    NULL,
+		    &cause
+		);
+		if (ok && count != (gsize)size) {
+			g_set_error_literal(
+			    &cause,
+			    G_IO_ERROR,
+			    G_IO_ERROR_FAILED,
+			    "File ended before its reported size"
+			);
+			ok = false;
+		}
+	}
+	if (stream && !g_input_stream_close(
+	                  G_INPUT_STREAM(stream),
+	                  NULL,
+	                  ok ? &cause : NULL
+	              )) {
 		ok = false;
 	}
-
-	if (!ok) {
-		fprintf(stderr, "sign: cannot read %s (maximum INT_MAX bytes)\n", path);
-		free(bytes->data);
+	if (info) {
+		g_object_unref(info);
+	}
+	if (stream) {
+		g_object_unref(stream);
+	}
+	if (ok) {
+		data[size] = 0;
+		*bytes = (sign_buffer){data, (size_t)size};
+	} else {
+		snprintf(
+		    error,
+		    error_size,
+		    "%s: %s",
+		    path,
+		    cause ? cause->message : "Cannot read file"
+		);
+		free(data);
 		*bytes = (sign_buffer){0};
 	}
-
+	g_clear_error(&cause);
 	return ok;
 }
 
+bool file_read(const char* path, sign_buffer* bytes) {
+	char error[512];
+	if (!file_load(path, bytes, error, sizeof(error))) {
+		fprintf(stderr, "sign: %s\n", error);
+		return false;
+	}
+	return true;
+}
+
 bool file_write(const char* path, const unsigned char* data, size_t len) {
-	int fd = open(path, O_WRONLY | O_CREAT | O_EXCL, 0600);
-	if (fd < 0) {
-		perror(path);
-		return false;
+	GError* error = NULL;
+	GFile*  file = g_file_new_for_path(path);
+	/* Exclusive creation: never replace an existing file or follow its link. */
+	GFileOutputStream*
+	     stream = g_file_create(file, G_FILE_CREATE_PRIVATE, NULL, &error);
+	bool ok = stream != NULL;
+	if (stream) {
+		ok = g_output_stream_write_all(
+		    G_OUTPUT_STREAM(stream),
+		    len ? data : (const unsigned char*)"",
+		    len,
+		    NULL,
+		    NULL,
+		    &error
+		);
+		if (!g_output_stream_close(
+		        G_OUTPUT_STREAM(stream),
+		        NULL,
+		        ok ? &error : NULL
+		    )) {
+			ok = false;
+		}
+		g_object_unref(stream);
+		if (!ok) {
+			g_file_delete(file, NULL, NULL);
+		}
 	}
-
-	FILE* file = fdopen(fd, "wb");
-	if (!file) {
-		close(fd);
-		unlink(path);
-		return false;
-	}
-
-	bool ok = fwrite(data, 1, len, file) == len;
-	if (fclose(file) != 0) {
-		ok = false;
-	}
-
 	if (!ok) {
-		perror(path);
-		unlink(path);
+		fprintf(stderr, "sign: %s: %s\n", path, error->message);
 	}
-
+	g_clear_error(&error);
+	g_object_unref(file);
 	return ok;
 }
 
@@ -78,18 +152,25 @@ char* file_signed_path(const char* input) {
 	if (len > SIZE_MAX - sizeof("-signed")) {
 		return NULL;
 	}
-	const char* base = strrchr(input, '/');
-	base = base ? base + 1 : input;
+	/* GLib recognizes native separators and Windows drive prefixes. Preserve
+	 * the original directory spelling, including mixed separators and UNC. */
+	char*       base = g_path_get_basename(input);
 	const char* ext = strrchr(base, '.');
-	if (!ext || ext == base) {
-		ext = input + len;
-	}
-	size_t stem_len = (size_t)(ext - input);
-	char*  output = malloc(len + sizeof("-signed"));
+	size_t      ext_len = ext && ext != base && len &&
+                             !G_IS_DIR_SEPARATOR(input[len - 1])
+	                          ? strlen(ext)
+	                          : 0;
+	size_t      stem_len = len - ext_len;
+	g_free(base);
+	char* output = malloc(len + sizeof("-signed"));
 	if (output) {
 		memcpy(output, input, stem_len);
 		memcpy(output + stem_len, "-signed", sizeof("-signed") - 1);
-		memcpy(output + stem_len + sizeof("-signed") - 1, ext, strlen(ext) + 1);
+		memcpy(
+		    output + stem_len + sizeof("-signed") - 1,
+		    input + stem_len,
+		    ext_len + 1
+		);
 	}
 	return output;
 }

@@ -1,0 +1,88 @@
+name: Native GTK build
+
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    name: macOS (GTK)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Install dependencies
+        run: brew install cmake pkgconf openssl@3 argp-standalone p11-kit libmagic qpdf jansson libxml2 glib gtk4 librsvg
+      - name: Build pinned TOML parser
+        run: python3 scripts/bootstrap-native.py --prefix "$PWD/build/native-prefix"
+      - name: Configure and install libssig
+        run: |
+          export PKG_CONFIG_PATH="$(brew --prefix libxml2)/lib/pkgconfig:$(brew --prefix openssl@3)/lib/pkgconfig:$(brew --prefix libmagic)/lib/pkgconfig"
+          cmake -S tests/libssig -B build-libssig -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 -DOPENSSL_ROOT_DIR="$(brew --prefix openssl@3)" \
+            -DCMAKE_INSTALL_PREFIX="$PWD/build/native-prefix"
+          cmake --build build-libssig --parallel 4
+          cmake --install build-libssig
+      - name: Configure and build CRSign
+        run: |
+          export PKG_CONFIG_PATH="$(brew --prefix libxml2)/lib/pkgconfig:$(brew --prefix openssl@3)/lib/pkgconfig:$(brew --prefix libmagic)/lib/pkgconfig"
+          sdk="$(xcrun --show-sdk-path)"
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DHEADLESS=OFF -DBUILD_TESTING=ON \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 -DSIGN_TEST_LIBSSIG=OFF \
+            -DCMAKE_PREFIX_PATH="$PWD/build/native-prefix;$(brew --prefix argp-standalone);$(brew --prefix openssl@3)" \
+            -DCURL_NO_CURL_CMAKE=TRUE -DCURL_LIBRARY="$sdk/usr/lib/libcurl.tbd" -DCURL_INCLUDE_DIR="$sdk/usr/include"
+          cmake --build build --parallel 4
+      - name: Test CLI and native stores
+        run: |
+          export PATH="$PWD/build/native-prefix/bin:$PATH"
+          ctest --test-dir build --parallel 4 --output-on-failure
+          cmake -S tests/libssig/tests/system_trust -B build/system-trust -DCMAKE_BUILD_TYPE=Release -DOPENSSL_ROOT_DIR="$(brew --prefix openssl@3)"
+          cmake --build build/system-trust --parallel 4
+          ctest --test-dir build/system-trust --output-on-failure
+
+  windows:
+    name: Windows UCRT64 (GTK)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-pkgconf
+            mingw-w64-ucrt-x86_64-python mingw-w64-ucrt-x86_64-openssl
+            mingw-w64-ucrt-x86_64-p11-kit mingw-w64-ucrt-x86_64-file
+            mingw-w64-ucrt-x86_64-qpdf mingw-w64-ucrt-x86_64-jansson
+            mingw-w64-ucrt-x86_64-libxml2 mingw-w64-ucrt-x86_64-glib2
+            mingw-w64-ucrt-x86_64-gtk4 mingw-w64-ucrt-x86_64-curl-winssl
+            mingw-w64-ucrt-x86_64-librsvg
+      - name: Build pinned argp and TOML parser
+        run: python scripts/bootstrap-native.py --prefix "$PWD/build/native-prefix" --with-argp
+      - name: Configure and install libssig
+        run: |
+          cmake -S tests/libssig -B build-libssig -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF \
+            -DCMAKE_INSTALL_PREFIX="$PWD/build/native-prefix"
+          cmake --build build-libssig --parallel 4
+          cmake --install build-libssig
+      - name: Configure and build CRSign
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DHEADLESS=OFF -DBUILD_TESTING=ON \
+            -DSIGN_TEST_LIBSSIG=OFF -DCMAKE_PREFIX_PATH="$(cygpath -m "$PWD/build/native-prefix");$(cygpath -m "$MINGW_PREFIX")"
+          cmake --build build --parallel 4
+      - name: Test CLI and native stores
+        run: |
+          export PATH="$PWD/build/native-prefix/bin:$PATH"
+          ctest --test-dir build --parallel 4 --output-on-failure
+          cmake -S tests/libssig/tests/system_trust -B build/system-trust -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build/system-trust --parallel 4
+          ctest --test-dir build/system-trust --output-on-failure

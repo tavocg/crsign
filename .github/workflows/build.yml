@@ -7,13 +7,8 @@ permissions:
 
 jobs:
   build:
-    name: Build and Test (headless=${{ matrix.headless }})
+    name: Linux (GTK)
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        headless: ["ON", "OFF"]
-
     steps:
       - name: Checkout repository and pinned test suites
         uses: actions/checkout@v4
@@ -33,7 +28,8 @@ jobs:
         run: >-
           nix develop --command cmake -S . -B build
           -DCMAKE_BUILD_TYPE=Release
-          -DHEADLESS=${{ matrix.headless }}
+          -DHEADLESS=OFF
+          -DBUILD_TESTING=ON
           -Dlibssig_DIR="$GITHUB_WORKSPACE/build-libssig"
           -DSIGN_TEST_LIBSSIG=ON
           -DLIBSSIG_TEST_CONFORMANCE=ON

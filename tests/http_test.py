@@ -1,11 +1,17 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Exercise the actual curl transport against a loopback HTTP server."""
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import faulthandler
+import os
 import subprocess
 import sys
 import threading
+from unittest.mock import patch
+
+faulthandler.dump_traceback_later(15)
 
 seen = []
+environment = dict(os.environ, NO_PROXY='127.0.0.1,localhost', no_proxy='127.0.0.1,localhost')
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *args): pass
     def do_GET(self): self.handle_request()
@@ -25,7 +31,8 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(b'reply')
 
-server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+with patch('socket.getfqdn', return_value='localhost'):
+    server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
 thread = threading.Thread(target=server.serve_forever, daemon=True)
 thread.start()
 try:
@@ -35,7 +42,8 @@ try:
     labels = ['TSA', 'OCSP', 'certificate', 'CRL']
     for kind in range(4):
         seen.clear()
-        result = subprocess.run([sys.argv[1], str(kind), url + '/redirect'], capture_output=True)
+        result = subprocess.run([sys.argv[1], str(kind), url + '/redirect'], capture_output=True,
+                                env=environment, timeout=10)
         assert result.returncode == 0 and result.stdout == b'reply', result.stderr
         assert len(seen) == 2
         for method, path, headers, body in seen:
@@ -44,12 +52,14 @@ try:
             assert accepts[kind] in headers['Accept']
             assert headers['User-Agent'].startswith('Sign/')
             if kind >= 2: assert 'Content-Type' not in headers
-        result = subprocess.run([sys.argv[1], str(kind), url + '/reject'], capture_output=True)
+        result = subprocess.run([sys.argv[1], str(kind), url + '/reject'], capture_output=True,
+                                env=environment, timeout=10)
         assert result.returncode == 1
         assert (labels[kind] + ' HTTP failure').encode() in result.stderr
         assert b'HTTP 406' in result.stderr and b'No error' not in result.stderr
     seen.clear()
-    result = subprocess.run([sys.argv[1], '0', url + '/loop'], capture_output=True)
+    result = subprocess.run([sys.argv[1], '0', url + '/loop'], capture_output=True,
+                            env=environment, timeout=10)
     assert result.returncode == 1 and len(seen) == 4
 finally:
     server.shutdown()
