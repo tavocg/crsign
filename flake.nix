@@ -26,7 +26,7 @@
             LOCALE_ARCHIVE = "${pkgs.glibcLocales}/lib/locale/locale-archive";
 
             packages = with pkgs; [
-              gcc clang-tools cmake poppler-utils xvfb-run
+              gcc clang-tools cmake poppler-utils xvfb-run xdotool
               (python3.withPackages (pythonPkgs: with pythonPkgs; [
                 cryptography lxml jsonschema pyhanko
               ]))

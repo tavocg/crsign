@@ -102,6 +102,13 @@ archivos de GTK, que utiliza el diálogo nativo o el portal del escritorio cuand
 está disponible. No hay restricciones de extensión: el motor reconoce los
 contenedores CAdES, PAdES, XAdES y JAdES.
 
+El área de selección es clickeable, sin fondo de botón, y conserva el indicador
+de foco para el teclado. El arrastre negocia siempre una copia de las referencias
+a los archivos, aunque el gestor de archivos llegue con «mover» seleccionado,
+como puede ocurrir con Nautilus en Wayland. Nunca confirma un movimiento ni
+solicita eliminar los originales. Si falla la transferencia, la vista muestra
+el error.
+
 La validación empieza inmediatamente en segundo plano. Los archivos se procesan
 en cola, uno por uno, y se pueden añadir más mientras se trabaja. Cada archivo
 usa su propio flow JSON de validación: un fallo no impide procesar los siguientes.
@@ -126,3 +133,9 @@ contenido original…» y vuelve a validarse al seleccionarlo. «Limpiar resulta
 retira las filas cuando no hay trabajo ni diálogos pendientes. Cerrar la ventana
 descarta la cola restante y deja terminar la lectura en curso sin actualizar la
 interfaz destruida. No se descargan evidencias de revocación desde la red.
+
+Con las pruebas habilitadas, Linux puede ejecutar `gui_native_drop` si están
+disponibles Xvfb, D-Bus y `xdotool` (incluidos en `nix develop`). La prueba usa
+dos procesos GTK y movimientos reales del puntero en un escritorio aislado:
+transfiere varios archivos, negocia copia y comprueba que el origen no reciba
+una orden de borrado y que los archivos permanezcan intactos.

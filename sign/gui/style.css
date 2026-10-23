@@ -1,0 +1,14 @@
+/* Keep the file selection area accessible as a button without a button panel. */
+button.validation-drop-area,
+button.validation-drop-area:hover,
+button.validation-drop-area:active {
+  background: none;
+  box-shadow: none;
+  border-color: transparent;
+}
+
+button.validation-drop-area:focus-visible,
+.validation-page:drop(active) button.validation-drop-area {
+  outline: 2px solid @accent_color;
+  outline-offset: -4px;
+}

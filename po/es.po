@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: CRSign 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/tavocg/crsign/issues\n"
-"POT-Creation-Date: 2026-10-23 11:34-0600\n"
+"POT-Creation-Date: 2026-10-23 12:16-0600\n"
 "PO-Revision-Date: 2026-10-23 00:00-0600\n"
 "Last-Translator: Gustavo Calvo <tavo@tavo.cr>\n"
 "Language-Team: Spanish\n"
@@ -400,38 +400,42 @@ msgstr "Solo se pueden validar archivos locales"
 msgid "Cannot create validation flow"
 msgstr "No se pudo preparar la validación"
 
-#: sign/gui/validation.c:479
+#: sign/gui/validation.c:494
 msgid "Waiting for another operation"
 msgstr "Esperando a que termine otra operación"
 
-#: sign/gui/validation.c:501
+#: sign/gui/validation.c:520
 msgid "Validating…"
 msgstr "Validando…"
 
-#: sign/gui/validation.c:530 sign/gui/validation.c:560
+#: sign/gui/validation.c:549 sign/gui/validation.c:579
 msgid "Queued"
 msgstr "En cola"
 
-#: sign/gui/validation.c:569
+#: sign/gui/validation.c:588
 msgid "Select original content…"
 msgstr "Elegir contenido original…"
 
-#: sign/gui/validation.c:636
+#: sign/gui/validation.c:655
 msgid "Select signed files"
 msgstr "Elegir archivos firmados"
 
-#: sign/gui/validation.c:687
+#: sign/gui/validation.c:706
 msgid "Select original content"
 msgstr "Elegir contenido original"
 
-#: sign/gui/validation.c:792
+#: sign/gui/validation.c:762
+msgid "No files were received from the file manager"
+msgstr "No se recibieron archivos del gestor de archivos"
+
+#: sign/gui/validation.c:1002
 msgid "Drop signed files here"
 msgstr "Arrastra aquí los archivos firmados"
 
-#: sign/gui/validation.c:796
+#: sign/gui/validation.c:1006
 msgid "Click to choose one or more files"
 msgstr "Haz clic para elegir uno o varios archivos"
 
-#: sign/gui/validation.c:821
+#: sign/gui/validation.c:1031
 msgid "Clear results"
 msgstr "Limpiar resultados"

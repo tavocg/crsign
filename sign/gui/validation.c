@@ -468,9 +468,24 @@ static void finished(GObject* source, GAsyncResult* result, gpointer data) {
 	g_task_propagate_boolean(task, NULL);
 	self->active = NULL;
 	if (self->closing) {
+		sign_flow_result_clear(&item->result);
+		g_clear_error(&item->error);
+		item->ok = false;
+		item->state = QUEUED;
+		g_queue_push_head(&self->queue, item);
 		return;
 	}
-	if (g_error_matches(item->error, SIGN_FLOW_ERROR, SIGN_FLOW_ERROR_BUSY)) {
+	bool busy = g_error_matches(
+	    item->error,
+	    SIGN_FLOW_ERROR,
+	    SIGN_FLOW_ERROR_BUSY
+	);
+	bool cancelled = g_error_matches(
+	    item->error,
+	    G_IO_ERROR,
+	    G_IO_ERROR_CANCELLED
+	);
+	if (busy || cancelled) {
 		sign_flow_result_clear(&item->result);
 		g_clear_error(&item->error);
 		item->state = QUEUED;
@@ -479,7 +494,11 @@ static void finished(GObject* source, GAsyncResult* result, gpointer data) {
 		    _("Waiting for another operation")
 		);
 		g_queue_push_head(&self->queue, item);
-		self->retry = g_timeout_add(100, retry_later, self);
+		if (busy) {
+			self->retry = g_timeout_add(100, retry_later, self);
+		} else {
+			start_next(self);
+		}
 	} else {
 		item->state = FINISHED;
 		render(item);
@@ -696,6 +715,165 @@ static void choose_original(GtkButton* button, gpointer data) {
 	);
 	g_object_unref(dialog);
 }
+/* Prefer the explicit URI list offered by file managers. This avoids routing
+ * a native, unsandboxed file drop through an optional FileTransfer portal.
+ * Keep the typed target below for platforms/providers without URI lists. */
+typedef struct {
+	SignValidation* self;
+	GdkDrop*        drop;
+	GInputStream*   stream;
+} drop_request;
+static gboolean typed_drop_accept(
+    GtkDropTarget* target,
+    GdkDrop*       drop,
+    gpointer       data
+) {
+	(void)data;
+	GdkContentFormats* formats = gdk_drop_get_formats(drop);
+	return !gdk_content_formats_contain_mime_type(formats, "text/uri-list") &&
+	       (gdk_drop_get_actions(drop) & GDK_ACTION_COPY) &&
+	       gdk_content_formats_match_gtype(
+	           gtk_drop_target_get_formats(target),
+	           formats
+	       ) != G_TYPE_INVALID;
+}
+static void drop_complete(
+    drop_request* request,
+    const GValue* value,
+    GError*       error
+) {
+	SignValidation* self = request->self;
+	bool            accepted = false;
+	if (!self->closing && value && G_VALUE_HOLDS(value, GDK_TYPE_FILE_LIST)) {
+		GdkFileList* list = g_value_get_boxed(value);
+		GSList*      files = list ? gdk_file_list_get_files(list) : NULL;
+		if (files) {
+			GListStore* model = g_list_store_new(G_TYPE_FILE);
+			for (GSList* node = files; node; node = node->next) {
+				g_list_store_append(model, node->data);
+			}
+			sign_validation_add_files(self, G_LIST_MODEL(model));
+			g_object_unref(model);
+			accepted = true;
+		} else if (!error) {
+			error = g_error_new_literal(
+			    G_IO_ERROR,
+			    G_IO_ERROR_INVALID_DATA,
+			    _("No files were received from the file manager")
+			);
+		}
+	}
+	/* Always negotiate COPY, including when the source initially prefers MOVE.
+	 * Validation never takes ownership of the source files. */
+	gdk_drop_finish(request->drop, accepted ? GDK_ACTION_COPY : 0);
+	--self->dialogs;
+	dialog_error(self, error);
+	g_clear_error(&error);
+	if (request->stream) {
+		g_object_unref(request->stream);
+	}
+	if (!self->closing) {
+		summary_update(self);
+	}
+	g_object_unref(request->drop);
+	g_object_unref(self);
+	g_free(request);
+}
+static void uri_deserialized(
+    GObject*      source,
+    GAsyncResult* result,
+    gpointer      data
+) {
+	(void)source;
+	GError* error = NULL;
+	GValue  value = G_VALUE_INIT;
+	bool    ok = gdk_content_deserialize_finish(result, &value, &error);
+	drop_complete(data, ok ? &value : NULL, error);
+	if (G_VALUE_TYPE(&value)) {
+		g_value_unset(&value);
+	}
+}
+static void uri_received(GObject* source, GAsyncResult* result, gpointer data) {
+	drop_request* request = data;
+	GError*       error = NULL;
+	const char*   mime = NULL;
+	request->stream = gdk_drop_read_finish(
+	    GDK_DROP(source),
+	    result,
+	    &mime,
+	    &error
+	);
+	if (!request->stream) {
+		drop_complete(request, NULL, error);
+		return;
+	}
+	gdk_content_deserialize_async(
+	    request->stream,
+	    mime,
+	    GDK_TYPE_FILE_LIST,
+	    G_PRIORITY_DEFAULT,
+	    request->self->cancellable,
+	    uri_deserialized,
+	    request
+	);
+}
+static gboolean uri_accept(
+    GtkDropTargetAsync* target,
+    GdkDrop*            drop,
+    gpointer            data
+) {
+	(void)target;
+	return !SIGN_VALIDATION(data)->closing &&
+	       gdk_content_formats_contain_mime_type(
+	           gdk_drop_get_formats(drop),
+	           "text/uri-list"
+	       );
+}
+static GdkDragAction uri_motion(
+    GtkDropTargetAsync* target,
+    GdkDrop*            drop,
+    double              x,
+    double              y,
+    gpointer            data
+) {
+	(void)target;
+	(void)x;
+	(void)y;
+	/* get_actions() can reflect the currently selected action on Wayland.
+	 * Advertise our own preference so the compositor can renegotiate it. */
+	(void)drop;
+	return SIGN_VALIDATION(data)->closing ? 0 : GDK_ACTION_COPY;
+}
+static gboolean uri_dropped(
+    GtkDropTargetAsync* target,
+    GdkDrop*            drop,
+    double              x,
+    double              y,
+    gpointer            data
+) {
+	(void)target;
+	(void)x;
+	(void)y;
+	SignValidation* self = data;
+	if (self->closing) {
+		return FALSE;
+	}
+	static const char* mime_types[] = {"text/uri-list", NULL};
+	drop_request*      request = g_new0(drop_request, 1);
+	request->self = g_object_ref(self);
+	request->drop = g_object_ref(drop);
+	++self->dialogs;
+	summary_update(self);
+	gdk_drop_read_async(
+	    drop,
+	    mime_types,
+	    G_PRIORITY_DEFAULT,
+	    self->cancellable,
+	    uri_received,
+	    request
+	);
+	return TRUE;
+}
 static gboolean dropped(
     GtkDropTarget* target,
     const GValue*  value,
@@ -732,6 +910,17 @@ static void clear_results(GtkButton* button, gpointer data) {
 	g_ptr_array_set_size(self->items, 0);
 	summary_update(self);
 }
+static void sign_validation_root(GtkWidget* widget) {
+	SignValidation* self = SIGN_VALIDATION(widget);
+	GTK_WIDGET_CLASS(sign_validation_parent_class)->root(widget);
+	/* Unroot is also emitted during reparenting, not just final destruction. */
+	self->closing = false;
+	if (g_cancellable_is_cancelled(self->cancellable)) {
+		g_object_unref(self->cancellable);
+		self->cancellable = g_cancellable_new();
+	}
+	start_next(self);
+}
 static void sign_validation_unroot(GtkWidget* widget) {
 	SignValidation* self = SIGN_VALIDATION(widget);
 	self->closing = true;
@@ -740,7 +929,6 @@ static void sign_validation_unroot(GtkWidget* widget) {
 		g_source_remove(self->retry);
 		self->retry = 0;
 	}
-	g_queue_clear(&self->queue);
 	GTK_WIDGET_CLASS(sign_validation_parent_class)->unroot(widget);
 }
 static void sign_validation_dispose(GObject* object) {
@@ -760,11 +948,32 @@ static void sign_validation_finalize(GObject* object) {
 	G_OBJECT_CLASS(sign_validation_parent_class)->finalize(object);
 }
 static void sign_validation_class_init(SignValidationClass* klass) {
+	GTK_WIDGET_CLASS(klass)->root = sign_validation_root;
 	GTK_WIDGET_CLASS(klass)->unroot = sign_validation_unroot;
 	G_OBJECT_CLASS(klass)->dispose = sign_validation_dispose;
 	G_OBJECT_CLASS(klass)->finalize = sign_validation_finalize;
 }
 static void sign_validation_init(SignValidation* self) {
+	GdkDisplay* display = gtk_widget_get_display(GTK_WIDGET(self));
+	if (!g_object_get_data(G_OBJECT(display), "crsign-validation-style")) {
+		GtkCssProvider* provider = gtk_css_provider_new();
+		gtk_css_provider_load_from_resource(
+		    provider,
+		    "/org/crsign/Sign/style.css"
+		);
+		gtk_style_context_add_provider_for_display(
+		    display,
+		    GTK_STYLE_PROVIDER(provider),
+		    GTK_STYLE_PROVIDER_PRIORITY_APPLICATION
+		);
+		g_object_set_data_full(
+		    G_OBJECT(display),
+		    "crsign-validation-style",
+		    provider,
+		    g_object_unref
+		);
+	}
+	gtk_widget_add_css_class(GTK_WIDGET(self), "validation-page");
 	gtk_orientable_set_orientation(
 	    GTK_ORIENTABLE(self),
 	    GTK_ORIENTATION_VERTICAL
@@ -780,7 +989,8 @@ static void sign_validation_init(SignValidation* self) {
 	self->drop_area = gtk_button_new();
 	gtk_widget_set_name(self->drop_area, "validation-choose");
 	gtk_widget_add_css_class(self->drop_area, "flat");
-	gtk_widget_add_css_class(self->drop_area, "card");
+	gtk_widget_add_css_class(self->drop_area, "validation-drop-area");
+	gtk_widget_set_cursor_from_name(self->drop_area, "pointer");
 	gtk_widget_set_size_request(self->drop_area, -1, 150);
 	GtkWidget* prompt = gtk_box_new(GTK_ORIENTATION_VERTICAL, 12);
 	gtk_widget_set_valign(prompt, GTK_ALIGN_CENTER);
@@ -843,8 +1053,30 @@ static void sign_validation_init(SignValidation* self) {
 	    GDK_TYPE_FILE_LIST,
 	    GDK_ACTION_COPY
 	);
+	g_signal_connect(drop, "accept", G_CALLBACK(typed_drop_accept), self);
 	g_signal_connect(drop, "drop", G_CALLBACK(dropped), self);
 	gtk_widget_add_controller(GTK_WIDGET(self), GTK_EVENT_CONTROLLER(drop));
+	const char*        mime_types[] = {"text/uri-list"};
+	GdkContentFormats* formats = gdk_content_formats_new(
+	    mime_types,
+	    G_N_ELEMENTS(mime_types)
+	);
+	GtkDropTargetAsync* uri_target = gtk_drop_target_async_new(
+	    formats,
+	    GDK_ACTION_COPY
+	);
+	gtk_event_controller_set_propagation_phase(
+	    GTK_EVENT_CONTROLLER(uri_target),
+	    GTK_PHASE_CAPTURE
+	);
+	g_signal_connect(uri_target, "accept", G_CALLBACK(uri_accept), self);
+	g_signal_connect(uri_target, "drag-enter", G_CALLBACK(uri_motion), self);
+	g_signal_connect(uri_target, "drag-motion", G_CALLBACK(uri_motion), self);
+	g_signal_connect(uri_target, "drop", G_CALLBACK(uri_dropped), self);
+	gtk_widget_add_controller(
+	    GTK_WIDGET(self),
+	    GTK_EVENT_CONTROLLER(uri_target)
+	);
 	summary_update(self);
 }
 GtkWidget* sign_validation_new(void) {

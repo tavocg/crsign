@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: CRSign 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/tavocg/crsign/issues\n"
-"POT-Creation-Date: 2026-10-23 11:34-0600\n"
+"POT-Creation-Date: 2026-10-23 12:16-0600\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -398,38 +398,42 @@ msgstr ""
 msgid "Cannot create validation flow"
 msgstr ""
 
-#: sign/gui/validation.c:479
+#: sign/gui/validation.c:494
 msgid "Waiting for another operation"
 msgstr ""
 
-#: sign/gui/validation.c:501
+#: sign/gui/validation.c:520
 msgid "Validating…"
 msgstr ""
 
-#: sign/gui/validation.c:530 sign/gui/validation.c:560
+#: sign/gui/validation.c:549 sign/gui/validation.c:579
 msgid "Queued"
 msgstr ""
 
-#: sign/gui/validation.c:569
+#: sign/gui/validation.c:588
 msgid "Select original content…"
 msgstr ""
 
-#: sign/gui/validation.c:636
+#: sign/gui/validation.c:655
 msgid "Select signed files"
 msgstr ""
 
-#: sign/gui/validation.c:687
+#: sign/gui/validation.c:706
 msgid "Select original content"
 msgstr ""
 
-#: sign/gui/validation.c:792
+#: sign/gui/validation.c:762
+msgid "No files were received from the file manager"
+msgstr ""
+
+#: sign/gui/validation.c:1002
 msgid "Drop signed files here"
 msgstr ""
 
-#: sign/gui/validation.c:796
+#: sign/gui/validation.c:1006
 msgid "Click to choose one or more files"
 msgstr ""
 
-#: sign/gui/validation.c:821
+#: sign/gui/validation.c:1031
 msgid "Clear results"
 msgstr ""

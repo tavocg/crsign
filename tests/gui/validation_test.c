@@ -151,6 +151,23 @@ int main(int argc, char** argv) {
 	g_signal_emit_by_name(named(view, "validation-clear"), "clicked");
 	g_assert_cmpuint(sign_validation_count(self), ==, 0);
 	g_assert_null(gtk_widget_get_first_child(GTK_WIDGET(list)));
+	/* A temporary unroot/reparent must not permanently disable file intake or
+	 * abandon queued work, even when a worker finishes while detached. */
+	sign_validation_add_files(self, G_LIST_MODEL(extra));
+	g_object_ref(view);
+	adw_application_window_set_content(ADW_APPLICATION_WINDOW(window), NULL);
+	settle();
+	adw_application_window_set_content(ADW_APPLICATION_WINDOW(window), view);
+	g_object_unref(view);
+	wait_done(self);
+	g_assert_cmpuint(sign_validation_count(self), ==, 2);
+	g_assert_true(sign_validation_result(self, 1)->ok);
+	g_signal_emit_by_name(named(view, "validation-clear"), "clicked");
+	sign_validation_add_files(self, G_LIST_MODEL(extra));
+	wait_done(self);
+	g_assert_cmpuint(sign_validation_count(self), ==, 2);
+	g_assert_true(sign_validation_result(self, 1)->ok);
+	g_signal_emit_by_name(named(view, "validation-clear"), "clicked");
 	/* Closing with work pending cancels the queue and releases the page once
 	 * its current worker returns; the callback must not access destroyed UI. */
 	sign_validation_add_files(self, G_LIST_MODEL(extra));
