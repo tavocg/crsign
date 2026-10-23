@@ -58,9 +58,61 @@ with tempfile.TemporaryDirectory(prefix='crsign-flow-crypto-') as directory:
         assert verification.returncode == 0, (output, verification.stdout, verification.stderr)
         verified = json.loads(verification.stdout)
         assert verified['signature_valid'], verified
+    def run_flow(items, ok=True, mode='no-pin'):
+        path.write_text(json.dumps(dict(version=1, documents=items)))
+        p = subprocess.run([flow_driver, mode, str(path), str(root)], env=env,
+                           capture_output=True, timeout=30)
+        assert (p.returncode == 0) == ok, (p.stdout, p.stderr)
+        return json.loads(p.stdout)
+
+    checks = [dict(operation='verify', input=doc['output'], ca=anchor.name)
+              for doc in documents]
+    before = {name.name: name.read_bytes() for name in root.iterdir() if name != path}
+    verified = run_flow(checks)
+    assert verified['completed'] == len(checks) and verified['pin_requests'] == 0
+    assert all(r['attempted'] and r['ok'] and r['signature_valid'] and
+               r['trust_checked'] and r['trusted'] and r['signers'] == 1
+               for r in verified['documents'])
+    assert before == {name.name: name.read_bytes() for name in root.iterdir() if name != path}
+    # Valid cryptography without trust must still fail and preserve the report.
+    failed = run_flow([checks[0], dict(operation='verify', input='binary.p7m'), checks[1]], ok=False)
+    assert failed['completed'] == 1 and failed['failed_document'] == 1
+    assert failed['documents'][1]['signature_valid'] and not failed['documents'][1]['trusted']
+    assert failed['documents'][1]['status'] != 0 and failed['documents'][1]['signers'] == 1
+    assert not failed['documents'][2]['attempted'] and failed['pin_requests'] == 0
+    # Tampering stops validation before any later signing or PIN callback.
+    damaged = (root/'binary.p7m').read_bytes().replace(contents, bytes([1]) + contents[1:], 1)
+    assert damaged != (root/'binary.p7m').read_bytes()
+    (root/'damaged.p7m').write_bytes(damaged)
+    failed = run_flow([checks[0], dict(operation='verify', input='damaged.p7m', ca=anchor.name),
+                       dict(input='payload.bin', output='never-signed.p7m', level='B-B')], ok=False)
+    assert failed['completed'] == 1 and failed['failed_document'] == 1
+    assert not failed['documents'][1]['signature_valid'] and not failed['documents'][2]['attempted']
+    assert failed['pin_requests'] == 0 and not (root/'never-signed.p7m').exists()
+    # Each signing process exports only its synthetic certificate, allowing a
+    # complete trusted sign-then-verify flow without sharing private keys.
+    env['SIGN_FLOW_TEST_ANCHOR'] = str(root/'runtime-anchor.der')
+    mixed = run_flow([dict(input='payload.bin', output='mixed.p7m', level='B-B'),
+                      dict(operation='verify', input='mixed.p7m', ca='runtime-anchor.der'),
+                      checks[0]], mode='run')
+    assert mixed['completed'] == 3 and mixed['pin_requests'] == 1
+    assert mixed['documents'][1]['signature_valid'] and mixed['documents'][1]['trusted']
+    # Detached signatures require original content, including an empty file.
+    for name, data in [('payload.bin', contents), ('empty.bin', b'')]:
+        (root/name).write_bytes(data)
+        check = dict(operation='verify', input=name+'.p7s', content=name, ca='runtime-anchor.der')
+        mixed = run_flow([dict(input=name, output=name+'.p7s', level='B-B', detached=True),
+                          check], mode='run')
+        assert mixed['completed'] == 2 and mixed['pin_requests'] == 1
+        assert run_flow([check])['documents'][0]['signature_valid']
+        run_flow([dict(operation='verify', input=name+'.p7s', ca='runtime-anchor.der')], ok=False)
+        (root/'wrong.bin').write_bytes(b'wrong')
+        run_flow([dict(check, content='wrong.bin')], ok=False)
+    # Attached signatures reject an external content file.
+    run_flow([dict(checks[0], content='payload.bin')], ok=False)
     assert (root/'visible.pdf').read_bytes().startswith(pdf())
     assert b'/Subtype /Image' in (root/'visible.pdf').read_bytes()
     assert b'/Subtype /Image' not in (root/'invisible.pdf').read_bytes()
     for filename in ('payload.bin','page.pdf'):
         assert (root/filename).read_bytes() == (contents if filename == 'payload.bin' else pdf())
-print('Real flow signatures verified for arbitrary binary input and PDF')
+print('Real flow signing, batch verification and mixed flows passed')

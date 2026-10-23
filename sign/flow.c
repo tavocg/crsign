@@ -8,10 +8,10 @@
 #include <string.h>
 
 struct sign_flow {
-	json_t*       json;
-	sign_options* documents;
-	size_t        count;
-	GPtrArray*    allocations;
+	json_t*         json;
+	sign_flow_item* documents;
+	size_t          count;
+	GPtrArray*      allocations;
 };
 static gint running;
 
@@ -336,8 +336,9 @@ static bool read_document(
     const char* base,
     GError**    error
 ) {
-	sign_options* options = &flow->documents[index];
-	json_t*       document = json_array_get(
+	sign_flow_item* item = &flow->documents[index];
+	sign_options*   options = &item->options;
+	json_t*         document = json_array_get(
         json_object_get(flow->json, "documents"),
         index
     );
@@ -346,6 +347,17 @@ static bool read_document(
 	if (!json_is_object(document)) {
 		return invalid(error, path, "expected an object");
 	}
+	json_t* operation = json_object_get(document, "operation");
+	if (operation) {
+		if (!json_is_string(operation) ||
+		    (strcmp(json_string_value(operation), "sign") &&
+		     strcmp(json_string_value(operation), "verify"))) {
+			return invalid(error, path, "operation must be sign or verify");
+		}
+		item->operation = !strcmp(json_string_value(operation), "verify")
+		                      ? SIGN_FLOW_VERIFY
+		                      : SIGN_FLOW_SIGN;
+	}
 	/* Dispatch nested groups separately; scalar fields share the options
 	 * parser. */
 	const char* key;
@@ -353,12 +365,38 @@ static bool read_document(
 	json_object_foreach(document, key, value) {
 		char* location = g_strdup_printf("%s.%s", path, key);
 		bool  ok;
-		if (!strcmp(key, "tsa")) {
+		if (!strcmp(key, "operation")) {
+			g_free(location);
+			continue;
+		}
+		if (item->operation == SIGN_FLOW_VERIFY && strcmp(key, "input") &&
+		    strcmp(key, "content") && strcmp(key, "ca") &&
+		    strcmp(key, "intermediates") && strcmp(key, "no_bundled_certs") &&
+		    strcmp(key, "cert_bundles") && strcmp(key, "tsa")) {
+			g_free(location);
+			return invalid(
+			    error,
+			    path,
+			    "field is not allowed for verification"
+			);
+		}
+		if (!strcmp(key, "content") && item->operation == SIGN_FLOW_VERIFY) {
+			ok = json_is_string(value) && json_string_length(value);
+			if (ok) {
+				item->content = path_value(document, key, base);
+				ok = item->content != NULL;
+			}
+			if (!ok) {
+				invalid(error, location, "expected a nonempty content path");
+			}
+		} else if (!strcmp(key, "tsa")) {
 			ok = fields_read(
 			    options,
 			    value,
-			    tsa_fields,
-			    G_N_ELEMENTS(tsa_fields),
+			    item->operation == SIGN_FLOW_VERIFY ? tsa_fields + 1
+			                                        : tsa_fields,
+			    G_N_ELEMENTS(tsa_fields) -
+			        (item->operation == SIGN_FLOW_VERIFY),
 			    base,
 			    location,
 			    error
@@ -386,7 +424,7 @@ static bool read_document(
 	if (!options->input) {
 		return invalid(error, path, "input is required");
 	}
-	if (!options->output) {
+	if (item->operation == SIGN_FLOW_SIGN && !options->output) {
 		char*   output = file_signed_path(options->input);
 		json_t* value = output ? json_string(output) : NULL;
 		free(output);
@@ -463,7 +501,7 @@ sign_flow* sign_flow_parse_json(
 		invalid(error, "documents", "expected between 1 and 1024 documents");
 		goto failed;
 	}
-	flow->documents = g_new0(sign_options, flow->count);
+	flow->documents = g_new0(sign_flow_item, flow->count);
 	char* base = base_directory ? g_canonicalize_filename(base_directory, NULL)
 	                            : g_get_current_dir();
 	bool  ok = true;
@@ -486,17 +524,32 @@ sign_flow* sign_flow_parse_json(
 	    g_object_unref,
 	    NULL
 	);
+	/* Signing inputs are always protected. Verification may consume an
+	 * earlier output, but must not be silently replaced by a later signing. */
 	for (size_t i = 0; i < flow->count; ++i) {
-		g_hash_table_add(inputs, g_file_new_for_path(flow->documents[i].input));
+		if (flow->documents[i].operation == SIGN_FLOW_SIGN) {
+			g_hash_table_add(
+			    inputs,
+			    g_file_new_for_path(flow->documents[i].options.input)
+			);
+		}
 	}
 	for (size_t i = 0; ok && i < flow->count; ++i) {
-		GFile* output = g_file_new_for_path(flow->documents[i].output);
+		const sign_flow_item* item = &flow->documents[i];
+		if (item->operation == SIGN_FLOW_VERIFY) {
+			g_hash_table_add(inputs, g_file_new_for_path(item->options.input));
+			if (item->content) {
+				g_hash_table_add(inputs, g_file_new_for_path(item->content));
+			}
+			continue;
+		}
+		GFile* output = g_file_new_for_path(item->options.output);
 		if (g_hash_table_contains(inputs, output) ||
 		    g_hash_table_contains(outputs, output)) {
 			invalid(
 			    error,
 			    "documents",
-			    "output paths must be unique and must not replace any input"
+			    "output paths must be unique and must not replace an input"
 			);
 			ok = false;
 		}
@@ -517,7 +570,21 @@ size_t sign_flow_count(const sign_flow* flow) {
 	return flow ? flow->count : 0;
 }
 const sign_options* sign_flow_document(const sign_flow* flow, size_t index) {
+	const sign_flow_item* item = sign_flow_get_item(flow, index);
+	return item ? &item->options : NULL;
+}
+const sign_flow_item* sign_flow_get_item(const sign_flow* flow, size_t index) {
 	return flow && index < flow->count ? &flow->documents[index] : NULL;
+}
+void sign_flow_result_clear(sign_flow_result* result) {
+	if (!result) {
+		return;
+	}
+	for (size_t i = 0; i < result->count; ++i) {
+		libssig_verify_free(&result->documents[i].verification);
+	}
+	g_free(result->documents);
+	*result = (sign_flow_result){.failed_document = SIGN_FLOW_NO_DOCUMENT};
 }
 char* sign_flow_to_json(const sign_flow* flow, GError** error) {
 	char* text = flow ? json_dumps(flow->json, JSON_INDENT(2) | JSON_SORT_KEYS)
@@ -559,14 +626,34 @@ bool sign_flow_run(
 		);
 		return false;
 	}
+	result->count = flow->count;
+	result->documents = g_new0(sign_flow_document_result, flow->count);
+	for (size_t i = 0; i < flow->count; ++i) {
+		result->documents[i].operation = flow->documents[i].operation;
+	}
 	bool ok = true;
 	for (size_t i = 0; ok && i < flow->count; ++i) {
-		ok = sign_document_execute(
-		    &flow->documents[i],
-		    execution,
-		    &result->document,
-		    error
-		);
+		const sign_flow_item*      item = &flow->documents[i];
+		sign_flow_document_result* report = &result->documents[i];
+		report->attempted = true;
+		if (item->operation == SIGN_FLOW_VERIFY) {
+			ok = sign_document_verify(
+			    &item->options,
+			    item->content,
+			    &report->verification_status,
+			    &report->verification,
+			    error
+			);
+		} else {
+			ok = sign_document_execute(
+			    &item->options,
+			    execution,
+			    &report->signing,
+			    error
+			);
+			result->document = report->signing;
+		}
+		report->ok = ok;
 		if (ok) {
 			++result->completed;
 		} else {
@@ -575,5 +662,8 @@ bool sign_flow_run(
 		}
 	}
 	g_atomic_int_set(&running, 0);
+	if (result == &local) {
+		sign_flow_result_clear(result);
+	}
 	return ok;
 }

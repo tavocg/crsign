@@ -35,6 +35,7 @@ static bool fake_pin(
 		g_assert_cmpuint(result.completed, ==, 0);
 		g_assert_cmpuint(result.failed_document, ==, SIGN_FLOW_NO_DOCUMENT);
 		g_clear_error(&nested);
+		sign_flow_result_clear(&result);
 	}
 	if (!strcmp(state->mode, "concurrent")) {
 		g_mutex_lock(&state->mutex);
@@ -113,6 +114,7 @@ int main(int argc, char** argv) {
 		g_assert_false(sign_flow_run(other, NULL, &result, &busy));
 		g_assert_error(busy, SIGN_FLOW_ERROR, SIGN_FLOW_ERROR_BUSY);
 		g_clear_error(&busy);
+		sign_flow_result_clear(&result);
 		sign_flow_free(other);
 		state.released = true;
 		g_cond_broadcast(&state.condition);
@@ -136,6 +138,7 @@ int main(int argc, char** argv) {
 		    g_error_matches(retry_error, SIGN_FLOW_ERROR, SIGN_FLOW_ERROR_BUSY)
 		);
 		g_clear_error(&retry_error);
+		sign_flow_result_clear(&retry);
 	}
 	json_t* report = json_pack(
 	    "{s:b,s:i,s:i,s:i}",
@@ -150,11 +153,41 @@ int main(int argc, char** argv) {
 	    "pin_requests",
 	    (int)state.requests
 	);
+	json_t* documents = json_array();
+	for (size_t i = 0; i < state.result.count; ++i) {
+		const sign_flow_item*            item = sign_flow_get_item(flow, i);
+		const sign_flow_document_result* r = &state.result.documents[i];
+		g_assert_cmpint(item->operation, ==, r->operation);
+		g_assert_true(sign_flow_document(flow, i) == &item->options);
+		json_t* document = json_pack(
+		    "{s:s,s:b,s:b,s:i,s:b,s:b,s:b,s:i}",
+		    "operation",
+		    r->operation == SIGN_FLOW_SIGN ? "sign" : "verify",
+		    "attempted",
+		    r->attempted,
+		    "ok",
+		    r->ok,
+		    "status",
+		    (int)r->verification_status,
+		    "signature_valid",
+		    r->verification.signature_valid,
+		    "trust_checked",
+		    r->verification.trust_checked,
+		    "trusted",
+		    r->verification.trusted,
+		    "signers",
+		    (int)r->verification.count
+		);
+		json_array_append_new(documents, document);
+	}
+	json_object_set_new(report, "documents", documents);
 	char* output = json_dumps(report, 0);
 	puts(output);
 	free(output);
 	json_decref(report);
 	g_clear_error(&state.error);
+	sign_flow_result_clear(&state.result);
+	sign_flow_result_clear(&state.result);
 	sign_flow_free(flow);
 	return state.ok ? 0 : 1;
 }

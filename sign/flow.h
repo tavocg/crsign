@@ -17,11 +17,26 @@ typedef enum {
 #define SIGN_FLOW_ERROR (sign_flow_error_quark())
 GQuark sign_flow_error_quark(void);
 
+typedef enum { SIGN_FLOW_SIGN, SIGN_FLOW_VERIFY } sign_flow_operation;
+typedef struct {
+	sign_flow_operation operation;
+	sign_options        options;
+	const char* content; /* Original content for detached verification. */
+} sign_flow_item;
+typedef struct {
+	sign_flow_operation   operation;
+	bool                  attempted, ok;
+	sign_document_result  signing;
+	libssig_status        verification_status;
+	libssig_verify_result verification;
+} sign_flow_document_result;
 typedef struct {
 	size_t completed;
 	/* Zero-based index of the failed document, or SIGN_FLOW_NO_DOCUMENT. */
-	size_t               failed_document;
-	sign_document_result document;
+	size_t                     failed_document;
+	sign_document_result       document;
+	size_t                     count;
+	sign_flow_document_result* documents;
 } sign_flow_result;
 
 /* Parse/validate the complete flow without reading documents or accessing
@@ -34,8 +49,12 @@ sign_flow* sign_flow_parse_json(
     const char* base_directory,
     GError**    error
 );
-size_t              sign_flow_count(const sign_flow* flow);
-const sign_options* sign_flow_document(const sign_flow* flow, size_t index);
+/* Release owned per-document reports before reusing a result. Zero initialized
+ * and cleared results may also be passed here. */
+void                  sign_flow_result_clear(sign_flow_result* result);
+const sign_flow_item* sign_flow_get_item(const sign_flow* flow, size_t index);
+size_t                sign_flow_count(const sign_flow* flow);
+const sign_options*   sign_flow_document(const sign_flow* flow, size_t index);
 /* Canonical JSON with absolute paths and resolved output paths. Free with
  * free(). */
 char* sign_flow_to_json(const sign_flow* flow, GError** error);

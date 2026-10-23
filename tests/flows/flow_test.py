@@ -106,6 +106,36 @@ with tempfile.TemporaryDirectory(prefix='crsign-flow-') as directory:
     call(flow(dict(basic, output=source.name)), success=False)
     call(flow(dict(basic, output='second.bin'), {'input':'second.bin'}), success=False)
     assert not (root/'archivo ñ-signed.bin').exists()
+    # Operation-specific parsing stays strict and verification creates no output.
+    verification = dict(operation='verify', input='signed.p7m', content=source.name,
+                        ca='root.pem', tsa={'ca':'tsa.pem'}, no_bundled_certs=True)
+    parsed, _ = call(flow(verification))
+    assert 'output' not in parsed['documents'][0]
+    assert Path(parsed['documents'][0]['content']) == source
+    assert call(parsed)[0] == parsed
+    for operation in (None, True, 1, 'validate', ''):
+        call(flow(dict(input=source.name, operation=operation)), success=False)
+    for field, value in dict(output='out', token='pkcs11:token=Mock', cert_id='00',
+                             algorithm='rsa-pkcs', hash='sha256', level='B-B', format='cades',
+                             mime_type='text/plain', detached=False, modules=[],
+                             appearance={'enabled':False}, tsa={'url':'https://tsa.test'}).items():
+        call(flow(dict(operation='verify', input=source.name, **{field:value})), success=False)
+    call(flow(dict(basic, content=source.name)), success=False)
+    for content in ('', None, 1):
+        call(flow(dict(verification, content=content)), success=False)
+    call(flow(dict(verification, no_bundled_certs=True, cert_bundles=['bccr'])), success=False)
+    # A verification can consume an earlier output; the opposite order is rejected.
+    signed = dict(basic, output='later.p7m')
+    check = dict(operation='verify', input='later.p7m')
+    call(flow(signed, check, check))
+    call(flow(check, signed), success=False)
+    call(flow(dict(operation='verify', input=source.name, content='later.p7m'), signed), success=False)
+    call(flow(signed, dict(basic, output='later.p7m'), check), success=False)
+    result, _ = call(flow(dict(operation='verify', input='missing.p7m'),
+                          dict(basic, output='never-created.p7m')), mode='no-pin', success=False)
+    assert result['failed_document'] == 0 and result['pin_requests'] == 0
+    assert result['documents'][0]['attempted'] and not result['documents'][1]['attempted']
+    assert not (root/'never-created.p7m').exists()
     # Arbitrary binary input and all non-PDF output formats use the same engine.
     for format in ('cades','xades','jades'):
         out = root / ('result-' + format)

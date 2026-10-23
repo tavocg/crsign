@@ -1,9 +1,9 @@
-# Flows de firmado
+# Flows de firmado y validación
 
 Un flow describe una lista ordenada de **archivos de cualquier tipo** y sus
-opciones de firmado. Es una API interna para la GUI; no agrega un comando ni
-una opción de flows a la CLI. La GUI podrá construir el JSON y entregarlo al
-mismo motor de firmado que utiliza la CLI.
+operaciones de firmado o validación. Es una API interna para la GUI; no agrega
+un comando ni una opción de flows a la CLI. La GUI podrá construir el JSON y
+entregarlo a los mismos motores de firmado y validación que utiliza la CLI.
 
 ```json
 {
@@ -49,8 +49,14 @@ migraciones sin reinterpretar silenciosamente documentos antiguos.
 
 ## Opciones por archivo
 
-Solo `input` es obligatorio. `output` se calcula como en la CLI si se omite:
-`archivo.bin` produce `archivo-signed.bin`. Las carpetas de salida deben existir.
+Cada documento acepta `operation`: `"sign"` para firmar o `"verify"` para validar.
+Si se omite, se usa `"sign"`, conservando los flows existentes de la versión 1.
+Se permiten lotes de una sola operación y flows mixtos, como firmar un archivo y
+validar su salida en el siguiente documento.
+
+Solo `input` es obligatorio. Al firmar, `output` se calcula como en la CLI si
+se omite: `archivo.bin` produce `archivo-signed.bin`. Las carpetas de salida
+deben existir.
 Las rutas de entrada, salida, imagen, certificados y módulos se convierten en
 rutas absolutas al leer el flow, con el directorio base que proporcione quien
 llama a la API. Si no se proporciona, se toma el directorio de trabajo en ese
@@ -83,14 +89,51 @@ dimensiones deben quedar entre 12 y 720 puntos y caber en la página. Con `false
 se pueden conservar ajustes para una futura edición, pero no se carga la imagen
 ni se solicita un PDF para aplicar esa representación.
 
+## Validación en lote
+
+```json
+{
+  "version": 1,
+  "documents": [
+    { "operation": "verify", "input": "firmados/reporte.pdf" },
+    { "operation": "verify", "input": "firmados/respaldo.p7m", "ca": "raices.pem" },
+    {
+      "operation": "verify",
+      "input": "firmados/datos.p7s",
+      "content": "datos/original.bin",
+      "ca": "raices.pem"
+    }
+  ]
+}
+```
+
+Se reconoce automáticamente el formato de la firma: CAdES, PAdES, XAdES o JAdES.
+`input` contiene el documento o contenedor firmado; `content` es la ruta del
+contenido original **solo para firmas separadas**. También admite archivos vacíos.
+Un contenedor con contenido incorporado rechaza `content` para evitar ambigüedad.
+
+La validación acepta `ca`, `intermediates`, `tsa.ca`, `tsa.intermediates`,
+`no_bundled_certs` y `cert_bundles`, con la misma política de confianza que la CLI.
+Consulta las raíces del sistema y los certificados adicionales configurados en el
+flow; no basta con que la firma criptográfica sea correcta. Una firma alterada,
+un certificado no confiable o cualquier otro error del verificador detiene el
+flow. Las comprobaciones de evidencias y niveles son las de libssig; no descarga
+evidencias OCSP/CRL de la red.
+
+Esta operación no genera archivos, abre módulos PKCS#11 ni solicita PIN. Rechaza
+opciones exclusivas de firmado, como `output`, `token`, `format`, `appearance` o
+`tsa.url`, para detectar errores al construir el JSON.
+
 ## Lectura y ejecución
 
 `sign/flow.h` ofrece:
 
 - `sign_flow_parse_json()`: valida el JSON completo y resuelve sus rutas, sin leer
   documentos, cargar módulos ni solicitar PIN.
-- `sign_flow_count()` y `sign_flow_document()`: permiten consultar los parámetros
-  compartidos `sign_options`; los punteros pertenecen al flow y son de solo lectura.
+- `sign_flow_count()` y `sign_flow_get_item()`: consultan la operación, los
+  parámetros compartidos `sign_options` y el contenido separado. Los punteros
+  pertenecen al flow y son de solo lectura. `sign_flow_document()` permite
+  consultar directamente las opciones compartidas.
 - `sign_flow_to_json()`: devuelve JSON canónico con rutas absolutas y salidas
   resueltas, para poder guardar y volver a cargar el flow sin depender del CWD.
 - `sign_flow_run()`: ejecuta de forma síncrona y secuencial. La GUI deberá llamarlo
@@ -98,8 +141,10 @@ ni se solicita un PDF para aplicar esa representación.
 - `sign_flow_free()`: libera el flow cuando ya no se esté utilizando.
 
 La API rechaza campos desconocidos, tipos incorrectos, claves duplicadas, texto
-no UTF-8, valores incompatibles, salidas repetidas y salidas que coincidan con
-alguna entrada. Admite hasta 1024 archivos por flow y 8 MiB de JSON. Las opciones
+no UTF-8, valores incompatibles, salidas repetidas y salidas que reemplacen
+entradas de firmado o entradas de validaciones anteriores. Una validación sí
+puede consumir una salida producida por un firmado anterior del mismo flow.
+Admite hasta 1024 archivos por flow y 8 MiB de JSON. Las opciones
 se validan antes de ejecutar el primer documento; la existencia y el contenido
 real de los archivos se comprueban durante la ejecución.
 
@@ -109,11 +154,21 @@ Al fallar un documento, no se inicia ningún documento posterior. Las salidas ya
 completadas se conservan; no hay rollback ni sobrescritura de archivos existentes.
 La exclusión se libera también al fallar, para permitir ejecutar otro flow.
 
-`sign_flow_result` indica cuántos archivos se completaron, el índice del que falló
-(contado desde cero), el formato resuelto, el tamaño de salida del último intento
-(cero si falla) y el código PKCS#11 cuando exista. `failed_document` vale `SIGN_FLOW_NO_DOCUMENT`
-si no falló ningún documento. Los errores se devuelven mediante `GError`, sin
-salidas de progreso ni resultados de CLI en stdout.
+`sign_flow_result` indica cuántos archivos se completaron y el índice del que
+falló (desde cero). `failed_document` vale `SIGN_FLOW_NO_DOCUMENT` si no falló
+ningún documento. `documents` contiene un informe por documento, con su operación,
+`attempted` y `ok`; los posteriores al fallo permanecen sin intentar.
+
+Al firmar, `signing` conserva formato, tamaño de salida y código PKCS#11. Al validar,
+`verification_status` conserva el estado de libssig y `verification` conserva su
+informe completo: firmantes, certificados, firma, confianza, sellos y evidencias,
+incluidos los datos disponibles cuando la validación falla. `document` mantiene
+el resumen del último intento de firmado por compatibilidad.
+
+El resultado posee memoria: llamar a `sign_flow_result_clear()` después de
+examinarlo, incluso tras un fallo y antes de reutilizarlo. Puede pasarse `NULL`
+a `sign_flow_run()` si no se necesita el informe. Los errores se devuelven mediante
+`GError`, sin salidas de progreso ni resultados de CLI en stdout.
 
 ## PIN y configuración
 
@@ -141,6 +196,7 @@ if (flow) {
     bool ok = sign_flow_run(flow, &execution, &result, &error);
     /* Mostrar result/error; no liberar el flow mientras se está ejecutando. */
     (void)ok;
+    sign_flow_result_clear(&result);
     sign_flow_free(flow);
 }
 g_clear_error(&error);

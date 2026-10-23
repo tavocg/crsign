@@ -202,6 +202,19 @@
                 }
               }
             ]
+          },
+          "operation": {
+            "type": "string",
+            "enum": [
+              "sign",
+              "verify"
+            ],
+            "default": "sign"
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[^\\u0000]+$"
           }
         },
         "allOf": [
@@ -263,6 +276,43 @@
                 "cert_bundles": {
                   "minItems": 1
                 }
+              }
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "operation"
+              ],
+              "properties": {
+                "operation": {
+                  "const": "verify"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "output": false,
+                "mime_type": false,
+                "token": false,
+                "cert_id": false,
+                "algorithm": false,
+                "hash": false,
+                "level": false,
+                "format": false,
+                "detached": false,
+                "modules": false,
+                "appearance": false,
+                "tsa": {
+                  "properties": {
+                    "url": false
+                  }
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "content": false
               }
             }
           }

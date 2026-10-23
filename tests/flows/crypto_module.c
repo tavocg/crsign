@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 /* Real OpenSSL-backed PKCS#11 signing behind the production flow executor. */
 #include "../libssig/tests/document_sign_fixture.c"
+#include <glib.h>
 
 static X509*                       flow_cert;
 static unsigned char*              flow_der;
@@ -43,6 +44,16 @@ libssig_status libssig_context_open(libssig_context* context) {
 		}
 		flow_der_len = i2d_X509(flow_cert, &flow_der);
 		if (flow_der_len <= 0) {
+			return LIBSSIG_ERROR_CRYPTO;
+		}
+		/* Export this process's synthetic signer for sign-then-verify flows. */
+		const char* anchor = g_getenv("SIGN_FLOW_TEST_ANCHOR");
+		if (anchor && !g_file_set_contents(
+		                  anchor,
+		                  (const char*)flow_der,
+		                  flow_der_len,
+		                  NULL
+		              )) {
 			return LIBSSIG_ERROR_CRYPTO;
 		}
 		flow_module.C_GetSlotList = mock_slots_get;
