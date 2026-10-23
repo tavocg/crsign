@@ -43,10 +43,10 @@ class Packaging(unittest.TestCase):
             for name in ('sign.exe', 'A.dll', 'b.dll'):
                 (sdk / name).write_bytes(name.encode())
             graph = {'sign.exe': 'DLL Name: a.dll\nDLL Name: api-ms-win-crt-runtime-l1-1-0.dll\n',
-                     'A.dll': 'DLL Name: b.dll\n', 'b.dll': 'DLL Name: A.dll\n'}
+                     'a.dll': 'DLL Name: b.dll\n', 'b.dll': 'DLL Name: A.dll\n'}
             bundle = package.Bundle(root / 'package', [sdk], platform='win32')
             bundle.copy(sdk / 'sign.exe', Path('bin/sign.exe'))
-            with patch.object(package, 'command', side_effect=lambda *args: graph[Path(args[-1]).name]):
+            with patch.object(package, 'command', side_effect=lambda *args: graph[Path(args[-1]).name.lower()]):
                 bundle.close()
             self.assertEqual({p.name for p in (root / 'package/bin').iterdir()}, {'sign.exe', 'a.dll', 'b.dll'})
 

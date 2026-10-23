@@ -8,7 +8,7 @@ import tempfile
 
 driver = Path(sys.argv[1])
 with tempfile.TemporaryDirectory(prefix='crsign-runtime-') as temporary:
-    root = Path(temporary) / 'instalación ñ 文件'
+    root = (Path(temporary) / 'instalación ñ 文件').resolve()
     (root / 'bin').mkdir(parents=True)
     executable = root / 'bin' / driver.name
     shutil.copy2(driver, executable)

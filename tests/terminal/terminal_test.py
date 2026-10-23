@@ -19,13 +19,11 @@ def interactive(command, data=b'1234\n', *, status=0, send_signal=None, env=None
     master, slave = os.openpty()
     initial = termios.tcgetattr(slave)
 
-    def controlling_terminal():
-        os.setsid()
-        resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
-        fcntl.ioctl(0, termios.TIOCSCTTY, 0)
-
-    process = subprocess.Popen(command, stdin=slave, stdout=subprocess.PIPE,
-                               stderr=slave, preexec_fn=controlling_terminal, env=env)
+    # Run terminal setup after exec: Python preexec_fn can deadlock on macOS.
+    process = subprocess.Popen([sys.executable, str(Path(__file__).resolve()),
+                                '--pty-child', *command], stdin=slave,
+                               stdout=subprocess.PIPE, stderr=slave,
+                               start_new_session=True, env=env)
     transcript = b''
     try:
         deadline = time.monotonic() + 5
@@ -119,6 +117,10 @@ def signing(sign):
 
 
 if __name__ == '__main__':
+    if sys.argv[1] == '--pty-child':
+        resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+        fcntl.ioctl(0, termios.TIOCSCTTY, 0)
+        os.execvpe(sys.argv[2], sys.argv[2:], os.environ)
     if len(sys.argv) == 3:
         signing(sys.argv[2])
     else:

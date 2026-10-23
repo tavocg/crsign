@@ -148,7 +148,7 @@ sys.stdout.buffer.write(outputs[mode])
     for invalid in [True, 12, {}, [1], [''], ' ', '', '"unterminated', 'foo\x00bar']:
         write(invalid)
         result = options(success=False)
-        assert 'pincmd' in result.stderr and str(config) in result.stderr
+        assert 'pincmd' in result.stderr and config.as_posix() in result.stderr.replace('\\', '/')
         write(profile_command=invalid)
         assert 'pincmd' in options('-p', 'bccr', success=False).stderr
 

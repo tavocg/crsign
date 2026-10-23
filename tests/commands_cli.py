@@ -109,8 +109,11 @@ with tempfile.TemporaryDirectory(prefix='sign-commands-') as directory:
         ('.hidden', '.hidden-signed'),
         ('.hidden.txt', '.hidden-signed.txt'),
         ('folder.with.dots/file', 'folder.with.dots/file-signed'),
+        ('subdir/ñ doc.pdf', 'subdir/ñ doc-signed.pdf'),
         ('subdir/ñ \"doc\".pdf', 'subdir/ñ \"doc\"-signed.pdf'),
     ]:
+        if os.name == 'nt' and '"' in original:
+            continue  # Windows does not permit quotation marks in filenames.
         path = root / original
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(b'input')

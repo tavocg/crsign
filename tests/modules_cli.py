@@ -148,7 +148,7 @@ with tempfile.TemporaryDirectory(prefix='sign-modules-') as temporary:
             write(global_value, profile_value)
             # JSON booleans/objects are not always TOML, but all must be rejected.
             result = run(driver, source, *args, success=False)
-            assert str(config) in result.stderr, result.stderr
+            assert config.as_posix() in result.stderr.replace('\\', '/'), result.stderr
     write([first])
     run(sign, 'tokens', '-p', 'missing', success=False)
     run(sign, 'tokens', '-p', 'bccr', '-t', 'invalid', success=False)
