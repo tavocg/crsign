@@ -71,6 +71,10 @@ static bool read_pincmd(
 ) {
 	char** argv = NULL;
 	if (value.type == TOML_STRING && valid_string(value)) {
+		if (!value.u.s[0]) {
+			args->pincmd = NULL;
+			return true;
+		}
 		if (!g_shell_parse_argv(value.u.s, NULL, &argv, NULL) || !argv[0][0]) {
 			g_strfreev(argv);
 			return config_error(
@@ -83,6 +87,9 @@ static bool read_pincmd(
 			g_ptr_array_add(config->allocations, argv[i]);
 		}
 	} else if (value.type == TOML_ARRAY) {
+		if (value.u.arr.size < 0) {
+			return config_error(error, size, "Invalid command array");
+		}
 		for (int i = 0; i < value.u.arr.size; ++i) {
 			toml_datum_t item = value.u.arr.elem[i];
 			if (!valid_string(item) || (i == 0 && !item.u.s[0])) {
@@ -123,7 +130,7 @@ static bool read_modules(
     char*               error,
     size_t              size
 ) {
-	if (value.type != TOML_ARRAY) {
+	if (value.type != TOML_ARRAY || value.u.arr.size < 0) {
 		return config_error(error, size, "modules must be an array of paths");
 	}
 	const char** paths = g_new0(const char*, (size_t)value.u.arr.size + 1);
@@ -160,11 +167,30 @@ static bool read_fields(
     toml_datum_t        table,
     const config_field* fields,
     size_t              count,
+    bool                global,
     char*               error,
     size_t              size
 ) {
 	for (int i = 0; i < table.u.tab.size; ++i) {
-		const char*         key = table.u.tab.key[i];
+		const char* key = table.u.tab.key[i];
+		if (strlen(key) != (size_t)table.u.tab.len[i]) {
+			return config_error(
+			    error,
+			    size,
+			    "Invalid configuration field name"
+			);
+		}
+		if (global && (!strcmp(key, "version") || !strcmp(key, "profiles"))) {
+			continue;
+		}
+		if (global && (!strcmp(key, "name") || !strcmp(key, "label"))) {
+			return config_error(
+			    error,
+			    size,
+			    "Unknown configuration field: %s",
+			    key
+			);
+		}
 		const config_field* field = NULL;
 		for (size_t j = 0; j < count; ++j) {
 			if (strlen(fields[j].name) == (size_t)table.u.tab.len[i] &&
@@ -174,7 +200,13 @@ static bool read_fields(
 			}
 		}
 		if (!field) {
-			return config_error(error, size, "Unknown profile field: %s", key);
+			return config_error(
+			    error,
+			    size,
+			    global ? "Unknown configuration field: %s"
+			           : "Unknown profile field: %s",
+			    key
+			);
 		}
 		toml_datum_t value = table.u.tab.value[i];
 		if (!strcmp(field->name, "modules")) {
@@ -206,6 +238,7 @@ static bool read_fields(
 			        value,
 			        tsa_fields,
 			        G_N_ELEMENTS(tsa_fields),
+			        false,
 			        error,
 			        size
 			    )) {
@@ -237,12 +270,8 @@ static bool read_fields(
 		                       ? (value.u.boolean ? "true" : "false")
 		                       : value.u.s;
 		if (!text[0]) {
-			return config_error(
-			    error,
-			    size,
-			    "Empty profile field: %s; omit it to use the default",
-			    key
-			);
+			/* An empty optional scalar has the same meaning as omission. */
+			continue;
 		}
 		if (field->path && !g_path_is_absolute(text)) {
 			char* path = g_build_filename(directory, text, NULL);
@@ -270,27 +299,17 @@ static bool read_v01(
     size_t              size
 ) {
 	toml_datum_t root = config->document.toptab;
-	for (int i = 0; i < root.u.tab.size; ++i) {
-		const char* key = root.u.tab.key[i];
-		if (strlen(key) != (size_t)root.u.tab.len[i] ||
-		    (strcmp(key, "version") && strcmp(key, "profiles") &&
-		     strcmp(key, "pincmd") && strcmp(key, "modules"))) {
-			return config_error(
-			    error,
-			    size,
-			    "Unknown configuration field: %s",
-			    key
-			);
-		}
-	}
-	toml_datum_t modules = toml_get(root, "modules");
-	if (modules.type != TOML_UNKNOWN &&
-	    !read_modules(args, config, directory, modules, error, size)) {
-		return false;
-	}
-	toml_datum_t command = toml_get(root, "pincmd");
-	if (command.type != TOML_UNKNOWN &&
-	    !read_pincmd(args, config, command, error, size)) {
+	if (!read_fields(
+	        args,
+	        config,
+	        directory,
+	        root,
+	        profile_fields,
+	        G_N_ELEMENTS(profile_fields),
+	        true,
+	        error,
+	        size
+	    )) {
 		return false;
 	}
 	if (!label) {
@@ -342,6 +361,11 @@ static bool read_v01(
 	if (selected.type != TOML_TABLE) {
 		return config_error(error, size, "Unknown profile: %s", label);
 	}
+	if (toml_get(selected, "cert_bundles").type != TOML_UNKNOWN ||
+	    toml_get(selected, "no_bundled_certs").type != TOML_UNKNOWN) {
+		args->options.cert_bundle_count = 0;
+		args->options.no_bundled_certs = false;
+	}
 	return read_fields(
 	    args,
 	    config,
@@ -349,6 +373,7 @@ static bool read_v01(
 	    selected,
 	    profile_fields,
 	    G_N_ELEMENTS(profile_fields),
+	    false,
 	    error,
 	    size
 	);
@@ -361,7 +386,7 @@ bool config_load(
     size_t      error_size
 ) {
 	char* directory = g_build_filename(g_get_user_config_dir(), "crsign", NULL);
-	char* path = g_build_filename(directory, "crsign.toml", NULL);
+	char* path = config_path();
 	/* A global configuration is optional, but permission/read errors are not
 	 * mistaken for an absent file. A requested profile always requires it. */
 	if (!label) {
@@ -435,4 +460,88 @@ void config_free(struct sign_config* config) {
 	toml_free(config->document);
 	g_ptr_array_free(config->allocations, true);
 	g_free(config);
+}
+
+char* config_path(void) {
+	return g_build_filename(
+	    g_get_user_config_dir(),
+	    "crsign",
+	    "crsign.toml",
+	    NULL
+	);
+}
+bool config_validate_source(
+    const char* text,
+    size_t      len,
+    const char* directory,
+    char*       error,
+    size_t      size
+) {
+	if (len > G_MAXINT || !g_utf8_validate(text, len, NULL) ||
+	    memchr(text, 0, len)) {
+		return config_error(error, size, "Invalid configuration text");
+	}
+	struct sign_config* config = g_new0(struct sign_config, 1);
+	config->allocations = g_ptr_array_new_with_free_func(g_free);
+	config->document = toml_parse(text, (int)len);
+	bool ok = config->document.ok;
+	if (!ok) {
+		config_error(error, size, "%s", config->document.errmsg);
+	} else {
+		toml_datum_t root = config->document.toptab;
+		toml_datum_t version = toml_get(root, "version");
+		ok = (version.type == TOML_FP64 && version.u.fp64 == 0.1) ||
+		     (valid_string(version) && !strcmp(version.u.s, "0.1"));
+		if (!ok) {
+			config_error(
+			    error,
+			    size,
+			    "Missing or unsupported configuration version; expected "
+			    "version = 0.1"
+			);
+		}
+		sign_args resolved = {0};
+		if (ok) {
+			ok = read_v01(&resolved, config, directory, NULL, error, size) &&
+			     sign_options_validate(&resolved.options, error, size);
+		}
+		toml_datum_t profiles = toml_get(root, "profiles");
+		if (ok && profiles.type != TOML_UNKNOWN &&
+		    profiles.type != TOML_ARRAY) {
+			ok = config_error(
+			    error,
+			    size,
+			    "profiles must be an array of tables ([[profiles]])"
+			);
+		}
+		for (int i = 0;
+		     ok && profiles.type == TOML_ARRAY && i < profiles.u.arr.size;
+		     ++i) {
+			toml_datum_t profile = profiles.u.arr.elem[i];
+			toml_datum_t label = profile.type == TOML_TABLE
+			                         ? toml_get(profile, "label")
+			                         : (toml_datum_t){0};
+			if (!valid_string(label) || !label.u.s[0]) {
+				ok = config_error(
+				    error,
+				    size,
+				    "profiles[%d] requires a nonempty string label",
+				    i
+				);
+				break;
+			}
+			resolved = (sign_args){0};
+			ok = read_v01(
+			         &resolved,
+			         config,
+			         directory,
+			         label.u.s,
+			         error,
+			         size
+			     ) &&
+			     sign_options_validate(&resolved.options, error, size);
+		}
+	}
+	config_free(config);
+	return ok;
 }

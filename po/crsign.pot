@@ -8,39 +8,237 @@ msgid ""
 msgstr ""
 "Project-Id-Version: CRSign 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/tavocg/crsign/issues\n"
-"POT-Creation-Date: 2026-10-23 00:47-0600\n"
+"POT-Creation-Date: 2026-10-23 09:35-0600\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: sign/gui/window.c:11 sign/gui/window.c:96
+#: sign/gui/window.c:13 sign/gui/window.c:99
 msgid "Home"
 msgstr ""
 
-#: sign/gui/window.c:12
+#: sign/gui/window.c:14
 msgid "Sign"
 msgstr ""
 
-#: sign/gui/window.c:13
+#: sign/gui/window.c:15
 msgid "Validate"
 msgstr ""
 
-#: sign/gui/window.c:14
+#: sign/gui/window.c:16 sign/gui/settings.c:491
 msgid "Settings"
 msgstr ""
 
-#: sign/gui/window.c:15
+#: sign/gui/window.c:17
 msgid "About"
 msgstr ""
 
-#: sign/gui/window.c:51
+#: sign/gui/window.c:53
 msgid "Menu"
 msgstr ""
 
-#: sign/gui/window.c:105 sign/gui/window.c:109
+#: sign/gui/window.c:109 sign/gui/window.c:113
 msgid "Toggle menu"
+msgstr ""
+
+#: sign/gui/settings.c:35
+msgid "Global settings"
+msgstr ""
+
+#: sign/gui/settings.c:44
+msgid "New profile"
+msgstr ""
+
+#: sign/gui/settings.c:65
+msgid "All changes saved"
+msgstr ""
+
+#: sign/gui/settings.c:70
+#, c-format
+msgid "Changes not saved: %s"
+msgstr ""
+
+#: sign/gui/settings.c:88
+msgid "Saving changes…"
+msgstr ""
+
+#: sign/gui/settings.c:289
+msgid "Valid changes are saved automatically"
+msgstr ""
+
+#: sign/gui/settings.c:380
+msgid "Use global settings / default"
+msgstr ""
+
+#: sign/gui/settings.c:381
+msgid "Automatic (p11-kit)"
+msgstr ""
+
+#: sign/gui/settings.c:381
+msgid "Interactive PIN"
+msgstr ""
+
+#: sign/gui/settings.c:382
+msgid "Custom"
+msgstr ""
+
+#: sign/gui/settings.c:385
+msgid "Selection"
+msgstr ""
+
+#: sign/gui/settings.c:434
+msgid "Automatic / use global settings"
+msgstr ""
+
+#: sign/gui/settings.c:436
+msgid "No"
+msgstr ""
+
+#: sign/gui/settings.c:437
+msgid "Yes"
+msgstr ""
+
+#: sign/gui/settings.c:508
+msgid "Create profile"
+msgstr ""
+
+#: sign/gui/settings.c:511
+msgid "Delete profile"
+msgstr ""
+
+#: sign/gui/settings.c:516
+msgid "Reload configuration"
+msgstr ""
+
+#: sign/gui/settings.c:531
+msgid "Profile"
+msgstr ""
+
+#: sign/gui/settings.c:532
+msgid "The label selects this profile with --profile."
+msgstr ""
+
+#: sign/gui/settings.c:534
+msgid "Name"
+msgstr ""
+
+#: sign/gui/settings.c:535
+msgid "Label"
+msgstr ""
+
+#: sign/gui/settings.c:538
+msgid "Signing defaults"
+msgstr ""
+
+#: sign/gui/settings.c:539
+msgid ""
+"Empty fields inherit global settings. Without a global value, selection is "
+"automatic."
+msgstr ""
+
+#: sign/gui/settings.c:542
+msgid "Token URI"
+msgstr ""
+
+#: sign/gui/settings.c:543
+msgid "Certificate ID"
+msgstr ""
+
+#: sign/gui/settings.c:548
+msgid "Algorithm"
+msgstr ""
+
+#: sign/gui/settings.c:552
+msgid "Hash"
+msgstr ""
+
+#: sign/gui/settings.c:557
+msgid "Signature level"
+msgstr ""
+
+#: sign/gui/settings.c:561
+msgid "Format"
+msgstr ""
+
+#: sign/gui/settings.c:562
+msgid "Content type"
+msgstr ""
+
+#: sign/gui/settings.c:567
+msgid "Detached signature"
+msgstr ""
+
+#: sign/gui/settings.c:571
+msgid "Signature image"
+msgstr ""
+
+#: sign/gui/settings.c:572
+msgid "Timestamp authority"
+msgstr ""
+
+#: sign/gui/settings.c:573
+msgid "URL"
+msgstr ""
+
+#: sign/gui/settings.c:574
+msgid "TSA trust certificates"
+msgstr ""
+
+#: sign/gui/settings.c:579
+msgid "TSA intermediate certificates"
+msgstr ""
+
+#: sign/gui/settings.c:584
+msgid "Document trust"
+msgstr ""
+
+#: sign/gui/settings.c:585
+msgid "Relative paths resolve against the configuration directory."
+msgstr ""
+
+#: sign/gui/settings.c:587
+msgid "Trust certificates"
+msgstr ""
+
+#: sign/gui/settings.c:588
+msgid "Intermediate certificates"
+msgstr ""
+
+#: sign/gui/settings.c:593
+msgid "Disable bundled certificates"
+msgstr ""
+
+#: sign/gui/settings.c:601
+msgid "Certificate bundles (comma separated)"
+msgstr ""
+
+#: sign/gui/settings.c:606
+msgid "PKCS#11 modules"
+msgstr ""
+
+#: sign/gui/settings.c:607
+msgid ""
+"One module path per line. Automatic uses modules registered with p11-kit."
+msgstr ""
+
+#: sign/gui/settings.c:610
+msgid "Module paths"
+msgstr ""
+
+#: sign/gui/settings.c:613
+msgid "PIN command"
+msgstr ""
+
+#: sign/gui/settings.c:614
+msgid ""
+"Command and arguments, with shell-style quoting. The PIN is requested only "
+"when signing."
+msgstr ""
+
+#: sign/gui/settings.c:617
+msgid "Command"
 msgstr ""

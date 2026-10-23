@@ -17,9 +17,13 @@ if(NOT IS_ABSOLUTE "${CMAKE_INSTALL_LOCALEDIR}")
 endif()
 
 add_executable(gui_navigation_test navigation_test.c ../../sign/gui/window.c
-    ../../sign/gui/i18n.c ../../sign/runtime.c)
+    ../../sign/gui/i18n.c ../../sign/runtime.c ../../sign/gui/settings.c
+    ../../sign/preferences.c ../../sign/config.c ../../sign/arg.c ../../sign/options.c
+    ../../sign/json.c ../../sign/io.c ../../sign/certs/certs.c "${SIGN_CERT_CATALOG}")
+target_compile_definitions(gui_navigation_test PRIVATE SIGN_VERSION="${PROJECT_VERSION}")
 target_include_directories(gui_navigation_test PRIVATE "${PROJECT_SOURCE_DIR}")
-target_link_libraries(gui_navigation_test PRIVATE sign_gui_deps)
+target_link_libraries(gui_navigation_test PRIVATE sign_gui_deps sign_config_deps
+    Argp::Argp libssig::ssig OpenSSL::Crypto PkgConfig::GIO)
 target_compile_options(gui_navigation_test PRIVATE -Wall -Wextra -Wpedantic -Werror)
 # Native builds compile the test; Linux can exercise real allocations in Xvfb.
 if(UNIX AND NOT APPLE)

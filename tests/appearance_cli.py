@@ -144,7 +144,10 @@ with tempfile.TemporaryDirectory(prefix='crsign-appearance-') as directory:
         config.write_text(profile + field + '\n')
         result = run(source, '-p', 'mark', *geometry, program=args_driver, success=False)
         assert b'Unknown profile field' in result.stderr
-    for invalid in ('signature_image=42', 'signature_image=""'):
+    for invalid in ('signature_image=42',):
         config.write_text('version=0.1\n[[profiles]]\nlabel="mark"\n' + invalid + '\n')
         run(source, '-p', 'mark', *geometry, program=args_driver, success=False)
+    config.write_text('version=0.1\n[[profiles]]\nlabel="mark"\nsignature_image=""\n')
+    empty = run(source, '-p', 'mark', *geometry, program=args_driver)
+    assert json.loads(empty.stdout)['signature_image'] is None
 print('Visible PDF signature checks passed')

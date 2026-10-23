@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include <sign/gui/i18n.h>
+#include <sign/gui/settings.h>
 #include <sign/gui/window.h>
+#include <string.h>
 
 /* Stable IDs stay independent of the translated labels. */
 static const struct {
@@ -60,6 +62,7 @@ static GtkWidget* create_sidebar(SignWindow* self) {
 	    GTK_POLICY_AUTOMATIC
 	);
 	GtkWidget* list = gtk_list_box_new();
+	gtk_widget_set_name(list, "navigation");
 	gtk_list_box_set_selection_mode(GTK_LIST_BOX(list), GTK_SELECTION_SINGLE);
 	gtk_widget_add_css_class(list, "navigation-sidebar");
 	for (guint i = 0; i < G_N_ELEMENTS(sections); ++i) {
@@ -101,6 +104,7 @@ static GtkWidget* create_content(SignWindow* self) {
 	);
 
 	GtkWidget* toggle = gtk_toggle_button_new();
+	gtk_widget_set_name(toggle, "menu-toggle");
 	gtk_button_set_icon_name(GTK_BUTTON(toggle), "sidebar-show-symbolic");
 	gtk_widget_set_tooltip_text(toggle, _("Toggle menu"));
 	gtk_accessible_update_property(
@@ -133,6 +137,15 @@ static GtkWidget* create_content(SignWindow* self) {
 	);
 	gtk_stack_set_transition_duration(self->pages, 150);
 	for (guint i = 0; i < G_N_ELEMENTS(sections); ++i) {
+		if (!strcmp(sections[i].id, "settings")) {
+			gtk_stack_add_titled(
+			    self->pages,
+			    sign_settings_new(),
+			    sections[i].id,
+			    _(sections[i].title)
+			);
+			continue;
+		}
 		GtkWidget* page = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 		gtk_widget_set_halign(page, GTK_ALIGN_CENTER);
 		gtk_widget_set_valign(page, GTK_ALIGN_CENTER);

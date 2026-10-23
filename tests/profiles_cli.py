@@ -87,6 +87,9 @@ tsa = { url = "https://tsa.example/", ca = "tsa.pem", intermediates = "tsa-chain
     write('no_bundled_certs = false\ndetached = false\ntsa = {}\n')
     assert options('-p', 'bccr') == defaults
 
+    write('token = ""\ncert_id = ""\nhash = ""\ntsa = { url = "", ca = "" }\n')
+    assert options('-p', 'bccr') == defaults
+
     # TOML table syntax, absolute paths, multiple and empty profiles.
     absolute = root / 'absolute.pem'
     write(f'''hash = 'SHA512'
@@ -102,6 +105,18 @@ label = "empty"
     for command in [('verify', source), ('--gui',)]:
         run(*command, '-p', 'bccr', success=False)
 
+    # All signing defaults can be global; profile and CLI values take precedence.
+    config.write_text('version=0.1\nalgorithm="rsa-pss"\nhash="sha384"\n'
+                      'token="pkcs11:token=Global"\ncert_bundles=["bccr"]\n'
+                      '[[profiles]]\nlabel="bccr"\nhash="sha512"\ntoken=""\nno_bundled_certs=true\n')
+    global_options = options()
+    assert global_options['hash'] == options('-H', 'sha384')['hash']
+    selected = options('-p', 'bccr')
+    assert selected['token'] == 'pkcs11:token=Global'
+    assert selected['hash'] == options('-H', 'sha512')['hash']
+    assert selected['no_bundled_certs'] and selected['cert_bundles'] == []
+    assert options('-p', 'bccr', '-t', 'cli')['token'] == 'cli'
+
     # Validation failures identify the selected file and never produce output.
     invalid_profiles = [
         ('hash = "sha1"', 'Unknown value'),
@@ -110,7 +125,6 @@ label = "empty"
         ('format = "cms"', 'Use cades'),
         ('level = "B-X"', 'Unknown value'),
         ('token = {}', 'Invalid type'),
-        ('token = ""', 'Empty profile field'),
         ('cert_id = 10', 'Invalid type'),
         ('detached = "true"', 'Invalid type'),
         ('hashh = "sha384"', 'Unknown profile field'),

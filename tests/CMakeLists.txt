@@ -188,3 +188,11 @@ if(NOT HEADLESS)
 endif()
 
 add_subdirectory(flows)
+
+add_executable(preferences_test preferences_test.c ../sign/preferences.c ../sign/config.c
+    ../sign/arg.c ../sign/options.c ../sign/json.c ../sign/io.c ../sign/certs/certs.c "${SIGN_CERT_CATALOG}")
+target_include_directories(preferences_test PRIVATE "${PROJECT_SOURCE_DIR}")
+target_link_libraries(preferences_test PRIVATE Argp::Argp libssig::ssig OpenSSL::Crypto sign_config_deps PkgConfig::GIO)
+target_compile_definitions(preferences_test PRIVATE SIGN_VERSION="${PROJECT_VERSION}")
+target_compile_options(preferences_test PRIVATE -Wall -Wextra -Wpedantic -Werror)
+add_test(NAME preferences COMMAND preferences_test)
