@@ -51,8 +51,8 @@ with tempfile.TemporaryDirectory(prefix='crsign-flow-') as directory:
 
     basic = {'input': source.name, 'level': 'B-B'}
     canonical, _ = call(flow(basic))
-    assert canonical['documents'][0]['input'] == str(source)
-    assert canonical['documents'][0]['output'] == str(root / 'archivo ñ-signed.bin')
+    assert Path(canonical['documents'][0]['input']) == source
+    assert Path(canonical['documents'][0]['output']) == root / 'archivo ñ-signed.bin'
     assert call(canonical)[0] == canonical
     rich = dict(basic, output='signed.p7m', token='pkcs11:token=Mock', cert_id='00ff',
                 algorithm='rsa-pss', hash='sha384', format='cades', mime_type='application/octet-stream',
@@ -63,9 +63,9 @@ with tempfile.TemporaryDirectory(prefix='crsign-flow-') as directory:
     options = rich_json['documents'][0]
     for key in ('input','output','ca','intermediates'):
         assert Path(options[key]).is_absolute()
-    assert options['modules'] == [str(root/'one.so'), str(root/'two.so')]
-    assert options['tsa']['ca'] == str(root/'tsa.pem')
-    assert options['appearance']['image'] == str(root/'unavailable.svg')
+    assert list(map(Path, options['modules'])) == [root/'one.so', root/'two.so']
+    assert Path(options['tsa']['ca']) == root/'tsa.pem'
+    assert Path(options['appearance']['image']) == root/'unavailable.svg'
     for document in ({}, {'input':None}, dict(basic, hash='SHA256'), dict(basic, algorithm='rsa'),
                      dict(basic, format='cms'), dict(basic, format='pades', detached=True),
                      dict(basic, cert_id='f'), dict(basic, cert_id='zz'), dict(basic, modules='one'),
