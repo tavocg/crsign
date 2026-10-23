@@ -6,6 +6,7 @@ import os
 import subprocess
 import sys
 import threading
+from unittest.mock import patch
 
 faulthandler.dump_traceback_later(15)
 
@@ -30,7 +31,8 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(b'reply')
 
-server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+with patch('socket.getfqdn', return_value='localhost'):
+    server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
 thread = threading.Thread(target=server.serve_forever, daemon=True)
 thread.start()
 try:

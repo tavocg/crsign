@@ -66,12 +66,15 @@ def interactive(command, data=b'1234\n', *, status=0, send_signal=None, env=None
                 masked = masked.replace(b'*\b \b', b'')
             assert masked == b'*' * stars, (masked, stars, transcript)
         return stdout, transcript
+    except BaseException:
+        print(f'PTY failed: child={process.poll()}, transcript={transcript!r}', file=sys.stderr, flush=True)
+        raise
     finally:
         if process.poll() is None:
             process.kill()
-            process.wait()
         os.close(master)
         os.close(slave)
+        process.wait(timeout=5)
 
 
 def standalone(driver):

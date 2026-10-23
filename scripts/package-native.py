@@ -211,6 +211,8 @@ def main():
     args = parser.parse_args()
     if sys.platform not in ('win32', 'darwin'):
         parser.error('Native packaging is supported on Windows and macOS')
+    if not shutil.which('git'):
+        parser.error('Git is required to include the tracked project and libssig sources')
     cache = (args.build / 'CMakeCache.txt').read_text(encoding='utf-8')
     library_cache = (args.libssig_build / 'CMakeCache.txt').read_text(encoding='utf-8')
     if 'LIBSSIG_EMBED_MAGIC_DATABASE:BOOL=ON' not in library_cache:
