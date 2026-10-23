@@ -3,6 +3,7 @@
 #include <openssl/x509_vfy.h>
 #include <sign/config.h>
 #include <sign/gui/certificate.h>
+#include <sign/gui/error.h>
 #include <sign/gui/file_drop.h>
 #include <sign/gui/i18n.h>
 #include <sign/gui/validation.h>
@@ -238,12 +239,9 @@ static void render(validation_item* item) {
 	if (item->error &&
 	    (!item->result.count || item->result.documents[0].verification_status ==
 	                                LIBSSIG_ERROR_ARGUMENT)) {
-		const char* message = item->error->message;
-		const char* prefix = "documents[0]: ";
-		if (g_str_has_prefix(message, prefix)) {
-			message += strlen(prefix);
-		}
-		detail(item, _("Details"), message);
+		char* text = gui_error_message(item->error, GUI_ERROR_VALIDATION);
+		detail(item, _("Details"), text);
+		g_free(text);
 	}
 	if (!item->result.count) {
 		return;
@@ -295,7 +293,7 @@ static void render(validation_item* item) {
 			detail(
 			    item,
 			    _("Certificate trust error"),
-			    X509_verify_cert_error_string(signer->trust_error)
+			    gui_trust_error(signer->trust_error)
 			);
 		}
 		detail(
@@ -315,7 +313,7 @@ static sign_flow* verification_flow(validation_item* item, GError** error) {
 	if (!input || (item->content && !content)) {
 		g_set_error_literal(
 		    error,
-		    G_IO_ERROR,
+		    SIGN_GUI_ERROR,
 		    G_IO_ERROR_NOT_SUPPORTED,
 		    _("Only local files can be validated")
 		);
@@ -529,7 +527,9 @@ static void dialog_error(SignValidation* self, const GError* error) {
 	    g_error_matches(error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
 		return;
 	}
-	gtk_label_set_text(self->notice, error->message);
+	char* text = gui_error_message(error, GUI_ERROR_FILES);
+	gtk_label_set_text(self->notice, text);
+	g_free(text);
 	gtk_widget_set_visible(GTK_WIDGET(self->notice), TRUE);
 }
 static void selected_files(

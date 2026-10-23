@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: CRSign 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/tavocg/crsign/issues\n"
-"POT-Creation-Date: 2026-10-23 17:00-0600\n"
+"POT-Creation-Date: 2026-10-23 17:31-0600\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -21,7 +21,7 @@ msgstr ""
 msgid "Home"
 msgstr ""
 
-#: sign/gui/window.c:18 sign/gui/signing.c:115 sign/gui/signing.c:1615
+#: sign/gui/window.c:18 sign/gui/signing.c:137 sign/gui/signing.c:1521
 msgid "Sign"
 msgstr ""
 
@@ -49,190 +49,190 @@ msgstr ""
 msgid "Toggle menu"
 msgstr ""
 
-#: sign/gui/settings.c:36
+#: sign/gui/settings.c:37
 msgid "Global settings"
 msgstr ""
 
-#: sign/gui/settings.c:47
+#: sign/gui/settings.c:48
 msgid "New profile"
 msgstr ""
 
-#: sign/gui/settings.c:73
+#: sign/gui/settings.c:74
 #, c-format
 msgid "Changes not saved: %s"
 msgstr ""
 
-#: sign/gui/settings.c:435 sign/gui/devices.c:388
+#: sign/gui/settings.c:437 sign/gui/devices.c:388
 msgid "Module path"
 msgstr ""
 
-#: sign/gui/settings.c:440
+#: sign/gui/settings.c:442
 msgid "Remove module"
 msgstr ""
 
-#: sign/gui/settings.c:467 sign/gui/settings.c:525 sign/gui/signing.c:939
+#: sign/gui/settings.c:469 sign/gui/settings.c:527 sign/gui/signing.c:829
 msgid "Global"
 msgstr ""
 
-#: sign/gui/settings.c:467 sign/gui/settings.c:526
+#: sign/gui/settings.c:469 sign/gui/settings.c:528
 msgid "Automatic"
 msgstr ""
 
-#: sign/gui/settings.c:467
+#: sign/gui/settings.c:469
 msgid "Custom"
 msgstr ""
 
-#: sign/gui/settings.c:496
+#: sign/gui/settings.c:498
 msgid "Add module"
 msgstr ""
 
-#: sign/gui/settings.c:508
+#: sign/gui/settings.c:510
 msgid "Value"
 msgstr ""
 
-#: sign/gui/settings.c:528 sign/gui/validation.c:121 sign/gui/devices.c:25
+#: sign/gui/settings.c:530 sign/gui/validation.c:122 sign/gui/devices.c:26
 msgid "No"
 msgstr ""
 
-#: sign/gui/settings.c:529 sign/gui/validation.c:121 sign/gui/devices.c:25
+#: sign/gui/settings.c:531 sign/gui/validation.c:122 sign/gui/devices.c:26
 msgid "Yes"
 msgstr ""
 
-#: sign/gui/settings.c:591
+#: sign/gui/settings.c:593
 msgid "Configuration"
 msgstr ""
 
-#: sign/gui/settings.c:598
+#: sign/gui/settings.c:600
 msgid "Create profile"
 msgstr ""
 
-#: sign/gui/settings.c:601
+#: sign/gui/settings.c:603
 msgid "Delete profile"
 msgstr ""
 
-#: sign/gui/settings.c:606
+#: sign/gui/settings.c:608
 msgid "Reload configuration"
 msgstr ""
 
-#: sign/gui/settings.c:620
+#: sign/gui/settings.c:622
 msgid "Profile"
 msgstr ""
 
-#: sign/gui/settings.c:621
+#: sign/gui/settings.c:623
 msgid "The label selects this profile with --profile."
 msgstr ""
 
-#: sign/gui/settings.c:623
+#: sign/gui/settings.c:625
 msgid "Name"
 msgstr ""
 
-#: sign/gui/settings.c:624
+#: sign/gui/settings.c:626
 msgid "Label"
 msgstr ""
 
-#: sign/gui/settings.c:627
+#: sign/gui/settings.c:629
 msgid "Signing defaults"
 msgstr ""
 
-#: sign/gui/settings.c:628
+#: sign/gui/settings.c:630
 msgid "Global inherits the global value. Automatic uses the engine default."
 msgstr ""
 
-#: sign/gui/settings.c:631 sign/gui/devices.c:259
+#: sign/gui/settings.c:633 sign/gui/devices.c:259
 msgid "Token URI"
 msgstr ""
 
-#: sign/gui/settings.c:632
+#: sign/gui/settings.c:634
 msgid "Certificate ID"
 msgstr ""
 
-#: sign/gui/settings.c:637
+#: sign/gui/settings.c:639
 msgid "Algorithm"
 msgstr ""
 
-#: sign/gui/settings.c:641
+#: sign/gui/settings.c:643
 msgid "Hash"
 msgstr ""
 
-#: sign/gui/settings.c:646
+#: sign/gui/settings.c:648
 msgid "Signature level"
 msgstr ""
 
-#: sign/gui/settings.c:650 sign/gui/validation.c:259
+#: sign/gui/settings.c:652 sign/gui/validation.c:257
 msgid "Format"
 msgstr ""
 
-#: sign/gui/settings.c:655 sign/gui/validation.c:270
+#: sign/gui/settings.c:657 sign/gui/validation.c:268
 msgid "Detached signature"
 msgstr ""
 
-#: sign/gui/settings.c:659
+#: sign/gui/settings.c:661
 msgid "Signature image"
 msgstr ""
 
-#: sign/gui/settings.c:660
+#: sign/gui/settings.c:662
 msgid "Timestamp authority"
 msgstr ""
 
-#: sign/gui/settings.c:661
+#: sign/gui/settings.c:663
 msgid "URL"
 msgstr ""
 
-#: sign/gui/settings.c:662
+#: sign/gui/settings.c:664
 msgid "TSA trust certificates"
 msgstr ""
 
-#: sign/gui/settings.c:667
+#: sign/gui/settings.c:669
 msgid "TSA intermediate certificates"
 msgstr ""
 
-#: sign/gui/settings.c:672
+#: sign/gui/settings.c:674
 msgid "Document trust"
 msgstr ""
 
-#: sign/gui/settings.c:673
+#: sign/gui/settings.c:675
 msgid "Relative paths resolve against the configuration directory."
 msgstr ""
 
-#: sign/gui/settings.c:675
+#: sign/gui/settings.c:677
 msgid "Trust certificates"
 msgstr ""
 
-#: sign/gui/settings.c:676
+#: sign/gui/settings.c:678
 msgid "Intermediate certificates"
 msgstr ""
 
-#: sign/gui/settings.c:681
+#: sign/gui/settings.c:683
 msgid "Disable bundled certificates"
 msgstr ""
 
-#: sign/gui/settings.c:689
+#: sign/gui/settings.c:691
 msgid "Certificate bundles (comma separated)"
 msgstr ""
 
-#: sign/gui/settings.c:694
+#: sign/gui/settings.c:696
 msgid "PKCS#11 modules"
 msgstr ""
 
-#: sign/gui/settings.c:695
+#: sign/gui/settings.c:697
 msgid "Automatic uses modules registered with p11-kit."
 msgstr ""
 
-#: sign/gui/settings.c:697
+#: sign/gui/settings.c:699
 msgid "Module paths"
 msgstr ""
 
-#: sign/gui/settings.c:700
+#: sign/gui/settings.c:702
 msgid "PIN command"
 msgstr ""
 
-#: sign/gui/settings.c:701
+#: sign/gui/settings.c:703
 msgid ""
 "Command and arguments, with shell-style quoting. The PIN is requested only "
 "when signing."
 msgstr ""
 
-#: sign/gui/settings.c:704
+#: sign/gui/settings.c:706
 msgid "Command"
 msgstr ""
 
@@ -252,165 +252,165 @@ msgstr ""
 msgid "Report an issue"
 msgstr ""
 
-#: sign/gui/validation.c:81
+#: sign/gui/validation.c:82
 #, c-format
 msgid "Valid: %u · Failed: %u · Pending: %u"
 msgstr ""
 
-#: sign/gui/validation.c:110
+#: sign/gui/validation.c:111
 msgid "Not available"
 msgstr ""
 
-#: sign/gui/validation.c:125
+#: sign/gui/validation.c:126
 msgid "Valid"
 msgstr ""
 
-#: sign/gui/validation.c:128
+#: sign/gui/validation.c:129
 msgid "Could not validate"
 msgstr ""
 
-#: sign/gui/validation.c:132
+#: sign/gui/validation.c:133
 msgid "Untrusted or expired certificate"
 msgstr ""
 
-#: sign/gui/validation.c:134
+#: sign/gui/validation.c:135
 msgid "Original content required"
 msgstr ""
 
-#: sign/gui/validation.c:136
+#: sign/gui/validation.c:137
 msgid "Revoked certificate"
 msgstr ""
 
-#: sign/gui/validation.c:138
+#: sign/gui/validation.c:139
 msgid "Invalid timestamp"
 msgstr ""
 
-#: sign/gui/validation.c:140
+#: sign/gui/validation.c:141
 msgid "Incomplete validation evidence"
 msgstr ""
 
-#: sign/gui/validation.c:142
+#: sign/gui/validation.c:143
 msgid "Revocation check failed"
 msgstr ""
 
-#: sign/gui/validation.c:145
+#: sign/gui/validation.c:146
 msgid "Unsupported or unsigned file"
 msgstr ""
 
-#: sign/gui/validation.c:147
+#: sign/gui/validation.c:148
 msgid "Validation failed"
 msgstr ""
 
-#: sign/gui/validation.c:166 sign/gui/devices.c:184
+#: sign/gui/validation.c:167 sign/gui/devices.c:180
 msgid "Certificate subject"
 msgstr ""
 
-#: sign/gui/validation.c:167 sign/gui/devices.c:185
+#: sign/gui/validation.c:168 sign/gui/devices.c:181
 msgid "Certificate issuer"
 msgstr ""
 
-#: sign/gui/validation.c:168 sign/gui/devices.c:186
+#: sign/gui/validation.c:169 sign/gui/devices.c:182
 msgid "Valid from"
 msgstr ""
 
-#: sign/gui/validation.c:169 sign/gui/devices.c:187
+#: sign/gui/validation.c:170 sign/gui/devices.c:183
 msgid "Valid until"
 msgstr ""
 
-#: sign/gui/validation.c:181 sign/gui/devices.c:199
+#: sign/gui/validation.c:182 sign/gui/devices.c:195
 msgid "Certificate SHA-256"
 msgstr ""
 
-#: sign/gui/validation.c:201
+#: sign/gui/validation.c:202
 msgid "Time not authenticated"
 msgstr ""
 
-#: sign/gui/validation.c:203
+#: sign/gui/validation.c:204
 msgid "Timestamp signature valid"
 msgstr ""
 
-#: sign/gui/validation.c:206
+#: sign/gui/validation.c:207
 msgid "Timestamp certificate trusted"
 msgstr ""
 
-#: sign/gui/validation.c:207 sign/gui/validation.c:268 sign/gui/devices.c:63
+#: sign/gui/validation.c:208 sign/gui/validation.c:266 sign/gui/error.c:95
 msgid "Not checked"
 msgstr ""
 
-#: sign/gui/validation.c:216
+#: sign/gui/validation.c:217
 msgid "File"
 msgstr ""
 
-#: sign/gui/validation.c:220
+#: sign/gui/validation.c:221
 msgid "Original content"
 msgstr ""
 
-#: sign/gui/validation.c:246
+#: sign/gui/validation.c:243
 msgid "Details"
 msgstr ""
 
-#: sign/gui/validation.c:262 sign/gui/devices.c:90
+#: sign/gui/validation.c:260 sign/gui/devices.c:86
 msgid "Unknown"
 msgstr ""
 
-#: sign/gui/validation.c:264
+#: sign/gui/validation.c:262
 msgid "Signature valid"
 msgstr ""
 
-#: sign/gui/validation.c:267
+#: sign/gui/validation.c:265
 msgid "Certificate chain trusted"
 msgstr ""
 
-#: sign/gui/validation.c:273
+#: sign/gui/validation.c:271
 #, c-format
 msgid "Signer %zu"
 msgstr ""
 
-#: sign/gui/validation.c:282
+#: sign/gui/validation.c:280
 msgid "Detected signature level"
 msgstr ""
 
-#: sign/gui/validation.c:285
+#: sign/gui/validation.c:283
 msgid "No baseline level detected"
 msgstr ""
 
-#: sign/gui/validation.c:290
+#: sign/gui/validation.c:288
 msgid "Signature level validated"
 msgstr ""
 
-#: sign/gui/validation.c:297
+#: sign/gui/validation.c:295
 msgid "Certificate trust error"
 msgstr ""
 
-#: sign/gui/validation.c:303
+#: sign/gui/validation.c:301
 msgid "Revocation checked"
 msgstr ""
 
-#: sign/gui/validation.c:306
+#: sign/gui/validation.c:304
 msgid "Signing timestamp"
 msgstr ""
 
-#: sign/gui/validation.c:307
+#: sign/gui/validation.c:305
 msgid "Archive timestamp"
 msgstr ""
 
-#: sign/gui/validation.c:320
+#: sign/gui/validation.c:318
 msgid "Only local files can be validated"
 msgstr ""
 
-#: sign/gui/validation.c:402
+#: sign/gui/validation.c:400
 msgid "Waiting for another operation"
 msgstr ""
 
-#: sign/gui/validation.c:428
+#: sign/gui/validation.c:426
 msgid "Validating…"
 msgstr ""
 
-#: sign/gui/validation.c:457 sign/gui/validation.c:487
+#: sign/gui/validation.c:455 sign/gui/validation.c:485
 msgid "Queued"
 msgstr ""
 
-#: sign/gui/validation.c:496
+#: sign/gui/validation.c:494
 msgid "Select original content…"
 msgstr ""
 
@@ -426,7 +426,7 @@ msgstr ""
 msgid "Drop signed files here"
 msgstr ""
 
-#: sign/gui/validation.c:739
+#: sign/gui/validation.c:739 sign/gui/signing.c:1471
 msgid "Click to choose one or more files"
 msgstr ""
 
@@ -434,84 +434,80 @@ msgstr ""
 msgid "Clear results"
 msgstr ""
 
-#: sign/gui/devices.c:36 sign/gui/devices.c:50 sign/gui/devices.c:133
+#: sign/gui/devices.c:37 sign/gui/devices.c:51 sign/gui/devices.c:129
 msgid "Unavailable"
 msgstr ""
 
-#: sign/gui/devices.c:64
-msgid "Trusted chain found"
-msgstr ""
-
-#: sign/gui/devices.c:70 sign/gui/devices.c:146 sign/gui/devices.c:150
+#: sign/gui/devices.c:66 sign/gui/devices.c:142 sign/gui/devices.c:146
 msgid "Certificate"
 msgstr ""
 
-#: sign/gui/devices.c:72
+#: sign/gui/devices.c:68
 msgid "Public key"
 msgstr ""
 
-#: sign/gui/devices.c:74
+#: sign/gui/devices.c:70
 msgid "Private key"
 msgstr ""
 
-#: sign/gui/devices.c:76
+#: sign/gui/devices.c:72
 msgid "Secret key"
 msgstr ""
 
-#: sign/gui/devices.c:113
+#: sign/gui/devices.c:109
 msgid "Object type"
 msgstr ""
 
-#: sign/gui/devices.c:115 sign/gui/devices.c:153
+#: sign/gui/devices.c:111 sign/gui/devices.c:149
 msgid "ID"
 msgstr ""
 
-#: sign/gui/devices.c:117 sign/gui/devices.c:156
+#: sign/gui/devices.c:113 sign/gui/devices.c:152
 #, c-format
 msgid "%lu bits"
 msgstr ""
 
-#: sign/gui/devices.c:120
+#: sign/gui/devices.c:116
 msgid "Key size (associated certificate)"
 msgstr ""
 
-#: sign/gui/devices.c:121 sign/gui/devices.c:158
+#: sign/gui/devices.c:117 sign/gui/devices.c:154
 msgid "Key size"
 msgstr ""
 
-#: sign/gui/devices.c:125
+#: sign/gui/devices.c:121
 msgid "Key type"
 msgstr ""
 
-#: sign/gui/devices.c:128
+#: sign/gui/devices.c:124
 msgid "PKCS#11 key type"
 msgstr ""
 
-#: sign/gui/devices.c:132
+#: sign/gui/devices.c:128
 msgid "Signing attribute"
 msgstr ""
 
-#: sign/gui/devices.c:168
+#: sign/gui/devices.c:164
 msgid "Certificate data"
 msgstr ""
 
-#: sign/gui/devices.c:169
+#: sign/gui/devices.c:165
 msgid "Unavailable or invalid X.509 certificate"
 msgstr ""
 
-#: sign/gui/devices.c:176
+#: sign/gui/devices.c:172
 msgid "Public key algorithm"
 msgstr ""
 
-#: sign/gui/devices.c:205
+#: sign/gui/devices.c:201
 msgid "Content commitment key usage"
 msgstr ""
 
-#: sign/gui/devices.c:206
+#: sign/gui/devices.c:202
 msgid "Not specified"
 msgstr ""
 
-#: sign/gui/devices.c:209
+#: sign/gui/devices.c:207
 msgid "System certificates"
 msgstr ""
 
@@ -649,199 +645,407 @@ msgstr ""
 msgid "No readers found"
 msgstr ""
 
-#: sign/gui/devices.c:460 sign/gui/devices.c:709
+#: sign/gui/devices.c:460 sign/gui/devices.c:711
 msgid "Scanning devices…"
 msgstr ""
 
-#: sign/gui/devices.c:542
+#: sign/gui/devices.c:544
 msgid "Cannot load the PKCS#11 modules"
 msgstr ""
 
-#: sign/gui/devices.c:563
+#: sign/gui/devices.c:565
 msgid "Cannot monitor devices"
 msgstr ""
 
-#: sign/gui/devices.c:720
+#: sign/gui/devices.c:722
 msgid "Refresh devices"
 msgstr ""
 
-#: sign/gui/devices.c:730
+#: sign/gui/devices.c:732
 msgid "Include software tokens and certificates"
 msgstr ""
 
-#: sign/gui/inventory.c:134
+#: sign/gui/inventory.c:138
 msgid "Cannot read configured certificates"
 msgstr ""
 
-#: sign/gui/inventory.c:142
+#: sign/gui/inventory.c:146
 msgid "Cannot read system certificates"
 msgstr ""
 
-#: sign/gui/inventory.c:235
+#: sign/gui/inventory.c:239
 #, c-format
 msgid "Cannot inspect devices (status %d)"
 msgstr ""
 
-#: sign/gui/file_drop.c:48
+#: sign/gui/file_drop.c:49
 msgid "No files were received from the file manager"
 msgstr ""
 
-#: sign/gui/pdf_view.c:135
+#: sign/gui/pdf_view.c:136
 msgid "Cannot read PDF page geometry"
 msgstr ""
 
-#: sign/gui/pdf_view.c:154
+#: sign/gui/pdf_view.c:155
 msgid "Invalid page number"
 msgstr ""
 
-#: sign/gui/pdf_view.c:193
+#: sign/gui/pdf_view.c:194 sign/gui/pdf_reader.c:297
 msgid "Cannot render this PDF page"
 msgstr ""
 
-#: sign/gui/pdf_view.c:238
+#: sign/gui/pdf_view.c:239
 msgid "The signature image cannot fit at this position"
 msgstr ""
 
-#: sign/gui/signing.c:110 sign/gui/signing.c:1158
+#: sign/gui/signing.c:132 sign/gui/signing.c:1054
 msgid "Continue"
 msgstr ""
 
-#: sign/gui/signing.c:111 sign/gui/signing.c:1710
+#: sign/gui/signing.c:133 sign/gui/signing.c:1598
 msgid "Continue without graphical signature"
 msgstr ""
 
-#: sign/gui/signing.c:115
+#: sign/gui/signing.c:137
 msgid "Signing…"
 msgstr ""
 
-#: sign/gui/signing.c:257
+#: sign/gui/signing.c:188
 msgid "Wait for the PDF preview to finish loading"
 msgstr ""
 
-#: sign/gui/signing.c:432
+#: sign/gui/signing.c:299 sign/gui/signing.c:899
+msgid ""
+"The signing profile could not be loaded. Check the configuration in Settings."
+msgstr ""
+
+#: sign/gui/signing.c:317
 msgid "Certificate holder"
 msgstr ""
 
-#: sign/gui/signing.c:472
+#: sign/gui/signing.c:357
 msgid "Cannot preview this signature image"
 msgstr ""
 
-#: sign/gui/signing.c:506 sign/gui/signing.c:611
+#: sign/gui/signing.c:391 sign/gui/signing.c:497
 msgid "Graphical signatures are available for PDF files"
 msgstr ""
 
-#: sign/gui/signing.c:538
+#: sign/gui/signing.c:425
 #, c-format
 msgid "of %u"
 msgstr ""
 
-#: sign/gui/signing.c:635 sign/gui/signing.c:1544
-msgid "Documents to sign"
-msgstr ""
-
-#: sign/gui/signing.c:716
+#: sign/gui/signing.c:604
 msgid "Only local files can be signed"
 msgstr ""
 
-#: sign/gui/signing.c:734
+#: sign/gui/signing.c:622
 msgid "The document queue is full"
 msgstr ""
 
-#: sign/gui/signing.c:760
+#: sign/gui/signing.c:642
+msgid "No graphical signature"
+msgstr ""
+
+#: sign/gui/signing.c:650
 msgid "Remove document"
 msgstr ""
 
-#: sign/gui/signing.c:808
+#: sign/gui/signing.c:698
 msgid "Choose documents to sign"
 msgstr ""
 
-#: sign/gui/signing.c:835
+#: sign/gui/signing.c:725
 msgid "Only local images are supported"
 msgstr ""
 
-#: sign/gui/signing.c:857 sign/gui/signing.c:1638
+#: sign/gui/signing.c:747 sign/gui/signing.c:1546
 msgid "Choose signature image"
 msgstr ""
 
-#: sign/gui/signing.c:859
+#: sign/gui/signing.c:749
 msgid "Signature images"
 msgstr ""
 
-#: sign/gui/signing.c:1133
+#: sign/gui/signing.c:1029
 msgid "Token PIN"
 msgstr ""
 
-#: sign/gui/signing.c:1140
+#: sign/gui/signing.c:1036
 msgid "Enter the PIN to sign"
 msgstr ""
 
-#: sign/gui/signing.c:1153
+#: sign/gui/signing.c:1049
 msgid "PIN"
 msgstr ""
 
-#: sign/gui/signing.c:1157
+#: sign/gui/signing.c:1053
 msgid "Cancel"
 msgstr ""
 
-#: sign/gui/signing.c:1285
+#: sign/gui/signing.c:1181
 msgid "PIN entry was cancelled or unavailable"
 msgstr ""
 
-#: sign/gui/signing.c:1327
+#: sign/gui/signing.c:1223
 #, c-format
 msgid "Output already exists: %s"
 msgstr ""
 
-#: sign/gui/signing.c:1352 sign/gui/signing.c:1376
+#: sign/gui/signing.c:1248 sign/gui/signing.c:1272
 msgid "Signing failed"
 msgstr ""
 
-#: sign/gui/signing.c:1372
+#: sign/gui/signing.c:1268
 #, c-format
 msgid "Signed: %s"
 msgstr ""
 
-#: sign/gui/signing.c:1377
+#: sign/gui/signing.c:1273
 msgid "Not started"
 msgstr ""
 
-#: sign/gui/signing.c:1384
+#: sign/gui/signing.c:1280
 #, c-format
 msgid "Documents signed: %zu"
 msgstr ""
 
-#: sign/gui/signing.c:1511
+#: sign/gui/signing.c:1292
+msgid "Could not sign documents"
+msgstr ""
+
+#: sign/gui/signing.c:1417
 msgid "Signing profile"
 msgstr ""
 
-#: sign/gui/signing.c:1538
-msgid "Add documents"
+#: sign/gui/signing.c:1467
+msgid "Drop files here to sign"
 msgstr ""
 
-#: sign/gui/signing.c:1574
-msgid "Drop documents here or click to choose files"
-msgstr ""
-
-#: sign/gui/signing.c:1612
+#: sign/gui/signing.c:1518
 msgid "Some files have no graphical signature"
 msgstr ""
 
-#: sign/gui/signing.c:1631
+#: sign/gui/signing.c:1537
 msgid "Document queue"
 msgstr ""
 
-#: sign/gui/signing.c:1646
+#: sign/gui/signing.c:1554
 msgid "Use profile signature image"
 msgstr ""
 
-#: sign/gui/signing.c:1666
+#: sign/gui/signing.c:1584
+msgid "Page"
+msgstr ""
+
+#: sign/gui/pdf_reader.c:851
 msgid "Click or drag to place the graphical signature"
 msgstr ""
 
-#: sign/gui/signing.c:1683
+#: sign/gui/pdf_reader.c:878
 msgid "Remove graphical signature"
 msgstr ""
 
-#: sign/gui/signing.c:1696
-msgid "Page"
+#: sign/gui/pdf_reader.c:895
+msgid "Zoom in"
+msgstr ""
+
+#: sign/gui/pdf_reader.c:896
+msgid "Zoom out"
+msgstr ""
+
+#: sign/gui/error.c:13
+msgid ""
+"No signing device was found. Connect the reader and insert your card, then "
+"try again. Check the selected profile if the device is already connected."
+msgstr ""
+
+#: sign/gui/error.c:19
+msgid ""
+"Several signing devices match these settings. Choose a device in the signing "
+"profile."
+msgstr ""
+
+#: sign/gui/error.c:24
+msgid ""
+"No suitable signing certificate was found on the device. Check the card and "
+"the certificate selected in the profile."
+msgstr ""
+
+#: sign/gui/error.c:29
+msgid ""
+"Several signing certificates match these settings. Choose a certificate in "
+"the signing profile."
+msgstr ""
+
+#: sign/gui/error.c:34
+msgid ""
+"The signing device could not be accessed. Check its driver and the "
+"configured modules."
+msgstr ""
+
+#: sign/gui/error.c:39
+msgid ""
+"The signature image could not be used. Choose another image or adjust its "
+"size and position."
+msgstr ""
+
+#: sign/gui/error.c:44
+msgid ""
+"The PIN could not be obtained. Try again or check the configured PIN command."
+msgstr ""
+
+#: sign/gui/error.c:49
+msgid ""
+"The PIN is incorrect. Check it before trying again to avoid blocking the "
+"card."
+msgstr ""
+
+#: sign/gui/error.c:54
+msgid "The card PIN is blocked. Contact your card provider to unblock it."
+msgstr ""
+
+#: sign/gui/error.c:58
+msgid "The signing device was disconnected. Reconnect it and try again."
+msgstr ""
+
+#: sign/gui/error.c:62
+msgid ""
+"The certificate could not be validated. Check its validity and the trusted "
+"certificates in Settings."
+msgstr ""
+
+#: sign/gui/error.c:67
+msgid ""
+"The timestamp or validation service could not be reached or returned an "
+"invalid response. Check the connection and signing profile."
+msgstr ""
+
+#: sign/gui/error.c:73
+msgid ""
+"The selected format, algorithm or document is not supported. Check the "
+"signing profile."
+msgstr ""
+
+#: sign/gui/error.c:78
+msgid ""
+"The document could not be read. Check that it exists and that you have "
+"permission to open it."
+msgstr ""
+
+#: sign/gui/error.c:83
+msgid ""
+"The signed document could not be saved. Check write permissions and whether "
+"the output already exists."
+msgstr ""
+
+#: sign/gui/error.c:88
+msgid ""
+"The document could not be signed. Check the device and signing settings, "
+"then try again."
+msgstr ""
+
+#: sign/gui/error.c:99
+msgid "Trusted chain found"
+msgstr ""
+
+#: sign/gui/error.c:101
+msgid "The certificate has expired"
+msgstr ""
+
+#: sign/gui/error.c:103
+msgid "The certificate is not yet valid"
+msgstr ""
+
+#: sign/gui/error.c:105
+msgid "The certificate has been revoked"
+msgstr ""
+
+#: sign/gui/error.c:110
+msgid "No trusted certificate chain was found"
+msgstr ""
+
+#: sign/gui/error.c:112
+msgid "Certificate validation failed"
+msgstr ""
+
+#: sign/gui/error.c:125
+msgid "The device reported an error"
+msgstr ""
+
+#: sign/gui/error.c:151
+msgid ""
+"Another operation is already running. Wait for it to finish and try again."
+msgstr ""
+
+#: sign/gui/error.c:156
+msgid ""
+"These document settings cannot be used together. Check the selected profile "
+"and signature appearance."
+msgstr ""
+
+#: sign/gui/error.c:163
+msgid "The operation was cancelled."
+msgstr ""
+
+#: sign/gui/error.c:166
+msgid ""
+"The file or folder could not be found. Check that it is still available."
+msgstr ""
+
+#: sign/gui/error.c:171
+msgid "Access was denied. Check your permissions for this file or folder."
+msgstr ""
+
+#: sign/gui/error.c:176
+msgid "The output file already exists. Move or rename it before trying again."
+msgstr ""
+
+#: sign/gui/error.c:181
+msgid "There is not enough space or memory to complete this operation."
+msgstr ""
+
+#: sign/gui/error.c:186
+msgid ""
+"The configuration was changed outside the application. Reload it before "
+"saving."
+msgstr ""
+
+#: sign/gui/error.c:193
+msgid ""
+"The configuration contains invalid values. Check the selected settings and "
+"profile labels."
+msgstr ""
+
+#: sign/gui/error.c:205
+msgid ""
+"The configuration could not be read or saved. Check its values and file "
+"permissions."
+msgstr ""
+
+#: sign/gui/error.c:210
+msgid ""
+"Devices could not be loaded. Check the reader connection and the modules in "
+"Settings."
+msgstr ""
+
+#: sign/gui/error.c:215
+msgid "This PDF could not be opened. It may be damaged or require a password."
+msgstr ""
+
+#: sign/gui/error.c:220
+msgid ""
+"The selected files could not be opened. Check that they are available and "
+"that you have permission to read them."
+msgstr ""
+
+#: sign/gui/error.c:225
+msgid ""
+"The document could not be validated. Check the file and the validation "
+"settings."
+msgstr ""
+
+#: sign/gui/error.c:265
+msgid "Close"
 msgstr ""

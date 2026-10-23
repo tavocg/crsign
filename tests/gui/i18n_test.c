@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include <gio/gio.h>
+#include <sign/error.h>
+#include <sign/gui/error.h>
 #include <sign/gui/i18n.h>
 #include <string.h>
 
@@ -14,6 +16,25 @@ int main(int argc, char** argv) {
 		g_assert_true(g_file_equal(actual, expected));
 		g_object_unref(actual);
 		g_object_unref(expected);
+	}
+	for (int code = SIGN_ERROR_NO_TOKEN; code <= SIGN_ERROR_OUTPUT; ++code) {
+		GError* error = g_error_new_literal(
+		    SIGN_ERROR,
+		    code,
+		    "documents[0]: internal diagnostic"
+		);
+		char* text = gui_error_message(error, GUI_ERROR_SIGNING);
+		g_assert_nonnull(text);
+		g_assert_null(strstr(text, "documents["));
+		g_assert_null(strstr(text, "internal diagnostic"));
+		if (code == SIGN_ERROR_NO_TOKEN && !strcmp(argv[1], "es")) {
+			g_assert_true(g_str_has_prefix(
+			    text,
+			    "No se encontró ningún dispositivo de firma."
+			));
+		}
+		g_free(text);
+		g_error_free(error);
 	}
 	if (!strcmp(argv[1], "es")) {
 		g_assert_cmpstr(_("Home"), ==, "Inicio");

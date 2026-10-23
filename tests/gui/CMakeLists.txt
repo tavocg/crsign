@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-add_executable(gui_i18n_test i18n_test.c ../../sign/gui/i18n.c ../../sign/runtime.c)
+add_executable(gui_i18n_test i18n_test.c ../../sign/gui/error.c ../../sign/gui/i18n.c ../../sign/runtime.c)
 target_include_directories(gui_i18n_test PRIVATE "${PROJECT_SOURCE_DIR}")
-target_link_libraries(gui_i18n_test PRIVATE sign_gui_deps)
+target_link_libraries(gui_i18n_test PRIVATE sign_gui_deps libssig::ssig OpenSSL::Crypto PkgConfig::P11_KIT)
 target_compile_options(gui_i18n_test PRIVATE -Wall -Wextra -Wpedantic -Werror)
 foreach(language IN ITEMS en es)
     add_test(NAME gui_i18n_${language} COMMAND "${CMAKE_COMMAND}" -E env
@@ -19,7 +19,7 @@ endif()
 set(GUI_TEST_SOURCES
     ../../sign/gui/window.c ../../sign/gui/about.c ../../sign/gui/validation.c
     ../../sign/gui/devices.c ../../sign/gui/inventory.c ../../sign/gui/certificate.c
-    ../../sign/gui/file_drop.c ../../sign/gui/pdf_view.c ../../sign/gui/signing.c
+    ../../sign/gui/file_drop.c ../../sign/gui/error.c ../../sign/gui/pdf_reader.c ../../sign/gui/pdf_view.c ../../sign/gui/signing.c
     ../../sign/flow.c ../../sign/execution.c ../../sign/sign.c ../../sign/modules.c
     ../../sign/appearance.c ../../sign/pin.c ../../sign/terminal.c ../../sign/http.c
     ../../sign/timestamp/authority.c ../../sign/trust.c

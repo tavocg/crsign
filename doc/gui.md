@@ -17,22 +17,35 @@ El selector del encabezado elige los ajustes globales o un perfil por nombre
 selector nativo. Se admiten documentos de cualquier tipo: un único PDF abre
 el lector inmediatamente; varios archivos abren la cola.
 
+El lector muestra todas las páginas con desplazamiento continuo. Inicialmente
+ajusta la escala para que una página completa quepa en altura y anchura. Los
+botones flotantes `+` y `−`, abajo a la derecha, cambian el zoom; también sirven
+`Ctrl` + `+`, `Ctrl` + `−` y `Ctrl` + rueda. Con la rueda, el zoom conserva bajo
+el cursor el mismo punto del documento, limitado por los bordes del área de
+desplazamiento. Las páginas se renderizan en segundo plano conforme se necesitan
+y se mantiene una caché limitada.
+
 En el lector, haz clic sobre una página para colocar la imagen con el tamaño
 predeterminado, o arrastra para definir su tamaño. Las coordenadas y medidas
 son puntos PDF sobre la página visible, considerando recorte, rotación y escala.
 Se conserva la relación de aspecto y se ajusta el tamaño entre los límites
 compartidos con la CLI (12–720 puntos por dimensión). Si no cabe, se muestra un
-error. El selector inferior cambia de página y la equis quita la representación.
+error. Arrastrar sobre la imagen ya colocada la mueve, conserva sus dimensiones
+y la limita a los bordes de su página. El cursor de cruz se mantiene en ambos
+casos. El selector inferior permite saltar a una página y refleja la página
+visible al desplazarse; la equis quita la representación.
 
-El botón de imagen permite elegir SVG, PNG, JPEG y los formatos disponibles en
-GdkPixbuf; el botón de restauración recupera la imagen del perfil o la marca
-predeterminada con el titular del certificado. La fecha y los datos definitivos
+Los botones de imagen, alineados a la derecha, permiten elegir SVG, PNG, JPEG y los formatos disponibles en
+GdkPixbuf. El botón de restauración aparece solo al elegir una imagen distinta
+de la del perfil y recupera esa imagen o la marca predeterminada. La marca
+muestra primero el titular del certificado, luego «Firmado digitalmente», la
+fecha y «Representación gráfica. Verifique la validez.». La fecha y los datos definitivos
 de esa marca se generan al firmar. Si aún no hay un certificado seleccionable,
 la previsualización muestra un titular ilustrativo.
 
 «Continuar» vuelve a la cola; también se puede continuar sin firma gráfica.
-Cada archivo sin representación tiene un punto amarillo, y junto a «Firmar»
-aparece un aviso que permite continuar igualmente. Seleccionar un documento
+Cada archivo sin representación tiene un icono de advertencia con un tooltip,
+y junto a «Firmar» aparece un aviso que permite continuar igualmente. Seleccionar un documento
 PDF de la cola vuelve a abrir su lector y conserva la representación elegida.
 Los documentos de otros tipos se firman sin representación gráfica.
 
@@ -45,6 +58,12 @@ y se borra después; no se incluye en el JSON ni en la configuración.
 Las salidas siguen los nombres de la CLI (`archivo-signed.ext`) y no se
 sobrescriben archivos existentes. Al cerrar la ventana se cancelan los
 siguientes documentos y no se escribe el resultado de una operación cancelada.
+
+Los errores de la GUI se presentan con mensajes traducidos según su categoría,
+sin los prefijos de diagnóstico del flow. Un error de firmado abre un diálogo;
+el mismo mensaje no se repite en el cuerpo de la aplicación. La cancelación del
+PIN no abre otro diálogo. Los diagnósticos del motor y de la CLI se mantienen
+separados de estos mensajes.
 
 El lector usa Poppler GLib y Cairo; comparte con el motor de firma los
 decodificadores de imágenes y los límites de tamaño. La firma criptográfica

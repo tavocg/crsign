@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+#include <sign/gui/error.h>
 #include <sign/gui/i18n.h>
 #include <sign/gui/settings.h>
 #include <sign/options.h>
@@ -69,14 +70,13 @@ bool sign_settings_flush(SignSettings* self) {
 		gtk_widget_set_visible(GTK_WIDGET(self->status), FALSE);
 		refresh_scopes(self, adw_combo_row_get_selected(self->scopes));
 	} else {
-		char* message = g_strdup_printf(
-		    _("Changes not saved: %s"),
-		    error->message
-		);
+		char* reason = gui_error_message(error, GUI_ERROR_SETTINGS);
+		char* message = g_strdup_printf(_("Changes not saved: %s"), reason);
 		gtk_label_set_text(self->status, message);
 		gtk_widget_set_visible(GTK_WIDGET(self->status), TRUE);
 		gtk_widget_add_css_class(GTK_WIDGET(self->status), "error");
 		g_free(message);
+		g_free(reason);
 		g_clear_error(&error);
 	}
 	return ok;
@@ -323,7 +323,9 @@ static void reload(GtkButton* button, gpointer data) {
 	GError*           error = NULL;
 	loaded = preferences_load(&error);
 	if (!loaded) {
-		gtk_label_set_text(self->status, error->message);
+		char* reason = gui_error_message(error, GUI_ERROR_SETTINGS);
+		gtk_label_set_text(self->status, reason);
+		g_free(reason);
 		gtk_widget_set_visible(GTK_WIDGET(self->status), TRUE);
 		gtk_widget_add_css_class(GTK_WIDGET(self->status), "error");
 		gtk_widget_set_sensitive(self->editor, FALSE);

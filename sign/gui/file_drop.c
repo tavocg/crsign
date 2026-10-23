@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+#include <sign/gui/error.h>
 #include <sign/gui/file_drop.h>
 #include <sign/gui/i18n.h>
 #include <stdbool.h>
@@ -43,7 +44,7 @@ static void complete(
 	                deliver(binding, value);
 	if (!accepted && !error && gtk_widget_get_root(binding->widget)) {
 		error = g_error_new_literal(
-		    G_IO_ERROR,
+		    SIGN_GUI_ERROR,
 		    G_IO_ERROR_INVALID_DATA,
 		    _("No files were received from the file manager")
 		);

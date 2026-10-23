@@ -89,6 +89,10 @@ libssig_status libssig_tokens(
 ) {
 	(void)context;
 	(void)options;
+	if (g_getenv("SIGN_FLOW_TEST_NO_TOKEN")) {
+		*list = (libssig_token_list){0};
+		return LIBSSIG_OK;
+	}
 	static const char* flags[] = {"login-required"};
 	list->items = calloc(1, sizeof(*list->items));
 	if (!list->items) {

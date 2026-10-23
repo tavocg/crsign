@@ -4,6 +4,7 @@
 #include <sign/config.h>
 #include <sign/gui/certificate.h>
 #include <sign/gui/devices.h>
+#include <sign/gui/error.h>
 #include <sign/gui/i18n.h>
 #include <sign/gui/inventory.h>
 #include <sign/modules.h>
@@ -58,11 +59,6 @@ static AdwExpanderRow* expander(const char* title, const char* icon) {
 	adw_preferences_row_set_title(ADW_PREFERENCES_ROW(row), title);
 	adw_expander_row_add_prefix(row, gtk_image_new_from_icon_name(icon));
 	return row;
-}
-static const char* trust_text(int status) {
-	return status < 0            ? _("Not checked")
-	       : status == X509_V_OK ? _("Trusted chain found")
-	                             : X509_verify_cert_error_string(status);
 }
 static const char* object_kind(CK_OBJECT_CLASS kind) {
 	switch (kind) {
@@ -206,11 +202,15 @@ static void render_certificate(
 	    usage == UINT32_MAX ? _("Not specified")
 	                        : yes_no((usage & KU_NON_REPUDIATION) != 0)
 	);
-	field(row, _("System certificates"), trust_text(annotation->system_trust));
+	field(
+	    row,
+	    _("System certificates"),
+	    gui_trust_error(annotation->system_trust)
+	);
 	field(
 	    row,
 	    _("CRSign certificates (embedded / configured)"),
-	    trust_text(annotation->application_trust)
+	    gui_trust_error(annotation->application_trust)
 	);
 }
 
@@ -249,7 +249,7 @@ static void render_slot(
 	    yes_no((slot->flags & CKF_REMOVABLE_DEVICE) != 0)
 	);
 	if (slot->status != LIBSSIG_OK) {
-		field(row, _("Device error"), p11_kit_strerror(slot->ck_rv));
+		field(row, _("Device error"), gui_device_error(slot->ck_rv));
 	}
 	if (!slot->token_valid) {
 		return;
@@ -341,7 +341,7 @@ static void render(SignDevices* self, sign_device_inventory* inventory) {
 			char* issue = g_strdup_printf(
 			    "%s: %s",
 			    module->name ? module->name : _("PKCS#11 module"),
-			    p11_kit_strerror(module->ck_rv)
+			    gui_device_error(module->ck_rv)
 			);
 			g_ptr_array_add(inventory->issues, issue);
 		}
@@ -462,7 +462,9 @@ static gboolean apply_update(gpointer data) {
 			render(self, update->inventory);
 		} else if (update->error) {
 			clear_content(self);
-			gtk_label_set_text(self->status, update->error->message);
+			char* text = gui_error_message(update->error, GUI_ERROR_DEVICES);
+			gtk_label_set_text(self->status, text);
+			g_free(text);
 		}
 	}
 	return G_SOURCE_REMOVE;
@@ -537,7 +539,7 @@ static void monitor_worker(
 				if (status != LIBSSIG_OK) {
 					g_set_error_literal(
 					    &error,
-					    G_IO_ERROR,
+					    SIGN_GUI_ERROR,
 					    G_IO_ERROR_FAILED,
 					    _("Cannot load the PKCS#11 modules")
 					);
@@ -558,7 +560,7 @@ static void monitor_worker(
 				changed = true;
 				g_set_error_literal(
 				    &error,
-				    G_IO_ERROR,
+				    SIGN_GUI_ERROR,
 				    G_IO_ERROR_FAILED,
 				    _("Cannot monitor devices")
 				);

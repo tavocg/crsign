@@ -71,7 +71,8 @@ with tempfile.TemporaryDirectory(prefix='crsign-appearance-') as directory:
     env['SIGN_APPEARANCE_TEST_PREVIEW'] = str(root / 'default.svg')
     run(*common)
     text = [element.text for element in ET.parse(root / 'default.svg').iter() if element.tag.endswith('}text')]
-    assert text[:2] == ['Firmado digitalmente', 'Ana & Compañía <CR>']
+    assert text[:2] == ['Ana & Compañía <CR>', 'Firmado digitalmente']
+    assert text[3] == 'Representación gráfica. Verifique la validez.'
     assert re.fullmatch(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}', text[2]), text[2]
     assert datetime.fromisoformat(text[2]).tzinfo is not None
     del env['SIGN_APPEARANCE_TEST_PREVIEW']

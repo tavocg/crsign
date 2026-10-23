@@ -42,4 +42,7 @@ with tempfile.TemporaryDirectory(prefix='crsign-gui-signing-') as directory:
         report = json.loads(result.stdout)
         assert report['signature_valid'] and report['trusted'], report
     assert b'/Subtype /Image' in (root/'page-signed.pdf').read_bytes()
+    env['SIGN_FLOW_TEST_NO_TOKEN']='1'
+    env['SIGN_FLOW_TEST_ANCHOR']=str(root/'unused-anchor.der')
+    subprocess.run([sys.argv[1], str(root), sys.argv[3], 'no-token'], env=env, check=True, timeout=20)
 print('GTK signing, PDF placement, image formats, PIN dialog and real verification passed')

@@ -3,6 +3,7 @@
 #include <glib/gstdio.h>
 #include <math.h>
 #include <sign/gui/i18n.h>
+#include <sign/gui/pdf_reader.h>
 #include <sign/gui/pdf_view.h>
 #include <sign/gui/signing.h>
 
@@ -79,7 +80,13 @@ static void mouse_place(GtkWidget* window, SignSigning* self, bool drag) {
 	GtkWidget*      canvas = named(GTK_WIDGET(self), "sign-pdf-canvas");
 	graphene_rect_t bounds;
 	g_assert_true(gtk_widget_compute_bounds(canvas, window, &bounds));
-	int   x = (int)bounds.origin.x + 80, y = (int)bounds.origin.y + 90;
+	graphene_rect_t page;
+	SignPdfReader*  reader = SIGN_PDF_READER(
+        find_widget(GTK_WIDGET(self), SIGN_TYPE_PDF_READER)
+    );
+	g_assert_true(sign_pdf_reader_page_bounds(reader, 1, &page));
+	int x = (int)(bounds.origin.x + page.origin.x) + 40,
+	    y = (int)(bounds.origin.y + page.origin.y) + 40;
 	char* command = drag ? g_strdup_printf(
 	                           "%s mousemove --window %s %d %d mousedown 1 "
 	                           "mousemove --window %s %d %d mouseup 1",
@@ -111,8 +118,166 @@ static void mouse_place(GtkWidget* window, SignSigning* self, bool drag) {
 	g_free(id);
 	g_free(tool);
 }
+static void zoom_input(GtkWidget* window, SignSigning* self) {
+	char* tool = g_find_program_in_path("xdotool");
+	if (!tool) {
+		return;
+	}
+	char* id = NULL;
+	int   status = 0;
+	char* args[] = {tool, "search", "--name", "^CRSign Signing Test$", NULL};
+	g_assert_true(g_spawn_sync(
+	    NULL,
+	    args,
+	    NULL,
+	    G_SPAWN_DEFAULT,
+	    NULL,
+	    NULL,
+	    &id,
+	    NULL,
+	    &status,
+	    NULL
+	));
+	g_strstrip(id);
+	SignPdfReader* reader = SIGN_PDF_READER(
+	    find_widget(GTK_WIDGET(self), SIGN_TYPE_PDF_READER)
+	);
+	graphene_rect_t before, after, canvas;
+	g_assert_true(sign_pdf_reader_page_bounds(reader, 1, &before));
+	char* cmd = g_strdup_printf(
+	    "%s windowfocus --sync %s key ctrl+plus",
+	    tool,
+	    id
+	);
+	g_assert_true(g_spawn_command_line_sync(cmd, NULL, NULL, &status, NULL));
+	g_free(cmd);
+	settle();
+	g_assert_true(sign_pdf_reader_page_bounds(reader, 1, &after));
+	g_assert_cmpfloat(after.size.width, >, before.size.width);
+	cmd = g_strdup_printf("%s key ctrl+minus", tool);
+	g_assert_true(g_spawn_command_line_sync(cmd, NULL, NULL, &status, NULL));
+	g_free(cmd);
+	settle();
+	g_assert_true(sign_pdf_reader_page_bounds(reader, 1, &after));
+	g_assert_cmpfloat(fabs(after.size.width - before.size.width), <, .01);
+	g_assert_true(gtk_widget_compute_bounds(
+	    named(GTK_WIDGET(self), "sign-pdf-scroll"),
+	    window,
+	    &canvas
+	));
+	GtkScrolledWindow* scroll = GTK_SCROLLED_WINDOW(
+	    named(GTK_WIDGET(self), "sign-pdf-scroll")
+	);
+	GtkAdjustment* vertical = gtk_scrolled_window_get_vadjustment(scroll);
+	int            pointer_x = (int)(before.origin.x + before.size.width / 2),
+	    pointer_y = (int)(before.origin.y + before.size.height * .4);
+	double original_y = (gtk_adjustment_get_value(vertical) + pointer_y -
+	                     before.origin.y) /
+	                    before.size.height;
+	cmd = g_strdup_printf(
+	    "%s mousemove --window %s %d %d keydown ctrl click 4 keyup ctrl",
+	    tool,
+	    id,
+	    (int)canvas.origin.x + pointer_x,
+	    (int)canvas.origin.y + pointer_y
+	);
+	g_assert_true(g_spawn_command_line_sync(cmd, NULL, NULL, &status, NULL));
+	g_free(cmd);
+	settle();
+	g_assert_true(sign_pdf_reader_page_bounds(reader, 1, &after));
+	g_assert_cmpfloat(after.size.width, >, before.size.width);
+	double zoomed_y = (gtk_adjustment_get_value(vertical) + pointer_y -
+	                   after.origin.y) /
+	                  after.size.height;
+	g_assert_cmpfloat(fabs(zoomed_y - original_y), <, .005);
+	cmd = g_strdup_printf("%s keydown ctrl click 5 keyup ctrl", tool);
+	g_assert_true(g_spawn_command_line_sync(cmd, NULL, NULL, &status, NULL));
+	g_free(cmd);
+	settle();
+	g_assert_true(sign_pdf_reader_page_bounds(reader, 1, &after));
+	g_assert_cmpfloat(fabs(after.size.width - before.size.width), <, .01);
+	g_free(id);
+	g_free(tool);
+}
+static void move_stamp(GtkWidget* window, SignSigning* self) {
+	char* tool = g_find_program_in_path("xdotool");
+	if (!tool) {
+		return;
+	}
+	char* id = NULL;
+	int   status = 0;
+	char* args[] = {tool, "search", "--name", "^CRSign Signing Test$", NULL};
+	g_assert_true(g_spawn_sync(
+	    NULL,
+	    args,
+	    NULL,
+	    G_SPAWN_DEFAULT,
+	    NULL,
+	    NULL,
+	    &id,
+	    NULL,
+	    &status,
+	    NULL
+	));
+	g_strstrip(id);
+	SignPdfReader* reader = SIGN_PDF_READER(
+	    find_widget(GTK_WIDGET(self), SIGN_TYPE_PDF_READER)
+	);
+	const libssig_pdf_appearance* a = sign_signing_appearance(self, 0);
+	libssig_pdf_appearance        saved = *a;
+	graphene_rect_t               bounds, page;
+	g_assert_true(sign_pdf_reader_page_bounds(reader, a->page_number, &page));
+	g_assert_true(gtk_widget_compute_bounds(
+	    named(GTK_WIDGET(self), "sign-pdf-canvas"),
+	    window,
+	    &bounds
+	));
+	double zoom = page.size.width / 612.;
+	int    x = (int)(bounds.origin.x + page.origin.x +
+                  (a->x + a->width / 2) * zoom),
+	    y = (int)(bounds.origin.y + page.origin.y +
+	              (a->y + a->height / 2) * zoom);
+	char* cmd = g_strdup_printf(
+	    "%s mousemove --window %s %d %d mousedown 1 mousemove --window %s %d "
+	    "%d mouseup 1",
+	    tool,
+	    id,
+	    x,
+	    y,
+	    id,
+	    x + 50,
+	    y + 40
+	);
+	g_assert_true(g_spawn_command_line_sync(cmd, NULL, NULL, &status, NULL));
+	g_free(cmd);
+	settle();
+	g_assert_cmpfloat(a->x, >, saved.x);
+	g_assert_cmpfloat(a->y, >, saved.y);
+	g_assert_cmpfloat(a->width, ==, saved.width);
+	g_assert_cmpfloat(a->height, ==, saved.height);
+	/* Dragging beyond a page edge clamps the origin without resizing. */
+	x += 50;
+	y += 40;
+	cmd = g_strdup_printf(
+	    "%s mousemove --window %s %d %d mousedown 1 mousemove --window %s 1 1 "
+	    "mouseup 1",
+	    tool,
+	    id,
+	    x,
+	    y,
+	    id
+	);
+	g_assert_true(g_spawn_command_line_sync(cmd, NULL, NULL, &status, NULL));
+	g_free(cmd);
+	settle();
+	g_assert_cmpfloat(a->x, ==, 0);
+	g_assert_cmpfloat(a->y, ==, 0);
+	g_assert_cmpfloat(a->width, ==, saved.width);
+	g_free(id);
+	g_free(tool);
+}
 int main(int argc, char** argv) {
-	g_assert_cmpint(argc, ==, 3);
+	g_assert_true(argc == 3 || argc == 4);
 	gui_i18n_init();
 	adw_init();
 	g_mkdir_with_parents(argv[2], 0700);
@@ -133,6 +298,40 @@ int main(int argc, char** argv) {
 	settle();
 	g_assert_cmpuint(sign_signing_count(self), ==, 0);
 	snapshot(window, argv[2], "sign-empty.png");
+	if (argc == 4) {
+		char* input = g_build_filename(argv[1], "no-token.bin", NULL);
+		g_assert_true(g_file_set_contents(input, "test", -1, NULL));
+		add(self, input);
+		sign_signing_run(self);
+		wait_done(self);
+		GtkWidget* dialog = NULL;
+		for (GList* n = gtk_application_get_windows(GTK_APPLICATION(app)); n;
+		     n = n->next) {
+			if (!strcmp(gtk_widget_get_name(n->data), "sign-error-dialog")) {
+				dialog = n->data;
+			}
+		}
+		g_assert_nonnull(dialog);
+		g_assert_false(
+		    gtk_widget_get_visible(named(GTK_WIDGET(self), "sign-notice"))
+		);
+		GtkWidget* label = find_widget(dialog, GTK_TYPE_LABEL);
+		g_assert_nonnull(label);
+		g_assert_true(g_str_has_prefix(
+		    gtk_label_get_text(GTK_LABEL(label)),
+		    "No se encontró ningún dispositivo de firma."
+		));
+		g_assert_null(
+		    strstr(gtk_label_get_text(GTK_LABEL(label)), "documents[")
+		);
+		snapshot(dialog, argv[2], "sign-no-device.png");
+		g_signal_emit_by_name(named(dialog, "error-close"), "clicked");
+		gtk_window_destroy(GTK_WINDOW(window));
+		settle();
+		g_object_unref(app);
+		g_free(input);
+		return 0;
+	}
 	char*              pdf = g_build_filename(argv[1], "page.pdf", NULL);
 	char*              payload = g_build_filename(argv[1], "payload.bin", NULL);
 	char*              image = g_build_filename(argv[1], "image.svg", NULL);
@@ -172,18 +371,26 @@ int main(int argc, char** argv) {
 	g_object_unref(dropped);
 	wait_done(self);
 	g_assert_true(sign_signing_is_reader(self));
+	g_assert_false(
+	    gtk_widget_get_visible(named(GTK_WIDGET(self), "sign-profile-image"))
+	);
 	settle();
+	zoom_input(window, self);
 	mouse_place(window, self, false);
 	sign_signing_remove_appearance(self);
 	mouse_place(window, self, true);
 	sign_signing_remove_appearance(self);
 	sign_signing_set_image(self, image);
 	wait_done(self);
+	g_assert_true(
+	    gtk_widget_get_visible(named(GTK_WIDGET(self), "sign-profile-image"))
+	);
 	g_assert_true(sign_signing_place(self, 30, 40, 0, 0, &error));
 	g_assert_no_error(error);
 	const libssig_pdf_appearance* a = sign_signing_appearance(self, 0);
 	g_assert_cmpfloat(a->width, ==, 144);
 	g_assert_cmpfloat(a->height, ==, 72);
+	move_stamp(window, self);
 	g_assert_true(sign_signing_place(self, 30, 40, 1, 1, &error));
 	g_assert_cmpfloat(a->width, ==, 24);
 	g_assert_cmpfloat(a->height, ==, 12);
@@ -199,6 +406,71 @@ int main(int argc, char** argv) {
 	snapshot(window, argv[2], "sign-reader-narrow.png");
 	gtk_window_set_default_size(GTK_WINDOW(window), 820, 760);
 	snapshot(window, argv[2], "sign-reader.png");
+	SignPdfReader* reader = SIGN_PDF_READER(
+	    find_widget(GTK_WIDGET(self), SIGN_TYPE_PDF_READER)
+	);
+	GtkScrolledWindow* scroll = GTK_SCROLLED_WINDOW(
+	    named(GTK_WIDGET(self), "sign-pdf-scroll")
+	);
+	GtkAdjustment*  adjustment = gtk_scrolled_window_get_vadjustment(scroll);
+	graphene_rect_t first, before, after;
+	g_assert_true(sign_pdf_reader_page_bounds(reader, 1, &first));
+	g_assert_cmpfloat(
+	    first.size.height,
+	    <=,
+	    gtk_widget_get_height(GTK_WIDGET(scroll))
+	);
+	g_assert_true(sign_pdf_reader_page_bounds(reader, 2, &before));
+	libssig_pdf_appearance saved = *a;
+	g_signal_emit_by_name(named(GTK_WIDGET(self), "sign-zoom-in"), "clicked");
+	settle();
+	g_assert_true(sign_pdf_reader_page_bounds(reader, 2, &after));
+	g_assert_cmpfloat(after.size.width, >, before.size.width);
+	g_assert_cmpfloat(a->x, ==, saved.x);
+	g_assert_cmpfloat(a->width, ==, saved.width);
+	g_signal_emit_by_name(named(GTK_WIDGET(self), "sign-zoom-out"), "clicked");
+	settle();
+	g_assert_true(sign_pdf_reader_page_bounds(reader, 2, &after));
+	g_assert_cmpfloat(fabs(after.size.width - before.size.width), <, .01);
+	gtk_adjustment_set_value(adjustment, 0);
+	settle();
+	g_assert_cmpint(
+	    gtk_spin_button_get_value_as_int(
+	        GTK_SPIN_BUTTON(named(GTK_WIDGET(self), "sign-page"))
+	    ),
+	    ==,
+	    1
+	);
+	gtk_adjustment_set_value(adjustment, gtk_adjustment_get_upper(adjustment));
+	settle();
+	g_assert_cmpint(
+	    gtk_spin_button_get_value_as_int(
+	        GTK_SPIN_BUTTON(named(GTK_WIDGET(self), "sign-page"))
+	    ),
+	    ==,
+	    2
+	);
+	g_assert_true(gtk_widget_get_visible(
+	    named(GTK_WIDGET(self), "sign-remove-appearance")
+	));
+	snapshot(window, argv[2], "sign-continuous.png");
+	GtkWidget* remove = named(GTK_WIDGET(self), "sign-remove-appearance");
+	g_assert_cmpint(
+	    gtk_widget_get_width(remove),
+	    ==,
+	    gtk_widget_get_height(remove)
+	);
+	adw_style_manager_set_color_scheme(
+	    adw_style_manager_get_default(),
+	    ADW_COLOR_SCHEME_FORCE_DARK
+	);
+	snapshot(window, argv[2], "sign-continuous-dark.png");
+	g_assert_cmpint(
+	    gtk_widget_get_width(remove),
+	    ==,
+	    gtk_widget_get_height(remove)
+	);
+
 	sign_signing_remove_appearance(self);
 	g_assert_cmpuint(a->page_number, ==, 0);
 	/* Both raster decoders feed the same physical geometry as SVG. */

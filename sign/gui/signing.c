@@ -2,8 +2,10 @@
 #include <math.h>
 #include <sign/appearance.h>
 #include <sign/config.h>
+#include <sign/gui/error.h>
 #include <sign/gui/file_drop.h>
 #include <sign/gui/i18n.h>
+#include <sign/gui/pdf_reader.h>
 #include <sign/gui/pdf_view.h>
 #include <sign/gui/signing.h>
 #include <sign/pin.h>
@@ -14,21 +16,22 @@
 
 typedef struct {
 	gint                   references;
-	char *                 path, *image;
+	char *                 path, *image, *profile_image;
 	bool                   image_set, checked;
 	sign_pdf_document*     pdf;
 	libssig_pdf_appearance appearance;
-	GtkWidget *            row, *dot;
+	GtkWidget *            row, *warning;
 } signing_item;
 struct _SignSigning {
-	GtkBox       parent_instance;
-	GPtrArray *  items, *profile_ids;
-	GtkDropDown* profiles;
-	GtkStack*    modes;
-	GtkListBox*  list;
-	GtkWidget *  canvas, *remove_image, *image_button, *default_button;
-	GtkWidget *  continue_button, *sign_button, *warning, *add, *back, *spinner;
-	GtkLabel *   notice, *filename, *page_count;
+	GtkBox         parent_instance;
+	GPtrArray *    items, *profile_ids;
+	GtkDropDown*   profiles;
+	GtkStack*      modes;
+	GtkListBox*    list;
+	GtkWidget *    canvas, *image_button, *default_button;
+	SignPdfReader* reader;
+	GtkWidget *continue_button, *sign_button, *warning, *add, *back, *spinner;
+	GtkLabel * notice, *filename, *page_count;
 	GtkSpinButton*   page;
 	signing_item*    current;
 	cairo_surface_t *surface, *stamp;
@@ -36,8 +39,7 @@ struct _SignSigning {
 	GtkWindow*       pin_window;
 	unsigned int     revision, page_number;
 	double           page_width, page_height, ratio;
-	bool             updating, loading, busy, closing, dragging;
-	double           drag_x, drag_y, drag_dx, drag_dy;
+	bool             updating, loading, busy, closing;
 };
 G_DEFINE_TYPE(SignSigning, sign_signing, GTK_TYPE_BOX)
 
@@ -52,12 +54,23 @@ static void item_unref(gpointer data) {
 	}
 	g_free(item->path);
 	g_free(item->image);
+	g_free(item->profile_image);
 	sign_pdf_unref(item->pdf);
 	g_free(item);
 }
 static void message(SignSigning* self, const char* text) {
 	gtk_label_set_text(self->notice, text ? text : "");
 	gtk_widget_set_visible(GTK_WIDGET(self->notice), text && *text);
+}
+static GtkWindow* parent_window(SignSigning* self);
+static void       report_error(
+          SignSigning*      self,
+          const GError*     error,
+          gui_error_context context
+      ) {
+	char* text = gui_error_message(error, context);
+	message(self, text);
+	g_free(text);
 }
 static const char* profile(SignSigning* self) {
 	guint index = gtk_drop_down_get_selected(self->profiles);
@@ -71,13 +84,17 @@ static void controls(SignSigning* self) {
 		signing_item* item = g_ptr_array_index(self->items, n);
 		bool          empty = !item->appearance.page_number;
 		missing |= empty;
-		gtk_widget_set_visible(item->dot, empty);
+		gtk_widget_set_visible(item->warning, empty);
 	}
 	gtk_widget_set_visible(self->warning, missing);
 	gtk_widget_set_sensitive(
 	    self->sign_button,
 	    self->items->len && !self->busy && !self->loading
 	);
+	bool reader = sign_signing_is_reader(self);
+	gtk_widget_set_visible(self->add, !reader);
+	gtk_widget_set_vexpand(self->add, !self->items->len);
+	gtk_widget_set_visible(GTK_WIDGET(self->modes), self->items->len > 0);
 	gtk_widget_set_sensitive(self->add, !self->busy);
 	gtk_widget_set_sensitive(GTK_WIDGET(self->profiles), !self->busy);
 	gtk_widget_set_sensitive(
@@ -95,6 +112,11 @@ static void controls(SignSigning* self) {
 	gtk_widget_set_sensitive(
 	    self->image_button,
 	    !self->loading && !self->busy && self->surface
+	);
+	gtk_widget_set_visible(
+	    self->default_button,
+	    self->current && self->current->image_set &&
+	        g_strcmp0(self->current->image, self->current->profile_image) != 0
 	);
 	gtk_widget_set_sensitive(
 	    self->default_button,
@@ -121,124 +143,33 @@ static void controls(SignSigning* self) {
 		gtk_spinner_stop(GTK_SPINNER(self->spinner));
 	}
 }
-static double scale(SignSigning* self) {
-	return self->page_width > 0
-	           ? MAX(1, gtk_widget_get_width(self->canvas) - 32) /
-	                 self->page_width
-	           : 1;
-}
-static void position_remove(SignSigning* self) {
-	const libssig_pdf_appearance* a = self->current ? &self->current->appearance
-	                                                : NULL;
-	bool visible = !self->loading && a && a->page_number == self->page_number &&
-	               self->surface;
-	gtk_widget_set_visible(self->remove_image, visible);
-	if (visible) {
-		gtk_widget_set_margin_start(
-		    self->remove_image,
-		    MAX(0, (int)floor(16 + (a->x + a->width) * scale(self)) - 26)
-		);
-		gtk_widget_set_margin_top(
-		    self->remove_image,
-		    MAX(0, (int)floor(16 + a->y * scale(self)))
-		);
-	}
-}
 static void redraw(SignSigning* self) {
-	position_remove(self);
-	gtk_widget_queue_draw(self->canvas);
+	sign_pdf_reader_set_stamp(
+	    self->reader,
+	    self->loading ? NULL : self->stamp,
+	    self->current ? &self->current->appearance : NULL
+	);
 	controls(self);
 }
-static void paint_surface(
-    cairo_t*         cr,
-    cairo_surface_t* surface,
-    double           x,
-    double           y,
-    double           width,
-    double           height
+static void reader_page(
+    SignPdfReader* reader,
+    unsigned int   page,
+    gpointer       data
 ) {
-	cairo_save(cr);
-	cairo_translate(cr, x, y);
-	cairo_scale(
-	    cr,
-	    width / cairo_image_surface_get_width(surface),
-	    height / cairo_image_surface_get_height(surface)
-	);
-	cairo_set_source_surface(cr, surface, 0, 0);
-	cairo_paint(cr);
-	cairo_restore(cr);
-}
-static void draw(
-    GtkDrawingArea* area,
-    cairo_t*        cr,
-    int             width,
-    int             height,
-    gpointer        data
-) {
-	(void)area;
-	(void)height;
+	(void)reader;
 	SignSigning* self = data;
-	if (!self->surface || self->loading) {
-		return;
-	}
-	double zoom = MAX(1, width - 32) / self->page_width;
-	paint_surface(
-	    cr,
-	    self->surface,
-	    16,
-	    16,
-	    self->page_width * zoom,
-	    self->page_height * zoom
-	);
-	libssig_pdf_appearance* a = &self->current->appearance;
-	if (self->stamp && a->page_number == self->page_number) {
-		paint_surface(
-		    cr,
-		    self->stamp,
-		    16 + a->x * zoom,
-		    16 + a->y * zoom,
-		    a->width * zoom,
-		    a->height * zoom
-		);
-		cairo_set_source_rgb(cr, .15, .45, .85);
-		cairo_set_line_width(cr, 2);
-		cairo_rectangle(
-		    cr,
-		    16 + a->x * zoom,
-		    16 + a->y * zoom,
-		    a->width * zoom,
-		    a->height * zoom
-		);
-		cairo_stroke(cr);
-	}
-	if (self->dragging) {
-		double x = self->drag_x + MIN(0, self->drag_dx),
-		       y = self->drag_y + MIN(0, self->drag_dy);
-		cairo_set_source_rgba(cr, .2, .5, .9, .2);
-		cairo_rectangle(cr, x, y, fabs(self->drag_dx), fabs(self->drag_dy));
-		cairo_fill_preserve(cr);
-		cairo_set_source_rgb(cr, .15, .45, .85);
-		cairo_set_line_width(cr, 2);
-		cairo_stroke(cr);
-	}
-}
-static void resized(
-    GtkDrawingArea* area,
-    int             width,
-    int             height,
-    gpointer        data
-) {
-	(void)height;
-	SignSigning* self = data;
-	if (self->page_width > 0) {
-		gtk_drawing_area_set_content_height(
-		    area,
-		    (int)ceil(
-		        MAX(1, width - 32) * self->page_height / self->page_width
-		    ) + 32
+	self->page_number = page;
+	if (self->current && self->current->pdf) {
+		sign_pdf_size(
+		    self->current->pdf,
+		    page,
+		    &self->page_width,
+		    &self->page_height
 		);
 	}
-	position_remove(self);
+	self->updating = true;
+	gtk_spin_button_set_value(self->page, page);
+	self->updating = false;
 }
 bool sign_signing_place(
     SignSigning* self,
@@ -252,7 +183,7 @@ bool sign_signing_place(
 	    self->busy) {
 		g_set_error_literal(
 		    error,
-		    G_IO_ERROR,
+		    SIGN_GUI_ERROR,
 		    G_IO_ERROR_PENDING,
 		    _("Wait for the PDF preview to finish loading")
 		);
@@ -277,71 +208,22 @@ bool sign_signing_place(
 	redraw(self);
 	return true;
 }
-static void drag_begin(
-    GtkGestureDrag* gesture,
-    double          x,
-    double          y,
-    gpointer        data
+static void reader_place(
+    SignPdfReader* reader,
+    unsigned int   page,
+    double         x,
+    double         y,
+    double         w,
+    double         h,
+    gpointer       data
 ) {
-	(void)gesture;
 	SignSigning* self = data;
-	if (self->loading || !self->surface || self->busy) {
-		return;
-	}
-	double zoom = scale(self);
-	if (x < 16 || y < 16 || x > 16 + self->page_width * zoom ||
-	    y > 16 + self->page_height * zoom) {
-		return;
-	}
-	self->dragging = true;
-	self->drag_x = x;
-	self->drag_y = y;
-	self->drag_dx = self->drag_dy = 0;
-}
-static void drag_update(
-    GtkGestureDrag* gesture,
-    double          x,
-    double          y,
-    gpointer        data
-) {
-	(void)gesture;
-	SignSigning* self = data;
-	if (!self->dragging) {
-		return;
-	}
-	self->drag_dx = x;
-	self->drag_dy = y;
-	gtk_widget_queue_draw(self->canvas);
-}
-static void drag_end(
-    GtkGestureDrag* gesture,
-    double          dx,
-    double          dy,
-    gpointer        data
-) {
-	(void)gesture;
-	SignSigning* self = data;
-	if (!self->dragging) {
-		return;
-	}
-	self->dragging = false;
-	double zoom = scale(self), x = (self->drag_x - 16) / zoom,
-	       y = (self->drag_y - 16) / zoom;
-	double width = 0, height = 0;
-	if (hypot(dx, dy) >= 4) {
-		double end_x = CLAMP(x + dx / zoom, 0, self->page_width),
-		       end_y = CLAMP(y + dy / zoom, 0, self->page_height);
-		width = fabs(end_x - x);
-		height = fabs(end_y - y);
-		x = MIN(x, end_x);
-		y = MIN(y, end_y);
-	}
+	reader_page(reader, page, self);
 	GError* error = NULL;
-	if (!sign_signing_place(self, x, y, width, height, &error)) {
-		message(self, error->message);
+	if (!sign_signing_place(self, x, y, w, h, &error)) {
+		report_error(self, error, GUI_ERROR_FILES);
 		g_clear_error(&error);
 	}
-	redraw(self);
 }
 void sign_signing_remove_appearance(SignSigning* self) {
 	if (self->current && !self->busy) {
@@ -349,7 +231,7 @@ void sign_signing_remove_appearance(SignSigning* self) {
 		redraw(self);
 	}
 }
-static void remove_appearance(GtkButton* button, gpointer data) {
+static void remove_appearance(SignPdfReader* button, gpointer data) {
 	(void)button;
 	sign_signing_remove_appearance(data);
 }
@@ -357,7 +239,7 @@ static void remove_appearance(GtkButton* button, gpointer data) {
 typedef struct {
 	signing_item*          item;
 	sign_pdf_document*     pdf;
-	char *                 profile, *image;
+	char *                 profile, *image, *profile_image;
 	bool                   image_set, override;
 	unsigned int           page, revision;
 	cairo_surface_t *      surface, *stamp;
@@ -370,6 +252,7 @@ static void preview_free(gpointer data) {
 	sign_pdf_unref(job->pdf);
 	g_free(job->profile);
 	g_free(job->image);
+	g_free(job->profile_image);
 	if (job->surface) {
 		cairo_surface_destroy(job->surface);
 	}
@@ -410,13 +293,15 @@ static void preview_worker(
 	if (!config_load(&settings, job->profile, detail, sizeof(detail))) {
 		g_task_return_new_error(
 		    task,
-		    G_IO_ERROR,
+		    SIGN_GUI_ERROR,
 		    G_IO_ERROR_INVALID_DATA,
 		    "%s",
-		    detail
+		    _("The signing profile could not be loaded. Check the "
+		      "configuration in Settings.")
 		);
 		return;
 	}
+	job->profile_image = g_strdup(settings.options.appearance_file);
 	if (!job->image_set) {
 		g_free(job->image);
 		job->image = g_strdup(settings.options.appearance_file);
@@ -467,7 +352,7 @@ static void preview_worker(
 	if (!ok && !error) {
 		g_set_error_literal(
 		    &error,
-		    G_IO_ERROR,
+		    SIGN_GUI_ERROR,
 		    G_IO_ERROR_INVALID_DATA,
 		    _("Cannot preview this signature image")
 		);
@@ -495,7 +380,7 @@ static void preview_finished(
 	}
 	self->loading = false;
 	if (!ok) {
-		message(self, error->message);
+		report_error(self, error, GUI_ERROR_PDF);
 		g_clear_error(&error);
 		if (!self->surface) {
 			sign_signing_show_queue(self);
@@ -511,6 +396,8 @@ static void preview_finished(
 		item->checked = true;
 		g_free(item->image);
 		item->image = g_strdup(job->image);
+		g_free(item->profile_image);
+		item->profile_image = g_strdup(job->profile_image);
 		item->image_set = true;
 		item->appearance = job->appearance;
 		if (self->surface) {
@@ -538,11 +425,11 @@ static void preview_finished(
 		char* text = g_strdup_printf(_("of %u"), sign_pdf_pages(item->pdf));
 		gtk_label_set_text(self->page_count, text);
 		g_free(text);
-		resized(
-		    GTK_DRAWING_AREA(self->canvas),
-		    gtk_widget_get_width(self->canvas),
-		    0,
-		    self
+		sign_pdf_reader_set_document(
+		    self->reader,
+		    item->pdf,
+		    job->page,
+		    self->surface
 		);
 	}
 	redraw(self);
@@ -563,7 +450,6 @@ static void load_preview(
 	self->preview = g_cancellable_new();
 	self->loading = true;
 	++self->revision;
-	self->dragging = false;
 	preview_job* job = g_new0(preview_job, 1);
 	job->item = item_ref(self->current);
 	job->pdf = sign_pdf_ref(self->current->pdf);
@@ -612,6 +498,7 @@ void sign_signing_open_document(SignSigning* self, size_t index) {
 		return;
 	}
 	self->current = item;
+	sign_pdf_reader_set_document(self->reader, NULL, 0, NULL);
 	if (self->surface) {
 		cairo_surface_destroy(self->surface);
 		self->surface = NULL;
@@ -632,7 +519,7 @@ void sign_signing_open_document(SignSigning* self, size_t index) {
 	);
 }
 void sign_signing_show_queue(SignSigning* self) {
-	gtk_label_set_text(self->filename, _("Documents to sign"));
+
 	gtk_stack_set_visible_child_name(
 	    self->modes,
 	    self->items->len ? "queue" : "empty"
@@ -642,7 +529,8 @@ void sign_signing_show_queue(SignSigning* self) {
 void sign_signing_set_page(SignSigning* self, unsigned int page) {
 	if (self->current && self->current->pdf && page &&
 	    page <= sign_pdf_pages(self->current->pdf)) {
-		load_preview(self, page, NULL, false);
+		sign_pdf_reader_goto(self->reader, page);
+		reader_page(self->reader, page, self);
 	}
 }
 void sign_signing_set_image(SignSigning* self, const char* file) {
@@ -749,9 +637,11 @@ void sign_signing_add_files(SignSigning* self, GListModel* files) {
 		adw_action_row_set_subtitle(ADW_ACTION_ROW(item->row), display);
 		g_free(display);
 		gtk_list_box_row_set_activatable(GTK_LIST_BOX_ROW(item->row), TRUE);
-		item->dot = gtk_label_new("●");
-		gtk_widget_add_css_class(item->dot, "warning");
-		adw_action_row_add_suffix(ADW_ACTION_ROW(item->row), item->dot);
+		item->warning = gtk_image_new_from_icon_name("dialog-warning-symbolic");
+		gtk_widget_set_name(item->warning, "sign-document-warning");
+		gtk_widget_set_tooltip_text(item->warning, _("No graphical signature"));
+		gtk_widget_add_css_class(item->warning, "warning");
+		adw_action_row_add_suffix(ADW_ACTION_ROW(item->row), item->warning);
 		GtkWidget* remove = gtk_button_new_from_icon_name(
 		    "window-close-symbolic"
 		);
@@ -796,7 +686,7 @@ static void files_selected(
 	               GTK_DIALOG_ERROR_DISMISSED
 	           ) &&
 	           !g_error_matches(error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-		message(self, error->message);
+		report_error(self, error, GUI_ERROR_FILES);
 	}
 	g_clear_error(&error);
 	g_object_unref(self);
@@ -842,7 +732,7 @@ static void image_selected(
 	               GTK_DIALOG_ERROR_DISMISSED
 	           ) &&
 	           !g_error_matches(error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-		message(self, error->message);
+		report_error(self, error, GUI_ERROR_FILES);
 	}
 	if (file) {
 		g_object_unref(file);
@@ -901,7 +791,7 @@ static void drop_state(
 	SignSigning* self = SIGN_SIGNING(widget);
 	if (!self->closing && error &&
 	    !g_error_matches(error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
-		message(self, error->message);
+		report_error(self, error, GUI_ERROR_FILES);
 	}
 }
 
@@ -930,7 +820,7 @@ void sign_signing_reload_profiles(SignSigning* self) {
 	GError*           error = NULL;
 	sign_preferences* preferences = preferences_load(&error);
 	if (!preferences) {
-		message(self, error->message);
+		report_error(self, error, GUI_ERROR_SETTINGS);
 		g_clear_error(&error);
 		g_free(previous);
 		return;
@@ -1002,7 +892,13 @@ static sign_flow* build_items(
 ) {
 	char detail[512];
 	if (!config_load(settings, label, detail, sizeof(detail))) {
-		g_set_error_literal(error, G_IO_ERROR, G_IO_ERROR_INVALID_DATA, detail);
+		g_set_error_literal(
+		    error,
+		    SIGN_GUI_ERROR,
+		    G_IO_ERROR_INVALID_DATA,
+		    _("The signing profile could not be loaded. Check the "
+		      "configuration in Settings.")
+		);
 		return NULL;
 	}
 	sign_flow_item* documents = g_new0(sign_flow_item, items->len);
@@ -1280,7 +1176,7 @@ static bool request_pin(
 		if (!error || !*error) {
 			g_set_error_literal(
 			    error,
-			    G_IO_ERROR,
+			    SIGN_GUI_ERROR,
 			    G_IO_ERROR_CANCELLED,
 			    _("PIN entry was cancelled or unavailable")
 			);
@@ -1322,7 +1218,7 @@ static void run_worker(
 		if (exists) {
 			g_set_error(
 			    &error,
-			    G_IO_ERROR,
+			    SIGN_GUI_ERROR,
 			    G_IO_ERROR_EXISTS,
 			    _("Output already exists: %s"),
 			    options->output
@@ -1347,7 +1243,7 @@ static void run_worker(
 		if (!error) {
 			g_set_error_literal(
 			    &error,
-			    G_IO_ERROR,
+			    SIGN_GUI_ERROR,
 			    G_IO_ERROR_FAILED,
 			    _("Signing failed")
 			);
@@ -1387,7 +1283,17 @@ static void run_finished(GObject* source, GAsyncResult* result, gpointer data) {
 			message(self, text);
 			g_free(text);
 		} else {
-			message(self, error->message);
+			char* text = gui_error_message(error, GUI_ERROR_SIGNING);
+			message(self, NULL);
+			if (!g_error_matches(error, G_IO_ERROR, G_IO_ERROR_CANCELLED) &&
+			    !g_error_matches(error, SIGN_GUI_ERROR, G_IO_ERROR_CANCELLED)) {
+				gui_error_dialog(
+				    parent_window(self),
+				    _("Could not sign documents"),
+				    text
+				);
+			}
+			g_free(text);
 		}
 		controls(self);
 	}
@@ -1528,27 +1434,15 @@ static void sign_signing_init(SignSigning* self) {
 	    GTK_ORIENTATION_VERTICAL
 	);
 	gtk_box_set_spacing(GTK_BOX(self), 12);
-	gtk_widget_set_margin_start(GTK_WIDGET(self), 12);
-	gtk_widget_set_margin_end(GTK_WIDGET(self), 12);
-	gtk_widget_set_margin_top(GTK_WIDGET(self), 12);
-	gtk_widget_set_margin_bottom(GTK_WIDGET(self), 12);
-	GtkWidget* tools = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
-	self->add = icon_button(
-	    "list-add-symbolic",
-	    _("Add documents"),
-	    G_CALLBACK(choose_files),
-	    self
-	);
-	gtk_widget_set_name(self->add, "sign-add");
-	gtk_box_append(GTK_BOX(tools), self->add);
-	self->filename = GTK_LABEL(gtk_label_new(_("Documents to sign")));
+	gtk_widget_set_margin_start(GTK_WIDGET(self), 18);
+	gtk_widget_set_margin_end(GTK_WIDGET(self), 18);
+	gtk_widget_set_margin_top(GTK_WIDGET(self), 18);
+	gtk_widget_set_margin_bottom(GTK_WIDGET(self), 18);
+	self->filename = GTK_LABEL(gtk_label_new(NULL));
 	gtk_label_set_ellipsize(self->filename, PANGO_ELLIPSIZE_MIDDLE);
 	gtk_label_set_xalign(self->filename, 0);
 	gtk_widget_set_hexpand(GTK_WIDGET(self->filename), TRUE);
-	gtk_box_append(GTK_BOX(tools), GTK_WIDGET(self->filename));
 	self->spinner = gtk_spinner_new();
-	gtk_box_append(GTK_BOX(tools), self->spinner);
-	gtk_box_append(GTK_BOX(self), tools);
 	self->notice = GTK_LABEL(gtk_label_new(NULL));
 	gtk_widget_set_name(GTK_WIDGET(self->notice), "sign-notice");
 	gtk_label_set_wrap(self->notice, TRUE);
@@ -1568,17 +1462,29 @@ static void sign_signing_init(SignSigning* self) {
 	gtk_widget_set_halign(empty_box, GTK_ALIGN_CENTER);
 	gtk_widget_set_valign(empty_box, GTK_ALIGN_CENTER);
 	GtkWidget* icon = gtk_image_new_from_icon_name("document-edit-symbolic");
-	gtk_image_set_pixel_size(GTK_IMAGE(icon), 80);
+	gtk_image_set_pixel_size(GTK_IMAGE(icon), 48);
 	gtk_box_append(GTK_BOX(empty_box), icon);
-	GtkWidget* hint = gtk_label_new(
-	    _("Drop documents here or click to choose files")
-	);
+	GtkWidget* title = gtk_label_new(_("Drop files here to sign"));
+	gtk_widget_add_css_class(title, "title-2");
+	gtk_label_set_wrap(GTK_LABEL(title), TRUE);
+	gtk_box_append(GTK_BOX(empty_box), title);
+	GtkWidget* hint = gtk_label_new(_("Click to choose one or more files"));
+	gtk_widget_add_css_class(hint, "dim-label");
 	gtk_label_set_wrap(GTK_LABEL(hint), TRUE);
 	gtk_label_set_justify(GTK_LABEL(hint), GTK_JUSTIFY_CENTER);
 	gtk_box_append(GTK_BOX(empty_box), hint);
 	gtk_button_set_child(GTK_BUTTON(empty), empty_box);
 	g_signal_connect(empty, "clicked", G_CALLBACK(choose_files), self);
-	gtk_stack_add_named(self->modes, empty, "empty");
+	self->add = empty;
+	gtk_widget_set_size_request(empty, -1, 150);
+	gtk_widget_set_margin_top(empty_box, 24);
+	gtk_widget_set_margin_bottom(empty_box, 24);
+	gtk_box_prepend(GTK_BOX(self), empty);
+	gtk_stack_add_named(
+	    self->modes,
+	    gtk_box_new(GTK_ORIENTATION_VERTICAL, 0),
+	    "empty"
+	);
 	GtkWidget* queue = gtk_box_new(GTK_ORIENTATION_VERTICAL, 12);
 	GtkWidget* scroll = gtk_scrolled_window_new();
 	gtk_widget_set_vexpand(scroll, TRUE);
@@ -1633,6 +1539,8 @@ static void sign_signing_init(SignSigning* self) {
 	    self
 	);
 	gtk_box_append(GTK_BOX(reader_tools), self->back);
+	gtk_box_append(GTK_BOX(reader_tools), GTK_WIDGET(self->filename));
+	gtk_box_append(GTK_BOX(reader_tools), self->spinner);
 	self->image_button = icon_button(
 	    "insert-image-symbolic",
 	    _("Choose signature image"),
@@ -1647,51 +1555,31 @@ static void sign_signing_init(SignSigning* self) {
 	    G_CALLBACK(reset_image),
 	    self
 	);
+	gtk_widget_set_name(self->default_button, "sign-profile-image");
 	gtk_box_append(GTK_BOX(reader_tools), self->default_button);
 	gtk_box_append(GTK_BOX(reader), reader_tools);
-	GtkWidget* page_scroll = gtk_scrolled_window_new();
-	gtk_widget_set_vexpand(page_scroll, TRUE);
-	gtk_scrolled_window_set_policy(
-	    GTK_SCROLLED_WINDOW(page_scroll),
-	    GTK_POLICY_NEVER,
-	    GTK_POLICY_AUTOMATIC
+	self->reader = SIGN_PDF_READER(sign_pdf_reader_new());
+	gtk_widget_set_vexpand(GTK_WIDGET(self->reader), TRUE);
+	self->canvas = sign_pdf_reader_canvas(self->reader);
+	g_signal_connect(
+	    self->reader,
+	    "page-changed",
+	    G_CALLBACK(reader_page),
+	    self
 	);
-	GtkWidget* overlay = gtk_overlay_new();
-	self->canvas = gtk_drawing_area_new();
-	gtk_widget_set_name(self->canvas, "sign-pdf-canvas");
-	gtk_widget_set_hexpand(self->canvas, TRUE);
-	gtk_widget_set_cursor_from_name(self->canvas, "crosshair");
-	gtk_widget_set_tooltip_text(
-	    self->canvas,
-	    _("Click or drag to place the graphical signature")
+	g_signal_connect(
+	    self->reader,
+	    "placement-requested",
+	    G_CALLBACK(reader_place),
+	    self
 	);
-	gtk_drawing_area_set_draw_func(
-	    GTK_DRAWING_AREA(self->canvas),
-	    draw,
-	    self,
-	    NULL
-	);
-	g_signal_connect(self->canvas, "resize", G_CALLBACK(resized), self);
-	GtkGesture* drag = gtk_gesture_drag_new();
-	g_signal_connect(drag, "drag-begin", G_CALLBACK(drag_begin), self);
-	g_signal_connect(drag, "drag-update", G_CALLBACK(drag_update), self);
-	g_signal_connect(drag, "drag-end", G_CALLBACK(drag_end), self);
-	gtk_widget_add_controller(self->canvas, GTK_EVENT_CONTROLLER(drag));
-	gtk_overlay_set_child(GTK_OVERLAY(overlay), self->canvas);
-	self->remove_image = icon_button(
-	    "window-close-symbolic",
-	    _("Remove graphical signature"),
+	g_signal_connect(
+	    self->reader,
+	    "remove-appearance",
 	    G_CALLBACK(remove_appearance),
 	    self
 	);
-	gtk_widget_set_name(self->remove_image, "sign-remove-appearance");
-	gtk_widget_add_css_class(self->remove_image, "circular");
-	gtk_widget_set_halign(self->remove_image, GTK_ALIGN_START);
-	gtk_widget_set_valign(self->remove_image, GTK_ALIGN_START);
-	gtk_widget_set_visible(self->remove_image, FALSE);
-	gtk_overlay_add_overlay(GTK_OVERLAY(overlay), self->remove_image);
-	gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(page_scroll), overlay);
-	gtk_box_append(GTK_BOX(reader), page_scroll);
+	gtk_box_append(GTK_BOX(reader), GTK_WIDGET(self->reader));
 	GtkWidget* bottom = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
 	gtk_box_append(GTK_BOX(bottom), gtk_label_new(_("Page")));
 	self->page = GTK_SPIN_BUTTON(gtk_spin_button_new_with_range(1, 1, 1));

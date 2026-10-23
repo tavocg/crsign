@@ -57,6 +57,7 @@ char* appearance_text_svg(const char* name) {
 	    "sans-serif"
 	);
 	pango_font_description_set_absolute_size(font, 26 * PANGO_SCALE);
+	pango_font_description_set_weight(font, PANGO_WEIGHT_BOLD);
 	pango_layout_set_font_description(layout, font);
 	if (length > 0) {
 		pango_layout_set_text(layout, name, length);
@@ -86,13 +87,12 @@ char* appearance_text_svg(const char* name) {
 	    "viewBox='0 0 600 200'>"
 	    "<rect x='2' y='2' width='596' height='196' rx='12' fill='white' "
 	    "stroke='#24516c' stroke-width='4'/>"
-	    "<path d='M24 50l14 14 26-30' fill='none' stroke='#24516c' "
-	    "stroke-width='6'/>"
 	    "<g font-family='sans-serif' fill='#183747'>"
-	    "<text x='82' y='62' font-size='27' font-weight='bold'>Firmado "
-	    "digitalmente</text>"
-	    "<text x='24' y='116' font-size='%s'>%s</text>"
-	    "<text x='24' y='168' font-size='23'>%s</text></g></svg>",
+	    "<text x='24' y='43' font-size='%s' font-weight='bold'>%s</text>"
+	    "<text x='24' y='83' font-size='25'>Firmado digitalmente</text>"
+	    "<text x='24' y='124' font-size='23'>%s</text>"
+	    "<text x='24' y='172' font-size='17'>Representación gráfica. Verifique "
+	    "la validez.</text></g></svg>",
 	    font_size,
 	    escaped,
 	    date

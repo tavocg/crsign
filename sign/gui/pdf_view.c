@@ -2,6 +2,7 @@
 #include <math.h>
 #include <poppler.h>
 #include <qpdf/qpdf-c.h>
+#include <sign/gui/error.h>
 #include <sign/gui/i18n.h>
 #include <sign/gui/pdf_view.h>
 #include <stdint.h>
@@ -130,7 +131,7 @@ sign_pdf_document* sign_pdf_open(
 	if (!error || !*error) {
 		g_set_error_literal(
 		    error,
-		    G_IO_ERROR,
+		    SIGN_GUI_ERROR,
 		    G_IO_ERROR_INVALID_DATA,
 		    _("Cannot read PDF page geometry")
 		);
@@ -149,7 +150,7 @@ cairo_surface_t* sign_pdf_render(
 	if (!page || page > document->pages->len) {
 		g_set_error_literal(
 		    error,
-		    G_IO_ERROR,
+		    SIGN_GUI_ERROR,
 		    G_IO_ERROR_INVALID_ARGUMENT,
 		    _("Invalid page number")
 		);
@@ -188,7 +189,7 @@ cairo_surface_t* sign_pdf_render(
 	if (!error || !*error) {
 		g_set_error_literal(
 		    error,
-		    G_IO_ERROR,
+		    SIGN_GUI_ERROR,
 		    G_IO_ERROR_FAILED,
 		    _("Cannot render this PDF page")
 		);
@@ -233,7 +234,7 @@ bool sign_pdf_place(
 invalid:
 	g_set_error_literal(
 	    error,
-	    G_IO_ERROR,
+	    SIGN_GUI_ERROR,
 	    G_IO_ERROR_INVALID_ARGUMENT,
 	    _("The signature image cannot fit at this position")
 	);

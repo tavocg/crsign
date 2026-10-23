@@ -3,6 +3,7 @@
 #include <limits.h>
 #include <openssl/err.h>
 #include <openssl/pem.h>
+#include <sign/gui/error.h>
 #include <sign/gui/i18n.h>
 #include <sign/gui/inventory.h>
 #include <sign/trust.h>
@@ -122,7 +123,10 @@ static void check_trust(
 	sign_trust trust = {0};
 	GError*    error = NULL;
 	if (!trust_load_full(options, &trust, &error)) {
-		g_ptr_array_add(inventory->issues, g_strdup(error->message));
+		g_ptr_array_add(
+		    inventory->issues,
+		    gui_error_message(error, GUI_ERROR_DEVICES)
+		);
 		g_clear_error(&error);
 		X509_STORE_free(application);
 		application = NULL;
@@ -230,7 +234,7 @@ sign_device_inventory* sign_device_inventory_scan(
 	if (status != LIBSSIG_OK) {
 		g_set_error(
 		    error,
-		    G_IO_ERROR,
+		    SIGN_GUI_ERROR,
 		    G_IO_ERROR_FAILED,
 		    _("Cannot inspect devices (status %d)"),
 		    status
