@@ -38,8 +38,17 @@ char* appearance_default_svg(const libssig_certificate* cert) {
 		                         )
 		                     );
 	}
-	char* escaped = length > 0 ? g_markup_escape_text((const char*)name, length)
-	                           : NULL;
+	char* plain = length > 0 ? g_strndup((const char*)name, (gsize)length)
+	                         : NULL;
+	OPENSSL_free(name);
+	X509_free(x509);
+	char* svg = plain ? appearance_text_svg(plain) : NULL;
+	g_free(plain);
+	return svg;
+}
+char* appearance_text_svg(const char* name) {
+	int           length = (int)strlen(name);
+	char*         escaped = g_markup_escape_text(name, -1);
 	PangoContext* context = pango_font_map_create_context(
 	    pango_cairo_font_map_get_default()
 	);
@@ -50,7 +59,7 @@ char* appearance_default_svg(const libssig_certificate* cert) {
 	pango_font_description_set_absolute_size(font, 26 * PANGO_SCALE);
 	pango_layout_set_font_description(layout, font);
 	if (length > 0) {
-		pango_layout_set_text(layout, (const char*)name, length);
+		pango_layout_set_text(layout, name, length);
 	}
 	int name_width = 0;
 	pango_layout_get_pixel_size(layout, &name_width, NULL);
@@ -63,8 +72,7 @@ char* appearance_default_svg(const libssig_certificate* cert) {
 	pango_font_description_free(font);
 	g_object_unref(layout);
 	g_object_unref(context);
-	OPENSSL_free(name);
-	X509_free(x509);
+
 	if (!escaped) {
 		return NULL;
 	}
@@ -95,9 +103,30 @@ char* appearance_default_svg(const libssig_certificate* cert) {
 	return svg;
 }
 
-static bool dimensions(libssig_pdf_appearance* a, double width, double height) {
+static bool dimensions(
+    libssig_pdf_appearance* a,
+    double                  width,
+    double                  height,
+    bool                    preview
+) {
 	if (!isfinite(width) || !isfinite(height) || width <= 0 || height <= 0) {
 		return false;
+	}
+	if (preview) {
+		double ratio = width / height;
+		double low = fmax(
+		    SIGN_APPEARANCE_MIN_SIZE,
+		    SIGN_APPEARANCE_MIN_SIZE * ratio
+		);
+		double high = fmin(
+		    SIGN_APPEARANCE_MAX_SIZE,
+		    SIGN_APPEARANCE_MAX_SIZE * ratio
+		);
+		if (low > high) {
+			return false;
+		}
+		a->width = fmax(low, fmin(high, SIGN_APPEARANCE_DEFAULT_WIDTH));
+		a->height = 0;
 	}
 	if (a->height > 0) {
 		a->width = a->height * width / height;
@@ -117,7 +146,8 @@ static bool dimensions(libssig_pdf_appearance* a, double width, double height) {
 static bool svg_pixels(
     RsvgHandle*             svg,
     libssig_pdf_appearance* a,
-    unsigned char**         pixels
+    unsigned char**         pixels,
+    bool                    preview
 ) {
 	double width = 0, height = 0;
 	if (!rsvg_handle_get_intrinsic_size_in_pixels(svg, &width, &height)) {
@@ -138,7 +168,7 @@ static bool svg_pixels(
 		width = box.width;
 		height = box.height;
 	}
-	if (!dimensions(a, width, height)) {
+	if (!dimensions(a, width, height, preview)) {
 		return false;
 	}
 	int              w = (int)ceil(a->width * 4), h = (int)ceil(a->height * 4);
@@ -197,11 +227,12 @@ static void raster_size(
 	}
 }
 
-bool appearance_prepare(
-    const sign_options*           args,
+static bool prepare(
+    const sign_options*        args,
     const libssig_certificate* cert,
     libssig_pdf_appearance*    appearance,
-    unsigned char**            pixels
+    unsigned char**            pixels,
+    const char*                default_svg
 ) {
 	*appearance = args->appearance;
 	*pixels = NULL;
@@ -216,7 +247,9 @@ bool appearance_prepare(
 			return false;
 		}
 	} else {
-		source.data = (unsigned char*)appearance_default_svg(cert);
+		source.data = (unsigned char*)(default_svg
+		                                   ? g_strdup(default_svg)
+		                                   : appearance_default_svg(cert));
 		if (!source.data) {
 			fputs(
 			    "sign: cannot read the certificate name for the default mark; "
@@ -233,7 +266,7 @@ bool appearance_prepare(
 		svg = rsvg_handle_new_from_data(source.data, source.len, NULL);
 	}
 	if (svg) {
-		ok = svg_pixels(svg, appearance, pixels);
+		ok = svg_pixels(svg, appearance, pixels, default_svg != NULL);
 		g_object_unref(svg);
 	} else if (source.len <= 32 * 1024 * 1024) {
 		GdkPixbufLoader* loader = gdk_pixbuf_loader_new();
@@ -260,7 +293,7 @@ bool appearance_prepare(
 		if (oriented) {
 			int w = gdk_pixbuf_get_width(oriented),
 			    h = gdk_pixbuf_get_height(oriented);
-			ok = dimensions(appearance, w, h);
+			ok = dimensions(appearance, w, h, default_svg != NULL);
 			if (ok) {
 				int channels = gdk_pixbuf_get_n_channels(oriented);
 				int stride = gdk_pixbuf_get_rowstride(oriented);
@@ -293,4 +326,21 @@ bool appearance_prepare(
 	}
 	appearance->pixels = *pixels;
 	return ok;
+}
+
+bool appearance_prepare(
+    const sign_options*        args,
+    const libssig_certificate* cert,
+    libssig_pdf_appearance*    appearance,
+    unsigned char**            pixels
+) {
+	return prepare(args, cert, appearance, pixels, NULL);
+}
+bool appearance_preview(
+    const sign_options*     args,
+    const char*             default_svg,
+    libssig_pdf_appearance* appearance,
+    unsigned char**         pixels
+) {
+	return prepare(args, NULL, appearance, pixels, default_svg);
 }

@@ -84,7 +84,20 @@ int main(int argc, char** argv) {
 		g_clear_error(&error);
 		return 1;
 	}
-	if (!strcmp(argv[1], "parse")) {
+	if (!strcmp(argv[1], "build")) {
+		size_t          count = sign_flow_count(flow);
+		sign_flow_item* items = g_new0(sign_flow_item, count);
+		for (size_t n = 0; n < count; ++n) {
+			items[n] = *sign_flow_get_item(flow, n);
+		}
+		sign_flow* built = sign_flow_from_items(items, count, &error);
+		g_assert_no_error(error);
+		g_assert_nonnull(built);
+		g_free(items);
+		sign_flow_free(flow);
+		flow = built;
+	}
+	if (!strcmp(argv[1], "parse") || !strcmp(argv[1], "build")) {
 		char* serialized = sign_flow_to_json(flow, &error);
 		g_assert_nonnull(serialized);
 		puts(serialized);

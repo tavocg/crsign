@@ -86,6 +86,12 @@ bool sign_document_execute(
 		);
 	}
 	result->ck_rv = signature.ck_rv;
+	if (ok && execution && execution->cancellable) {
+		ok = !g_cancellable_set_error_if_cancelled(
+		    execution->cancellable,
+		    error
+		);
+	}
 	if (ok) {
 		ok = file_save(
 		    resolved.output,

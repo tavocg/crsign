@@ -178,9 +178,11 @@ tokens. No se leen archivos TOML ni se ejecutan comandos de PIN de forma implíc
 
 `sign_execution.request_pin` es un callback de ejecución. Solo se llama después
 de seleccionar un token que requiere PIN. Su búfer se borra y libera al finalizar
-el intento, también cuando el proveedor falla. No se conserva un PIN entre
-archivos ni se incluye en el flow serializado. La CLI adapta su proveedor actual
-de terminal/`pincmd` a esta misma interfaz; la futura GUI aportará su propio diálogo.
+el intento, también cuando el proveedor falla. El motor no conserva un PIN entre
+archivos ni lo incluye en el flow serializado. Un proveedor puede mantenerlo
+en memoria durante una ejecución para el mismo token, como hace la GUI, y
+debe borrarlo al terminar. La CLI adapta su proveedor actual de terminal/`pincmd`
+a esta misma interfaz; la GUI aporta su propio diálogo.
 Sin proveedor, un token que exige PIN produce un error sin abrir una terminal.
 Los tokens con ruta de autenticación protegida no llaman al proveedor.
 
@@ -203,5 +205,14 @@ g_clear_error(&error);
 ```
 
 El módulo comparte opciones, validación y ejecución de un archivo con la CLI,
-sin llamar a `arg_parse()` ni necesitar GTK para ejecutar un flow. Esta etapa
-no cambia todavía las vistas de la GUI.
+sin llamar a `arg_parse()` ni necesitar GTK para ejecutar un flow.
+`sign_flow_from_items()` permite construirlo directamente a partir de una lista
+de `sign_flow_item` con los mismos `sign_options`, sin mantener estructuras
+paralelas para JSON. Produce un snapshot independiente de las opciones y lo
+valida mediante el mismo esquema y resolución de rutas que el lector JSON.
+
+`sign_execution.cancellable` acepta un `GCancellable` opcional. La cancelación
+se comprueba antes de iniciar cada documento y antes de guardar una firma.
+No interrumpe una operación PKCS#11 que ya esté ejecutándose, pero descarta su
+resultado si se cancela antes de la escritura. El callback de PIN puede utilizar
+ese mismo objeto para cancelar su diálogo.

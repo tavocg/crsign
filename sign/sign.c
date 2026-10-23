@@ -197,6 +197,47 @@ static libssig_status token_sign(
 	return status;
 }
 
+void sign_identity_close(sign_identity* identity) {
+	libssig_certificates_free(&identity->certificates);
+	libssig_tokens_free(&identity->tokens);
+	libssig_context_close(&identity->context);
+	*identity = (sign_identity){0};
+}
+libssig_status sign_identity_open(
+    const sign_options* options,
+    sign_identity*      identity,
+    GError**            error
+) {
+	libssig_status status = modules_open(options, &identity->context);
+	if (status == LIBSSIG_OK) {
+		status = libssig_tokens(&identity->context, &identity->tokens, 0);
+	}
+	if (status == LIBSSIG_OK) {
+		identity->token = token_find(options, &identity->tokens, error);
+		if (!identity->token) {
+			status = LIBSSIG_ERROR_NOT_FOUND;
+		}
+	}
+	if (status == LIBSSIG_OK) {
+		status = libssig_certificates(
+		    &identity->context,
+		    identity->token,
+		    &identity->certificates,
+		    0
+		);
+	}
+	if (status == LIBSSIG_OK) {
+		identity->certificate = certificate_find(
+		    options,
+		    &identity->certificates,
+		    error
+		);
+		if (!identity->certificate) {
+			status = LIBSSIG_ERROR_NOT_FOUND;
+		}
+	}
+	return status;
+}
 bool sign_create(
     const sign_options*   args,
     const sign_buffer*    input,
@@ -205,26 +246,10 @@ bool sign_create(
     const sign_execution* execution,
     GError**              error
 ) {
-	libssig_context          ctx = {0};
-	libssig_token_list       tokens = {0};
-	libssig_certificate_list certs = {0};
-	libssig_status           status = modules_open(args, &ctx);
-	if (status == LIBSSIG_OK) {
-		status = libssig_tokens(&ctx, &tokens, 0);
-	}
-	const libssig_token* token = status == LIBSSIG_OK
-	                                 ? token_find(args, &tokens, error)
-	                                 : NULL;
-	if (token) {
-		status = libssig_certificates(&ctx, token, &certs, 0);
-	}
-	const libssig_certificate* cert = token && status == LIBSSIG_OK
-	                                      ? certificate_find(
-	                                            args,
-	                                            &certs,
-	                                            error
-	                                        )
-	                                      : NULL;
+	sign_identity        identity = {0};
+	libssig_status       status = sign_identity_open(args, &identity, error);
+	const libssig_token* token = identity.token;
+	const libssig_certificate* cert = identity.certificate;
 	if (cert) {
 		char*        authority = NULL;
 		sign_options resolved = *args;
@@ -233,7 +258,7 @@ bool sign_create(
 			status = token_sign(
 			    &resolved,
 			    input,
-			    &ctx,
+			    &identity.context,
 			    trust,
 			    token,
 			    cert,
@@ -257,8 +282,6 @@ bool sign_create(
 		    signature->ck_rv
 		);
 	}
-	libssig_certificates_free(&certs);
-	libssig_tokens_free(&tokens);
-	libssig_context_close(&ctx);
+	sign_identity_close(&identity);
 	return ok;
 }

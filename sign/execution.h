@@ -19,6 +19,7 @@ typedef bool (*sign_pin_provider)(
 typedef struct {
 	sign_pin_provider request_pin;
 	void*             user_data;
+	GCancellable*     cancellable; /* Optional; borrowed for the execution. */
 } sign_execution;
 
 typedef struct {

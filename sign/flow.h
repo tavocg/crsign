@@ -49,6 +49,13 @@ sign_flow* sign_flow_parse_json(
     const char* base_directory,
     GError**    error
 );
+/* Snapshot shared options through the same versioned JSON schema and complete
+ * validation as parse_json. Inputs remain borrowed only during this call. */
+sign_flow* sign_flow_from_items(
+    const sign_flow_item* items,
+    size_t                count,
+    GError**              error
+);
 /* Release owned per-document reports before reusing a result. Zero initialized
  * and cleared results may also be passed here. */
 void                  sign_flow_result_clear(sign_flow_result* result);

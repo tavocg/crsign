@@ -66,6 +66,14 @@ with tempfile.TemporaryDirectory(prefix='crsign-flow-') as directory:
     assert list(map(Path, options['modules'])) == [root/'one.so', root/'two.so']
     assert Path(options['tsa']['ca']) == root/'tsa.pem'
     assert Path(options['appearance']['image']) == root/'unavailable.svg'
+    # Programmatic clients share options with the same strict JSON parser.
+    built, _ = call(flow(rich), mode='build')
+    for key in ('token', 'cert_id', 'algorithm', 'hash', 'format', 'mime_type',
+                'detached', 'modules', 'ca', 'intermediates', 'tsa', 'no_bundled_certs'):
+        assert built['documents'][0][key] == options[key], key
+    assert built['documents'][0]['appearance'] == {'enabled': False}
+    assert call(built, mode='build')[0] == built
+
     for document in ({}, {'input':None}, dict(basic, hash='SHA256'), dict(basic, algorithm='rsa'),
                      dict(basic, format='cms'), dict(basic, format='pades', detached=True),
                      dict(basic, cert_id='f'), dict(basic, cert_id='zz'), dict(basic, modules='one'),

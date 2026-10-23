@@ -65,6 +65,171 @@ static const field appearance_fields[] = {
     {"height", SIGN_OPTION_HEIGHT, NUMBER},
 };
 
+/* The builder is deliberately round-tripped through the public JSON parser:
+ * GUI and API clients have the same path/collision/schema guarantees. */
+static void json_text_set(json_t* object, const char* key, const char* text) {
+	if (text && *text) {
+		json_t* value = json_string(text);
+		json_object_set_new(object, key, value ? value : json_null());
+	}
+}
+sign_flow* sign_flow_from_items(
+    const sign_flow_item* items,
+    size_t                count,
+    GError**              error
+) {
+	if (!items || !count || count > SIGN_FLOW_MAX_DOCUMENTS) {
+		invalid(error, "documents", "expected between 1 and 1024 documents");
+		return NULL;
+	}
+	json_t* documents = json_array();
+	for (size_t n = 0; n < count; ++n) {
+		const sign_flow_item* item = &items[n];
+		const sign_options*   o = &item->options;
+		char                  detail[512];
+		if (o->cert_bundle_count > G_N_ELEMENTS(o->cert_bundles) ||
+		    o->modules.count > 1024 ||
+		    (o->modules.count && !o->modules.items)) {
+			json_decref(documents);
+			invalid(error, "documents", "invalid option list");
+			return NULL;
+		}
+		for (size_t b = 0; b < o->cert_bundle_count; ++b) {
+			if (!o->cert_bundles[b] ||
+			    !g_utf8_validate(o->cert_bundles[b], -1, NULL)) {
+				json_decref(documents);
+				invalid(error, "cert_bundles", "invalid certificate bundle");
+				return NULL;
+			}
+		}
+		for (size_t m = 0; m < o->modules.count; ++m) {
+			if (!o->modules.items[m] ||
+			    !g_utf8_validate(o->modules.items[m], -1, NULL)) {
+				json_decref(documents);
+				invalid(error, "modules", "invalid module path");
+				return NULL;
+			}
+		}
+		if (item->operation == SIGN_FLOW_SIGN &&
+		    !sign_options_validate(o, detail, sizeof(detail))) {
+			json_decref(documents);
+			invalid(error, "documents", detail);
+			return NULL;
+		}
+		json_t* doc = json_object();
+		json_array_append_new(documents, doc);
+		json_object_set_new(
+		    doc,
+		    "operation",
+		    json_string(item->operation == SIGN_FLOW_VERIFY ? "verify" : "sign")
+		);
+		json_text_set(doc, "input", o->input);
+		json_text_set(doc, "ca", o->ca_file);
+		json_text_set(doc, "intermediates", o->intermediates);
+		json_object_set_new(
+		    doc,
+		    "no_bundled_certs",
+		    json_boolean(o->no_bundled_certs)
+		);
+		json_t* bundles = json_array();
+		for (size_t b = 0; b < o->cert_bundle_count; ++b) {
+			json_array_append_new(bundles, json_string(o->cert_bundles[b]));
+		}
+		json_object_set_new(doc, "cert_bundles", bundles);
+		json_t* tsa = json_object();
+		json_text_set(tsa, "ca", o->tsa_ca_file);
+		json_text_set(tsa, "intermediates", o->tsa_intermediates);
+		json_object_set_new(doc, "tsa", tsa);
+		if (item->operation == SIGN_FLOW_VERIFY) {
+			json_text_set(doc, "content", item->content);
+			continue;
+		}
+		if (item->operation != SIGN_FLOW_SIGN) {
+			json_decref(documents);
+			invalid(error, "operation", "unsupported operation");
+			return NULL;
+		}
+		json_text_set(doc, "output", o->output);
+		json_text_set(doc, "token", o->uri);
+		json_text_set(doc, "cert_id", o->id);
+		json_text_set(doc, "mime_type", o->mime_type);
+		json_text_set(
+		    doc,
+		    "algorithm",
+		    sign_option_choice(SIGN_OPTION_ALGORITHM, o->algo)
+		);
+		json_text_set(
+		    doc,
+		    "hash",
+		    sign_option_choice(SIGN_OPTION_HASH, o->hash)
+		);
+		json_text_set(
+		    doc,
+		    "level",
+		    sign_option_choice(SIGN_OPTION_LEVEL, o->level)
+		);
+		if (o->format_explicit) {
+			json_text_set(
+			    doc,
+			    "format",
+			    sign_option_choice(SIGN_OPTION_FORMAT, o->format)
+			);
+		}
+		json_object_set_new(doc, "detached", json_boolean(o->detached));
+		json_text_set(tsa, "url", o->authority);
+		json_t* modules = json_array();
+		for (size_t m = 0; m < o->modules.count; ++m) {
+			json_array_append_new(modules, json_string(o->modules.items[m]));
+		}
+		json_object_set_new(doc, "modules", modules);
+		json_t* appearance = json_pack(
+		    "{s:b}",
+		    "enabled",
+		    o->appearance.page_number != 0
+		);
+		json_object_set_new(doc, "appearance", appearance);
+		if (o->appearance.page_number) {
+			json_object_set_new(
+			    appearance,
+			    "page_number",
+			    json_integer(o->appearance.page_number)
+			);
+			json_object_set_new(appearance, "x", json_real(o->appearance.x));
+			json_object_set_new(appearance, "y", json_real(o->appearance.y));
+			if (o->appearance.width > 0) {
+				json_object_set_new(
+				    appearance,
+				    "width",
+				    json_real(o->appearance.width)
+				);
+			} else if (o->appearance.height > 0) {
+				json_object_set_new(
+				    appearance,
+				    "height",
+				    json_real(o->appearance.height)
+				);
+			}
+			json_text_set(appearance, "image", o->appearance_file);
+		}
+	}
+	json_t* root = json_pack(
+	    "{s:i,s:o}",
+	    "version",
+	    SIGN_FLOW_VERSION,
+	    "documents",
+	    documents
+	);
+	char* text = json_dumps(root, JSON_COMPACT);
+	json_decref(root);
+	if (!text) {
+		invalid(error, "flow", "cannot encode options as JSON");
+		return NULL;
+	}
+	sign_flow* flow = sign_flow_parse_json(text, strlen(text), NULL, error);
+	free(text);
+	return flow;
+}
+
 static bool token_valid(const char* text) {
 	P11KitUri* uri = p11_kit_uri_new();
 	if (!uri) {
@@ -636,7 +801,13 @@ bool sign_flow_run(
 		const sign_flow_item*      item = &flow->documents[i];
 		sign_flow_document_result* report = &result->documents[i];
 		report->attempted = true;
-		if (item->operation == SIGN_FLOW_VERIFY) {
+		if (execution && execution->cancellable &&
+		    g_cancellable_set_error_if_cancelled(
+		        execution->cancellable,
+		        error
+		    )) {
+			ok = false;
+		} else if (item->operation == SIGN_FLOW_VERIFY) {
 			ok = sign_document_verify(
 			    &item->options,
 			    item->content,
