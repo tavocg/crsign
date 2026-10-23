@@ -13,7 +13,7 @@ jobs:
         with:
           submodules: true
       - name: Install dependencies
-        run: brew install cmake pkgconf openssl@3 argp-standalone p11-kit libmagic qpdf jansson libxml2 glib gtk4 librsvg
+        run: brew install cmake pkgconf openssl@3 argp-standalone p11-kit libmagic qpdf jansson libxml2 glib gtk4 librsvg libadwaita gettext
       - name: Build pinned TOML parser
         run: python3 scripts/bootstrap-native.py --prefix "$PWD/build/native-prefix"
       - name: Configure and install libssig
@@ -30,7 +30,7 @@ jobs:
           sdk="$(xcrun --show-sdk-path)"
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DHEADLESS=OFF -DBUILD_TESTING=ON \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 -DSIGN_TEST_LIBSSIG=OFF \
-            -DCMAKE_PREFIX_PATH="$PWD/build/native-prefix;$(brew --prefix argp-standalone);$(brew --prefix openssl@3)" \
+            -DCMAKE_PREFIX_PATH="$PWD/build/native-prefix;$(brew --prefix argp-standalone);$(brew --prefix openssl@3);$(brew --prefix gettext)" \
             -DCURL_NO_CURL_CMAKE=TRUE -DCURL_LIBRARY="$sdk/usr/lib/libcurl.tbd" -DCURL_INCLUDE_DIR="$sdk/usr/include"
           cmake --build build --parallel 4
       - name: Test CLI and native stores
@@ -65,7 +65,8 @@ jobs:
             mingw-w64-ucrt-x86_64-qpdf mingw-w64-ucrt-x86_64-jansson
             mingw-w64-ucrt-x86_64-libxml2 mingw-w64-ucrt-x86_64-glib2
             mingw-w64-ucrt-x86_64-gtk4 mingw-w64-ucrt-x86_64-curl-winssl
-            mingw-w64-ucrt-x86_64-librsvg
+            mingw-w64-ucrt-x86_64-librsvg mingw-w64-ucrt-x86_64-libadwaita
+            mingw-w64-ucrt-x86_64-gettext-tools
       - name: Build pinned argp and TOML parser
         run: python scripts/bootstrap-native.py --prefix "$PWD/build/native-prefix" --with-argp
       - name: Configure and install libssig

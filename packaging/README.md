@@ -39,7 +39,7 @@ python scripts/bootstrap-native.py --prefix "$PWD/build/native-prefix" --with-ar
 ```
 
 Se necesitan Python >= 3.10, CMake >= 3.18 y Git para este proceso. Los gestores
-nativos aportan el compilador, pkg-config, GTK/GLib, OpenSSL >= 3.5, p11-kit,
+nativos aportan el compilador, pkg-config, GTK/GLib, libadwaita, gettext, OpenSSL >= 3.5, p11-kit,
 libmagic, zlib, QPDF, Jansson y libxml2. Consulta el workflow para las rutas de
 OpenSSL, libxml2 y libcurl del SDK en macOS.
 

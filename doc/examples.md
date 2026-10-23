@@ -1,5 +1,13 @@
 # Ejemplos y configuración
 
+## Interfaz gráfica
+
+```sh
+sign --gui
+```
+
+Consulta [la guía de la GUI](gui.md) para la navegación adaptable y los idiomas.
+
 ## Representación gráfica de la firma PDF
 
 ```sh

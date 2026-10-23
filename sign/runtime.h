@@ -4,4 +4,7 @@
 #include <stdbool.h>
 /* Locate resources only for marked portable installations. */
 bool runtime_init(void);
+/* Resolve a path against the executable installation prefix; free with
+ * g_free(). */
+char* runtime_install_path(const char* path);
 #endif

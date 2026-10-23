@@ -49,7 +49,17 @@ target_link_libraries(sign_config_deps INTERFACE PkgConfig::GLIB "${TOMLC17_LIBR
 option(HEADLESS "Build without the GTK graphical interface" OFF)
 
 if(NOT HEADLESS)
-    pkg_check_modules(GTK4 REQUIRED IMPORTED_TARGET gtk4)
+    pkg_check_modules(GTK4 REQUIRED IMPORTED_TARGET gtk4>=4.10)
+    pkg_check_modules(ADWAITA REQUIRED IMPORTED_TARGET libadwaita-1>=1.4)
+    find_package(Intl REQUIRED)
+    add_subdirectory(po)
+    configure_file(sign/gui/config.h.in generated/sign/gui/config.h @ONLY)
+    add_library(sign_gui_deps INTERFACE)
+    target_link_libraries(sign_gui_deps INTERFACE PkgConfig::GTK4 PkgConfig::ADWAITA ${Intl_LIBRARIES})
+    target_include_directories(sign_gui_deps SYSTEM INTERFACE ${Intl_INCLUDE_DIRS})
+    target_include_directories(sign_gui_deps INTERFACE "${PROJECT_BINARY_DIR}/generated")
+    target_compile_definitions(sign_gui_deps INTERFACE SIGN_WITH_GUI GETTEXT_PACKAGE="crsign")
+    add_dependencies(sign_gui_deps translations)
 endif()
 
 file(GLOB_RECURSE SIGN_SOURCES CONFIGURE_DEPENDS
@@ -58,7 +68,7 @@ file(GLOB_RECURSE SIGN_SOURCES CONFIGURE_DEPENDS
 list(FILTER SIGN_SOURCES EXCLUDE REGEX "_test\\.c$")
 
 if(HEADLESS)
-    list(FILTER SIGN_SOURCES EXCLUDE REGEX "/sign/gui\\.c$")
+    list(FILTER SIGN_SOURCES EXCLUDE REGEX "/sign/gui(\\.c$|/)")
 endif()
 
 # The catalogue is local and deterministic; configure never downloads certificates.
@@ -96,13 +106,7 @@ target_include_directories(sign PRIVATE
 )
 
 if(NOT HEADLESS)
-    target_link_libraries(sign PRIVATE
-        PkgConfig::GTK4
-    )
-
-    target_compile_definitions(sign PRIVATE
-        SIGN_WITH_GUI
-    )
+    target_link_libraries(sign PRIVATE sign_gui_deps)
 endif()
 
 target_compile_definitions(sign PRIVATE

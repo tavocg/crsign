@@ -37,6 +37,15 @@ static char* installation_prefix(void) {
 	return prefix;
 #endif
 }
+char* runtime_install_path(const char* path) {
+	if (g_path_is_absolute(path)) {
+		return g_strdup(path);
+	}
+	char* prefix = installation_prefix();
+	char* result = prefix ? g_build_filename(prefix, path, NULL) : NULL;
+	g_free(prefix);
+	return result;
+}
 #ifdef SIGN_WITH_GUI
 static void resource_env(const char* name, const char* path) {
 	if (!g_getenv(name) && g_file_test(path, G_FILE_TEST_EXISTS)) {

@@ -29,8 +29,7 @@ target_link_libraries(sign_mock PRIVATE Argp::Argp libssig::ssig CURL::libcurl O
 target_compile_definitions(sign_mock PRIVATE SIGN_VERSION="${PROJECT_VERSION}")
 target_compile_options(sign_mock PRIVATE "$<$<COMPILE_LANGUAGE:C>:-Wall;-Wextra;-Wpedantic;-Werror>")
 if(NOT HEADLESS)
-    target_link_libraries(sign_mock PRIVATE PkgConfig::GTK4)
-    target_compile_definitions(sign_mock PRIVATE SIGN_WITH_GUI)
+    target_link_libraries(sign_mock PRIVATE sign_gui_deps)
 endif()
 add_test(NAME commands_cli COMMAND ${Python3_EXECUTABLE}
     ${CMAKE_CURRENT_SOURCE_DIR}/commands_cli.py $<TARGET_FILE:sign_mock> ${OPENSSL_EXECUTABLE})
@@ -74,8 +73,7 @@ target_link_libraries(sign_bundles PRIVATE Argp::Argp libssig::ssig CURL::libcur
 target_compile_definitions(sign_bundles PRIVATE SIGN_VERSION="${PROJECT_VERSION}")
 target_compile_options(sign_bundles PRIVATE "$<$<COMPILE_LANGUAGE:C>:-Wall;-Wextra;-Wpedantic;-Werror>")
 if(NOT HEADLESS)
-    target_link_libraries(sign_bundles PRIVATE PkgConfig::GTK4)
-    target_compile_definitions(sign_bundles PRIVATE SIGN_WITH_GUI)
+    target_link_libraries(sign_bundles PRIVATE sign_gui_deps)
 endif()
 add_executable(timestamp_bundles timestamp_driver.c ../sign/timestamp/timestamp.c
     ../sign/http.c ../sign/trust.c ../sign/io.c ../sign/certs/certs.c $<TARGET_OBJECTS:bundle_catalog>)
@@ -183,4 +181,8 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/libssig/tests/document_sign_fixture.c")
         "${CMAKE_CURRENT_SOURCE_DIR}/appearance_cli.py" $<TARGET_FILE:appearance_driver>
         $<TARGET_FILE:args_driver>)
     set_tests_properties(appearance_cli PROPERTIES TIMEOUT 90)
+endif()
+
+if(NOT HEADLESS)
+    add_subdirectory(gui)
 endif()
