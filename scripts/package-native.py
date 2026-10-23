@@ -18,8 +18,8 @@ import sys
 import tarfile
 
 
-def command(*args):
-    return subprocess.check_output(list(map(str, args)), text=True, encoding='utf-8', errors='replace')
+def command(*args, env=None):
+    return subprocess.check_output(list(map(str, args)), text=True, encoding='utf-8', errors='replace', env=env)
 
 
 def pe_dependencies(text):
@@ -143,7 +143,7 @@ def copy_data(source, target):
         shutil.copytree(source, target, dirs_exist_ok=True)
 
 
-def gui_resources(bundle, prefixes):
+def stage_gui_resources(bundle, prefixes):
     root = bundle.root
     for prefix in prefixes:
         for relative in ('share/glib-2.0/schemas', 'share/icons/Adwaita', 'share/icons/hicolor'):
@@ -154,19 +154,28 @@ def gui_resources(bundle, prefixes):
             for pattern in ('*.dll', '*.so', '*.dylib'):
                 for module in directory.glob(pattern):
                     bundle.copy(module, Path(destination) / module.name)
+
+
+def configure_gui_resources(bundle):
+    root = bundle.root
+    environment = os.environ.copy()
+    if not bundle.windows:
+        # Query tools and relocated modules must use the same GLib/GObject
+        # libraries, rather than loading another copy from Homebrew.
+        environment['DYLD_LIBRARY_PATH'] = str(root / 'lib')
     schemas = root / 'share/glib-2.0/schemas'
     if not list(schemas.glob('*.gschema.xml')):
         raise RuntimeError('Missing GTK GSettings schemas')
     subprocess.run(['glib-compile-schemas', str(schemas)], check=True)
     gio = root / 'lib/gio/modules'
     if gio.is_dir():
-        subprocess.run(['gio-querymodules', str(gio)], check=True)
+        subprocess.run(['gio-querymodules', str(gio)], check=True, env=environment)
     loaders = sorted((root / 'lib/gdk-pixbuf-loaders').glob('*'))
     if loaders:
         tool = shutil.which('gdk-pixbuf-query-loaders')
         if not tool:
             raise RuntimeError('Missing gdk-pixbuf-query-loaders')
-        output = command(tool, *loaders)
+        output = command(tool, *loaders, env=environment)
         names = {module.name for module in loaders}
         found, lines = set(), []
         for line in output.splitlines():
@@ -227,9 +236,12 @@ def main():
     executable = Path('bin/sign.exe' if sys.platform == 'win32' else 'bin/sign')
     bundle = Bundle(root, search)
     bundle.copy(root / executable, executable)
-    if 'HEADLESS:BOOL=OFF' in cache:
-        gui_resources(bundle, prefixes[1:])
+    gui = 'HEADLESS:BOOL=OFF' in cache
+    if gui:
+        stage_gui_resources(bundle, prefixes[1:])
     bundle.close()
+    if gui:
+        configure_gui_resources(bundle)
     project = Path(__file__).resolve().parents[1]
     data = root / 'share/crsign'
     data.mkdir(parents=True, exist_ok=True)
