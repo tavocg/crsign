@@ -67,13 +67,21 @@ with tempfile.TemporaryDirectory(prefix='crsign-flow-crypto-') as directory:
 
     checks = [dict(operation='verify', input=doc['output'], ca=anchor.name)
               for doc in documents]
-    before = {name.name: name.read_bytes() for name in root.iterdir() if name != path}
+    def snapshot():
+        # Compare entry names: native Windows enumeration may spell the parent
+        # directory differently from tempfile (case or short-path aliases).
+        return {entry.name: entry.read_bytes() for entry in root.iterdir()
+                if entry.name != path.name}
+
+    before = snapshot()
     verified = run_flow(checks)
     assert verified['completed'] == len(checks) and verified['pin_requests'] == 0
     assert all(r['attempted'] and r['ok'] and r['signature_valid'] and
                r['trust_checked'] and r['trusted'] and r['signers'] == 1
                for r in verified['documents'])
-    assert before == {name.name: name.read_bytes() for name in root.iterdir() if name != path}
+    after = snapshot()
+    assert before == after, {name for name in before.keys() | after.keys()
+                             if before.get(name) != after.get(name)}
     # Valid cryptography without trust must still fail and preserve the report.
     failed = run_flow([checks[0], dict(operation='verify', input='binary.p7m'), checks[1]], ok=False)
     assert failed['completed'] == 1 and failed['failed_document'] == 1

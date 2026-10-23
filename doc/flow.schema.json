@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "CRSign flow v1",
-  "description": "An ordered collection of arbitrary files to sign. PINs and commands are not part of the format.",
+  "description": "An ordered collection of arbitrary files to sign or verify. PINs and commands are not part of the format.",
   "type": "object",
   "additionalProperties": false,
   "required": [
