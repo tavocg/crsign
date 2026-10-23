@@ -41,17 +41,26 @@ def interactive(command, data=b'1234\n', *, status=0, send_signal=None, env=None
                     pass
         during = termios.tcgetattr(master)
         assert not during[3] & (termios.ECHO | termios.ECHONL), during
-        if data:
-            os.write(master, data)
-        if send_signal:
-            process.send_signal(send_signal)
+        pending = memoryview(data or b'')
+        next_write = time.monotonic()
         # BSD terminals drain output before restoring attributes. Consume the
         # masked prompt while the child runs, before waiting for its exit.
         deadline = time.monotonic() + 5
         while process.poll() is None:
-            if time.monotonic() >= deadline:
+            now = time.monotonic()
+            if now >= deadline:
                 raise subprocess.TimeoutExpired(command, 5)
-            if select.select([master], [], [], 0.05)[0]:
+            # BSD PTYs have a small input queue even outside canonical mode.
+            # Feed bounded chunks while draining output instead of overflowing
+            # that queue with a single synthetic 1025-byte keystroke burst.
+            if pending and now >= next_write:
+                written = os.write(master, pending[:64])
+                pending = pending[written:]
+                next_write = now + 0.01
+            if not pending and send_signal:
+                process.send_signal(send_signal)
+                send_signal = None
+            if select.select([master], [], [], 0.01 if pending else 0.05)[0]:
                 try:
                     transcript += os.read(master, 4096)
                 except BlockingIOError:
