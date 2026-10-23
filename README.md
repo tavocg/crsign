@@ -14,43 +14,16 @@ sign verify doc-signed.pdf # verificar
 ## Representación gráfica de la firma PDF
 
 ```sh
+#           page number     x     y  imagen dimensiones
 sign documento.pdf -n 1 -x 36 -y 48
-sign documento.pdf -n 2 -x 36 -y 48 -S marca.png -w 180
+sign documento.pdf -n 2 -x 36 -y 48 -S marca.png -w 180 # por defecto 144
 sign documento.pdf -n 1 -x 36 -y 48 -S marca.svg -h 60
 ```
 
-`-n`/`--page-number` cuenta desde 1 y exige `-x` e `-y`. Las coordenadas
-indican la esquina superior izquierda de la imagen respecto a la esquina
-superior izquierda de la página visible, considerando su rotación y CropBox.
-Las distancias usan puntos PDF (72 puntos por pulgada), incluso si el documento
-usa UserUnit. La imagen debe caber por completo en la página seleccionada.
+> [!NOTE]
+> Las coordenadas y dimensiones usan puntos PDF (72 puntos por pulgada).
 
-El ancho predeterminado es 144 puntos. `-w`/`--width` o `-h`/`--height` cambia
-una dimensión y calcula la otra manteniendo la relación de aspecto; no se
-admiten ambas opciones juntas. Tanto el tamaño indicado como el calculado deben
-estar entre 12 y 720 puntos. Una página inexistente, coordenadas negativas,
-números no finitos o una imagen que no cabe producen un error sin guardar salida.
-La ayuda sigue disponible con `--help` o `-?`; `-h` ahora significa altura.
-
-`-S`/`--signature-image` admite SVG, PNG y JPEG, incluidos transparencia y
-orientación EXIF de JPEG. Otros formatos dependen de los cargadores GdkPixbuf
-instalados; en imágenes animadas se usa el primer fotograma. Se admiten archivos
-de hasta 32 MiB y raster de hasta 4096×4096 píxeles. SVG se renderiza a 288 ppp
-para su tamaño final, sin una URI base que permita cargar archivos vecinos.
-
-Sin `-S`, se genera un SVG con el nombre común del certificado (o la organización
-si no tiene nombre común), «Firmado digitalmente» y la hora local declarada,
-por ejemplo `2026-10-22T19:23:41-06:00`, en formato
-[RFC 3339](https://www.rfc-editor.org/rfc/rfc3339). No se mezcla `Z` con un desfase;
-la fecha visible no sustituye el sello de tiempo de una TSA. Si el certificado no
-incluye un nombre utilizable, se puede proporcionar una imagen con `-S`.
-
-Cada perfil puede elegir su imagen mediante `signature_image`. Las rutas
-relativas parten de la carpeta de `crsign.toml`; `-S FILE` prevalece sobre la
-imagen del perfil. Si no hay imagen en el perfil ni en la CLI, se genera la marca
-predeterminada. La página, las coordenadas y el tamaño se indican exclusivamente
-mediante argumentos CLI; no se admiten `page_number`, `x`, `y`, `width` ni `height`
-en TOML.
+## Configuración
 
 ```toml
 version = 0.1
