@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 /* A loadable PKCS#11 module with one empty hardware token, no real keys/PINs.
  */
+#define CRYPTOKI_EXPORTS 1
 #include <p11-kit/pkcs11.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -113,9 +114,6 @@ static CK_RV find(
 	*count = 0;
 	return CKR_OK;
 }
-#ifdef _WIN32
-__declspec(dllexport)
-#endif
 CK_RV                   C_GetFunctionList(CK_FUNCTION_LIST_PTR_PTR out);
 static CK_FUNCTION_LIST functions = {
     .version = {2, 40},
