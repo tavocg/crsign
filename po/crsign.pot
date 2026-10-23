@@ -8,40 +8,40 @@ msgid ""
 msgstr ""
 "Project-Id-Version: CRSign 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/tavocg/crsign/issues\n"
-"POT-Creation-Date: 2026-10-23 11:05-0600\n"
+"POT-Creation-Date: 2026-10-23 11:34-0600\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: sign/gui/window.c:14 sign/gui/window.c:100
+#: sign/gui/window.c:15 sign/gui/window.c:108
 msgid "Home"
 msgstr ""
 
-#: sign/gui/window.c:15
+#: sign/gui/window.c:16
 msgid "Sign"
 msgstr ""
 
-#: sign/gui/window.c:16
+#: sign/gui/window.c:17
 msgid "Validate"
 msgstr ""
 
-#: sign/gui/window.c:17
+#: sign/gui/window.c:18
 msgid "Settings"
 msgstr ""
 
-#: sign/gui/window.c:18
+#: sign/gui/window.c:19
 msgid "About"
 msgstr ""
 
-#: sign/gui/window.c:54
+#: sign/gui/window.c:62
 msgid "Menu"
 msgstr ""
 
-#: sign/gui/window.c:110 sign/gui/window.c:114
+#: sign/gui/window.c:118 sign/gui/window.c:122
 msgid "Toggle menu"
 msgstr ""
 
@@ -86,11 +86,11 @@ msgstr ""
 msgid "Value"
 msgstr ""
 
-#: sign/gui/settings.c:528
+#: sign/gui/settings.c:528 sign/gui/validation.c:120
 msgid "No"
 msgstr ""
 
-#: sign/gui/settings.c:529
+#: sign/gui/settings.c:529 sign/gui/validation.c:120
 msgid "Yes"
 msgstr ""
 
@@ -154,11 +154,11 @@ msgstr ""
 msgid "Signature level"
 msgstr ""
 
-#: sign/gui/settings.c:650
+#: sign/gui/settings.c:650 sign/gui/validation.c:292
 msgid "Format"
 msgstr ""
 
-#: sign/gui/settings.c:655
+#: sign/gui/settings.c:655 sign/gui/validation.c:303
 msgid "Detached signature"
 msgstr ""
 
@@ -246,4 +246,190 @@ msgstr ""
 
 #: sign/gui/about.c:75
 msgid "Report an issue"
+msgstr ""
+
+#: sign/gui/validation.c:80
+#, c-format
+msgid "Valid: %u · Failed: %u · Pending: %u"
+msgstr ""
+
+#: sign/gui/validation.c:109
+msgid "Not available"
+msgstr ""
+
+#: sign/gui/validation.c:124
+msgid "Valid"
+msgstr ""
+
+#: sign/gui/validation.c:127
+msgid "Could not validate"
+msgstr ""
+
+#: sign/gui/validation.c:131
+msgid "Untrusted or expired certificate"
+msgstr ""
+
+#: sign/gui/validation.c:133
+msgid "Original content required"
+msgstr ""
+
+#: sign/gui/validation.c:135
+msgid "Revoked certificate"
+msgstr ""
+
+#: sign/gui/validation.c:137
+msgid "Invalid timestamp"
+msgstr ""
+
+#: sign/gui/validation.c:139
+msgid "Incomplete validation evidence"
+msgstr ""
+
+#: sign/gui/validation.c:141
+msgid "Revocation check failed"
+msgstr ""
+
+#: sign/gui/validation.c:144
+msgid "Unsupported or unsigned file"
+msgstr ""
+
+#: sign/gui/validation.c:146
+msgid "Validation failed"
+msgstr ""
+
+#: sign/gui/validation.c:199
+msgid "Certificate subject"
+msgstr ""
+
+#: sign/gui/validation.c:200
+msgid "Certificate issuer"
+msgstr ""
+
+#: sign/gui/validation.c:201
+msgid "Valid from"
+msgstr ""
+
+#: sign/gui/validation.c:202
+msgid "Valid until"
+msgstr ""
+
+#: sign/gui/validation.c:214
+msgid "Certificate SHA-256"
+msgstr ""
+
+#: sign/gui/validation.c:234
+msgid "Time not authenticated"
+msgstr ""
+
+#: sign/gui/validation.c:236
+msgid "Timestamp signature valid"
+msgstr ""
+
+#: sign/gui/validation.c:239
+msgid "Timestamp certificate trusted"
+msgstr ""
+
+#: sign/gui/validation.c:240 sign/gui/validation.c:301
+msgid "Not checked"
+msgstr ""
+
+#: sign/gui/validation.c:249
+msgid "File"
+msgstr ""
+
+#: sign/gui/validation.c:253
+msgid "Original content"
+msgstr ""
+
+#: sign/gui/validation.c:279
+msgid "Details"
+msgstr ""
+
+#: sign/gui/validation.c:295
+msgid "Unknown"
+msgstr ""
+
+#: sign/gui/validation.c:297
+msgid "Signature valid"
+msgstr ""
+
+#: sign/gui/validation.c:300
+msgid "Certificate chain trusted"
+msgstr ""
+
+#: sign/gui/validation.c:306
+#, c-format
+msgid "Signer %zu"
+msgstr ""
+
+#: sign/gui/validation.c:315
+msgid "Detected signature level"
+msgstr ""
+
+#: sign/gui/validation.c:318
+msgid "No baseline level detected"
+msgstr ""
+
+#: sign/gui/validation.c:323
+msgid "Signature level validated"
+msgstr ""
+
+#: sign/gui/validation.c:330
+msgid "Certificate trust error"
+msgstr ""
+
+#: sign/gui/validation.c:336
+msgid "Revocation checked"
+msgstr ""
+
+#: sign/gui/validation.c:339
+msgid "Signing timestamp"
+msgstr ""
+
+#: sign/gui/validation.c:340
+msgid "Archive timestamp"
+msgstr ""
+
+#: sign/gui/validation.c:353
+msgid "Only local files can be validated"
+msgstr ""
+
+#: sign/gui/validation.c:428
+msgid "Cannot create validation flow"
+msgstr ""
+
+#: sign/gui/validation.c:479
+msgid "Waiting for another operation"
+msgstr ""
+
+#: sign/gui/validation.c:501
+msgid "Validating…"
+msgstr ""
+
+#: sign/gui/validation.c:530 sign/gui/validation.c:560
+msgid "Queued"
+msgstr ""
+
+#: sign/gui/validation.c:569
+msgid "Select original content…"
+msgstr ""
+
+#: sign/gui/validation.c:636
+msgid "Select signed files"
+msgstr ""
+
+#: sign/gui/validation.c:687
+msgid "Select original content"
+msgstr ""
+
+#: sign/gui/validation.c:792
+msgid "Drop signed files here"
+msgstr ""
+
+#: sign/gui/validation.c:796
+msgid "Click to choose one or more files"
+msgstr ""
+
+#: sign/gui/validation.c:821
+msgid "Clear results"
 msgstr ""

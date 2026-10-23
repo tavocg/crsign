@@ -16,26 +16,43 @@ if(NOT IS_ABSOLUTE "${CMAKE_INSTALL_LOCALEDIR}")
         ENVIRONMENT "LC_ALL=en_US.UTF-8;LANGUAGE=es")
 endif()
 
-add_executable(gui_navigation_test navigation_test.c ../../sign/gui/window.c ../../sign/gui/about.c
+set(GUI_TEST_SOURCES
+    ../../sign/gui/window.c ../../sign/gui/about.c ../../sign/gui/validation.c
+    ../../sign/flow.c ../../sign/execution.c ../../sign/sign.c ../../sign/modules.c
+    ../../sign/appearance.c ../../sign/pin.c ../../sign/terminal.c ../../sign/http.c
+    ../../sign/timestamp/authority.c ../../sign/trust.c
     ../../sign/gui/i18n.c ../../sign/runtime.c ../../sign/gui/settings.c
     ../../sign/preferences.c ../../sign/config.c ../../sign/arg.c ../../sign/options.c
     ../../sign/json.c ../../sign/io.c ../../sign/certs/certs.c "${SIGN_CERT_CATALOG}")
-target_compile_definitions(gui_navigation_test PRIVATE SIGN_VERSION="${PROJECT_VERSION}")
-target_include_directories(gui_navigation_test PRIVATE "${PROJECT_SOURCE_DIR}")
-target_link_libraries(gui_navigation_test PRIVATE sign_gui_deps sign_config_deps
-    Argp::Argp libssig::ssig OpenSSL::Crypto PkgConfig::GIO)
-target_compile_options(gui_navigation_test PRIVATE -Wall -Wextra -Wpedantic -Werror)
+add_executable(gui_navigation_test navigation_test.c ${GUI_TEST_SOURCES})
+add_executable(gui_validation_test validation_test.c ${GUI_TEST_SOURCES})
+foreach(target IN ITEMS gui_navigation_test gui_validation_test)
+    target_compile_definitions(${target} PRIVATE SIGN_VERSION="${PROJECT_VERSION}")
+    target_include_directories(${target} PRIVATE "${PROJECT_SOURCE_DIR}")
+    target_link_libraries(${target} PRIVATE sign_gui_deps sign_config_deps
+        Argp::Argp libssig::ssig OpenSSL::Crypto PkgConfig::GIO
+        CURL::libcurl sign_image_deps PkgConfig::JANSSON PkgConfig::P11_KIT)
+    target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic -Werror)
+endforeach()
 # Native builds compile the test; Linux can exercise real allocations in Xvfb.
 if(UNIX AND NOT APPLE)
     find_program(XVFB_RUN_EXECUTABLE xvfb-run)
     find_program(DBUS_RUN_SESSION_EXECUTABLE dbus-run-session)
     if(XVFB_RUN_EXECUTABLE AND DBUS_RUN_SESSION_EXECUTABLE)
-        add_test(NAME gui_navigation COMMAND "${CMAKE_COMMAND}" -E env
+        set(GUI_TEST_COMMAND "${CMAKE_COMMAND}" -E env
             LC_ALL=en_US.UTF-8 LANGUAGE=es GDK_BACKEND=x11 GSK_RENDERER=cairo GTK_A11Y=none
-            ADW_DISABLE_PORTAL=1 GIO_USE_VFS=local GSETTINGS_BACKEND=memory
+            ADW_DISABLE_PORTAL=1 GIO_USE_VFS=local GSETTINGS_BACKEND=memory G_DEBUG=fatal-criticals
             "${DBUS_RUN_SESSION_EXECUTABLE}" --config-file "${CMAKE_CURRENT_SOURCE_DIR}/session.conf"
-            -- "${XVFB_RUN_EXECUTABLE}" -a "--server-args=-screen 0 1280x1024x24"
+            -- "${XVFB_RUN_EXECUTABLE}" -a "--server-args=-screen 0 1280x1024x24")
+        add_test(NAME gui_navigation COMMAND ${GUI_TEST_COMMAND}
             $<TARGET_FILE:gui_navigation_test> "${CMAKE_CURRENT_BINARY_DIR}/snapshots")
-        set_tests_properties(gui_navigation PROPERTIES TIMEOUT 30)
+        if(EXISTS "${PROJECT_SOURCE_DIR}/tests/libssig/tests/document_sign_fixture.c")
+            add_test(NAME gui_validation COMMAND ${GUI_TEST_COMMAND}
+                "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/validation_test.py"
+                $<TARGET_FILE:gui_validation_test> $<TARGET_FILE:flow_crypto_driver>
+                "${CMAKE_CURRENT_BINARY_DIR}/snapshots")
+            set_tests_properties(gui_validation PROPERTIES TIMEOUT 45 RESOURCE_LOCK gtk_display)
+        endif()
+        set_tests_properties(gui_navigation PROPERTIES TIMEOUT 30 RESOURCE_LOCK gtk_display)
     endif()
 endif()

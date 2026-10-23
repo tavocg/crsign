@@ -6,8 +6,9 @@
 
 La ventana usa GTK 4 y libadwaita. Tiene cinco vistas: Inicio, Firmar, Validar,
 Ajustes y Acerca de. Ajustes permite editar la configuración y los perfiles;
-Acerca de muestra la identidad y los enlaces del proyecto. Inicio, Firmar y
-Validar conservan por ahora su texto de identificación.
+Acerca de muestra la identidad y los enlaces del proyecto. Validar permite
+procesar varios archivos firmados. Inicio y Firmar conservan por ahora su texto
+de identificación.
 
 La barra lateral tiene el título «Menú». Con una anchura de hasta 640sp pasa
 a ser un panel superpuesto: aparece un botón para abrirla en la cabecera del
@@ -92,3 +93,36 @@ La vista muestra el icono redondo SVG de `packaging/icon-rounded.svg`,
 a la licencia GPL-3.0-or-later, el código fuente y el registro de incidencias.
 El icono se incorpora como recurso GResource en el ejecutable, para que funcione
 sin depender del directorio de trabajo ni de archivos externos de la instalación.
+
+## Validar documentos
+
+La sección Validar acepta uno o varios archivos firmados. Se pueden arrastrar
+sobre la sección o pulsar el área de selección para abrir el selector de
+archivos de GTK, que utiliza el diálogo nativo o el portal del escritorio cuando
+está disponible. No hay restricciones de extensión: el motor reconoce los
+contenedores CAdES, PAdES, XAdES y JAdES.
+
+La validación empieza inmediatamente en segundo plano. Los archivos se procesan
+en cola, uno por uno, y se pueden añadir más mientras se trabaja. Cada archivo
+usa su propio flow JSON de validación: un fallo no impide procesar los siguientes.
+Si otro flow está ejecutándose en el proceso, la cola espera a que termine.
+Los archivos originales se leen sin modificarlos.
+
+Cada fila se puede desplegar para consultar la firma criptográfica, la confianza
+de la cadena, el formato, los firmantes, los titulares y emisores de certificados,
+su vigencia y huella SHA-256, los niveles detectados y validados, y los sellos de
+tiempo disponibles. Una firma criptográficamente correcta con un certificado no
+confiable se muestra como fallo de confianza. La comprobación de revocación se
+identifica por separado; no se infiere que un certificado no esté revocado cuando
+no se ha comprobado.
+
+Se aplican los certificados de confianza globales de `crsign.toml`: `ca`,
+`intermediates`, `tsa.ca`, `tsa.intermediates`, `no_bundled_certs` y `cert_bundles`.
+Los perfiles de firmado, módulos PKCS#11 y comandos de PIN no se utilizan para
+validar. La configuración se lee al iniciar el trabajo de cada archivo.
+
+Si una firma separada requiere su archivo original, la fila ofrece «Elegir
+contenido original…» y vuelve a validarse al seleccionarlo. «Limpiar resultados»
+retira las filas cuando no hay trabajo ni diálogos pendientes. Cerrar la ventana
+descarta la cola restante y deja terminar la lectura en curso sin actualizar la
+interfaz destruida. No se descargan evidencias de revocación desde la red.

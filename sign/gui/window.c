@@ -2,6 +2,7 @@
 #include <sign/gui/about.h>
 #include <sign/gui/i18n.h>
 #include <sign/gui/settings.h>
+#include <sign/gui/validation.h>
 #include <sign/gui/window.h>
 #include <string.h>
 
@@ -40,6 +41,13 @@ static void section_selected(
 	int         index = gtk_list_box_row_get_index(row);
 	if (index < 0 || (guint)index >= G_N_ELEMENTS(sections)) {
 		return;
+	}
+	if (!strcmp(sections[index].id, "verify")) {
+		/* Apply valid pending preferences before validation reads its trust
+		 * configuration on the worker thread. Invalid drafts remain unsaved. */
+		sign_settings_flush(
+		    SIGN_SETTINGS(gtk_stack_get_child_by_name(self->pages, "settings"))
+		);
 	}
 	gtk_stack_set_visible_child_name(self->pages, sections[index].id);
 	gtk_label_set_label(self->title, _(sections[index].title));
@@ -138,6 +146,15 @@ static GtkWidget* create_content(SignWindow* self) {
 	);
 	gtk_stack_set_transition_duration(self->pages, 150);
 	for (guint i = 0; i < G_N_ELEMENTS(sections); ++i) {
+		if (!strcmp(sections[i].id, "verify")) {
+			gtk_stack_add_titled(
+			    self->pages,
+			    sign_validation_new(),
+			    sections[i].id,
+			    _(sections[i].title)
+			);
+			continue;
+		}
 		if (!strcmp(sections[i].id, "settings")) {
 			gtk_stack_add_titled(
 			    self->pages,

@@ -1,0 +1,176 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+#include "helpers.h"
+#include <glib/gstdio.h>
+#include <sign/config.h>
+#include <sign/gui/i18n.h>
+#include <sign/gui/validation.h>
+
+static GFile* fixture(const char* root, const char* name) {
+	char*  path = g_build_filename(root, name, NULL);
+	GFile* file = g_file_new_for_path(path);
+	g_free(path);
+	return file;
+}
+static void wait_done(SignValidation* self) {
+	gint64 deadline = g_get_monotonic_time() + 15 * G_TIME_SPAN_SECOND;
+	do {
+		while (g_main_context_iteration(NULL, FALSE)) {
+		}
+		g_usleep(1000);
+	} while (sign_validation_is_busy(self) &&
+	         g_get_monotonic_time() < deadline);
+	g_assert_false(sign_validation_is_busy(self));
+}
+static gboolean heartbeat(gpointer data) {
+	++*(guint*)data;
+	return G_SOURCE_CONTINUE;
+}
+static bool contains(GtkWidget* widget, const char* text) {
+	if (GTK_IS_LABEL(widget) &&
+	    strstr(gtk_label_get_text(GTK_LABEL(widget)), text)) {
+		return true;
+	}
+	for (GtkWidget* child = gtk_widget_get_first_child(widget); child;
+	     child = gtk_widget_get_next_sibling(child)) {
+		if (contains(child, text)) {
+			return true;
+		}
+	}
+	return false;
+}
+int main(int argc, char** argv) {
+	g_assert_cmpint(argc, ==, 3);
+	const char* root = argv[1];
+	g_assert_cmpint(g_mkdir_with_parents(argv[2], 0700), ==, 0);
+	gui_i18n_init();
+	adw_init();
+	adw_style_manager_set_color_scheme(
+	    adw_style_manager_get_default(),
+	    ADW_COLOR_SCHEME_FORCE_DARK
+	);
+	AdwApplication* app = adw_application_new(
+	    "org.crsign.Sign.ValidationTest",
+	    G_APPLICATION_NON_UNIQUE
+	);
+	g_assert_true(g_application_register(G_APPLICATION(app), NULL, NULL));
+	GtkWidget* window = adw_application_window_new(GTK_APPLICATION(app));
+	gtk_window_set_default_size(GTK_WINDOW(window), 760, 650);
+	GtkWidget* view = sign_validation_new();
+	adw_application_window_set_content(ADW_APPLICATION_WINDOW(window), view);
+	gtk_window_present(GTK_WINDOW(window));
+	settle();
+	SignValidation* self = SIGN_VALIDATION(view);
+	g_assert_cmpuint(sign_validation_count(self), ==, 0);
+	g_assert_false(sign_validation_is_busy(self));
+	g_assert_nonnull(named(view, "validation-choose"));
+	snapshot(window, argv[2], "validation-empty.png");
+	GListModel*    controllers = gtk_widget_observe_controllers(view);
+	GtkDropTarget* target = NULL;
+	for (guint i = 0; i < g_list_model_get_n_items(controllers); ++i) {
+		GtkEventController* controller = g_list_model_get_item(controllers, i);
+		if (GTK_IS_DROP_TARGET(controller)) {
+			target = g_object_ref(GTK_DROP_TARGET(controller));
+		}
+		g_object_unref(controller);
+	}
+	g_object_unref(controllers);
+	g_assert_nonnull(target);
+	GFile* files[] = {
+	    fixture(root, "payload.bin"),
+	    fixture(root, "signed ñ & record.p7m"),
+	    fixture(root, "missing.p7m"),
+	    fixture(root, "detached.p7s")
+	};
+	GValue value = G_VALUE_INIT;
+	g_value_init(&value, GDK_TYPE_FILE_LIST);
+	g_value_take_boxed(
+	    &value,
+	    gdk_file_list_new_from_array(files, G_N_ELEMENTS(files))
+	);
+	gboolean accepted = FALSE;
+	guint    ticks = 0;
+	guint    timer = g_timeout_add(1, heartbeat, &ticks);
+	g_signal_emit_by_name(target, "drop", &value, 0.0, 0.0, &accepted);
+	g_assert_true(accepted);
+	g_assert_true(sign_validation_is_busy(self));
+	g_assert_false(gtk_widget_get_sensitive(named(view, "validation-clear")));
+	GListStore* extra = g_list_store_new(G_TYPE_FILE);
+	GFile*      untrusted = fixture(root, "untrusted.p7m");
+	g_list_store_append(extra, untrusted);
+	g_list_store_append(extra, files[1]);
+	sign_validation_add_files(self, G_LIST_MODEL(extra));
+	wait_done(self);
+	g_source_remove(timer);
+	g_assert_cmpuint(ticks, >, 0);
+	g_assert_cmpuint(sign_validation_count(self), ==, 6);
+	g_assert_false(sign_validation_result(self, 0)->ok);
+	const sign_flow_document_result* valid = sign_validation_result(self, 1);
+	g_assert_true(valid->ok);
+	g_assert_true(valid->verification.signature_valid);
+	g_assert_true(valid->verification.trusted);
+	g_assert_false(sign_validation_result(self, 2)->ok);
+	g_assert_cmpint(
+	    sign_validation_result(self, 3)->verification_status,
+	    ==,
+	    LIBSSIG_ERROR_CONTENT_REQUIRED
+	);
+	const sign_flow_document_result* unknown = sign_validation_result(self, 4);
+	g_assert_false(unknown->ok);
+	g_assert_true(unknown->verification.signature_valid);
+	g_assert_false(unknown->verification.trusted);
+	g_assert_true(sign_validation_result(self, 5)->ok);
+	g_assert_true(contains(view, "CN=Flow signer"));
+	GtkListBox*     list = GTK_LIST_BOX(named(view, "validation-results"));
+	AdwExpanderRow* row = ADW_EXPANDER_ROW(
+	    gtk_list_box_get_row_at_index(list, 1)
+	);
+	g_assert_cmpstr(
+	    adw_preferences_row_get_title(ADW_PREFERENCES_ROW(row)),
+	    ==,
+	    "signed ñ & record.p7m"
+	);
+	g_assert_false(
+	    adw_preferences_row_get_use_markup(ADW_PREFERENCES_ROW(row))
+	);
+	adw_expander_row_set_expanded(row, TRUE);
+	snapshot(window, argv[2], "validation-results.png");
+	gtk_window_set_default_size(GTK_WINDOW(window), 400, 700);
+	snapshot(window, argv[2], "validation-narrow.png");
+	sign_validation_set_content(self, 3, files[0]);
+	wait_done(self);
+	g_assert_true(sign_validation_result(self, 3)->ok);
+	g_assert_true(sign_validation_result(self, 3)->verification.detached);
+	GFile* wrong = fixture(root, "wrong.bin");
+	sign_validation_set_content(self, 3, wrong);
+	wait_done(self);
+	g_assert_false(sign_validation_result(self, 3)->ok);
+	sign_validation_set_content(self, 3, files[0]);
+	wait_done(self);
+	g_assert_true(sign_validation_result(self, 3)->ok);
+	g_assert_true(gtk_widget_get_sensitive(named(view, "validation-clear")));
+	g_signal_emit_by_name(named(view, "validation-clear"), "clicked");
+	g_assert_cmpuint(sign_validation_count(self), ==, 0);
+	g_assert_null(gtk_widget_get_first_child(GTK_WIDGET(list)));
+	/* Closing with work pending cancels the queue and releases the page once
+	 * its current worker returns; the callback must not access destroyed UI. */
+	sign_validation_add_files(self, G_LIST_MODEL(extra));
+	gpointer weak = view;
+	g_object_add_weak_pointer(G_OBJECT(view), &weak);
+	gtk_window_destroy(GTK_WINDOW(window));
+	gint64 deadline = g_get_monotonic_time() + 5 * G_TIME_SPAN_SECOND;
+	while (weak && g_get_monotonic_time() < deadline) {
+		g_main_context_iteration(NULL, FALSE);
+		g_usleep(1000);
+	}
+	g_assert_null(weak);
+	g_object_unref(target);
+	g_value_unset(&value);
+	for (guint i = 0; i < G_N_ELEMENTS(files); ++i) {
+		g_object_unref(files[i]);
+	}
+	g_object_unref(untrusted);
+	g_object_unref(wrong);
+	g_object_unref(extra);
+	g_object_unref(app);
+	return 0;
+}

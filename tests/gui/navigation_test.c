@@ -1,48 +1,14 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+#include "helpers.h"
 #include <glib/gstdio.h>
 #include <sign/config.h>
 #include <sign/gui/config.h>
 #include <sign/gui/i18n.h>
 #include <sign/gui/settings.h>
+#include <sign/gui/validation.h>
 #include <sign/gui/window.h>
 #include <string.h>
 
-static void settle(void) {
-	gint64 deadline = g_get_monotonic_time() + 250 * G_TIME_SPAN_MILLISECOND;
-	do {
-		while (g_main_context_iteration(NULL, FALSE)) {
-		}
-		g_usleep(1000);
-	} while (g_get_monotonic_time() < deadline);
-}
-
-static GtkWidget* find_widget(GtkWidget* root, GType type) {
-	if (g_type_is_a(G_OBJECT_TYPE(root), type)) {
-		return root;
-	}
-	for (GtkWidget* child = gtk_widget_get_first_child(root); child;
-	     child = gtk_widget_get_next_sibling(child)) {
-		GtkWidget* result = find_widget(child, type);
-		if (result) {
-			return result;
-		}
-	}
-	return NULL;
-}
-
-static GtkWidget* named(GtkWidget* root, const char* name) {
-	if (!strcmp(gtk_widget_get_name(root), name)) {
-		return root;
-	}
-	for (GtkWidget* child = gtk_widget_get_first_child(root); child;
-	     child = gtk_widget_get_next_sibling(child)) {
-		GtkWidget* found = named(child, name);
-		if (found) {
-			return found;
-		}
-	}
-	return NULL;
-}
 static void set_mode(GtkWidget* settings, const char* key, guint index) {
 	guint offset = adw_combo_row_get_selected(
 	                   ADW_COMBO_ROW(named(settings, "settings-scope"))
@@ -213,36 +179,6 @@ static void settings_test(GtkWidget* window, const char* directory) {
 	g_assert_false(gtk_widget_get_visible(named(view, "settings-status")));
 	g_free(path);
 }
-static void snapshot(
-    GtkWidget*  window,
-    const char* directory,
-    const char* name
-) {
-	if (!directory) {
-		return;
-	}
-	settle();
-	int width = gtk_widget_get_width(window),
-	    height = gtk_widget_get_height(window);
-	GdkPaintable* paintable = gtk_widget_paintable_new(window);
-	GtkSnapshot*  snapshot = gtk_snapshot_new();
-	gdk_paintable_snapshot(paintable, GDK_SNAPSHOT(snapshot), width, height);
-	GskRenderNode* node = gtk_snapshot_free_to_node(snapshot);
-	g_assert_nonnull(node);
-	graphene_rect_t bounds = GRAPHENE_RECT_INIT(0, 0, width, height);
-	GdkTexture*     texture = gsk_renderer_render_texture(
-        gtk_native_get_renderer(GTK_NATIVE(window)),
-        node,
-        &bounds
-    );
-	char* path = g_build_filename(directory, name, NULL);
-	g_assert_true(gdk_texture_save_to_png(texture, path));
-	g_free(path);
-	g_object_unref(texture);
-	gsk_render_node_unref(node);
-	g_object_unref(paintable);
-}
-
 int main(int argc, char** argv) {
 	const char* directory = argc > 1 ? argv[1] : NULL;
 	if (directory) {
@@ -294,7 +230,9 @@ int main(int argc, char** argv) {
 		);
 		g_assert_cmpstr(gtk_stack_get_visible_child_name(stack), ==, ids[i]);
 		GtkWidget* page = gtk_stack_get_visible_child(stack);
-		if (i == 3) {
+		if (i == 2) {
+			g_assert_true(SIGN_IS_VALIDATION(page));
+		} else if (i == 3) {
 			g_assert_true(SIGN_IS_SETTINGS(page));
 		} else if (i == 4) {
 			g_assert_cmpstr(

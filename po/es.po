@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: CRSign 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/tavocg/crsign/issues\n"
-"POT-Creation-Date: 2026-10-23 11:05-0600\n"
+"POT-Creation-Date: 2026-10-23 11:34-0600\n"
 "PO-Revision-Date: 2026-10-23 00:00-0600\n"
 "Last-Translator: Gustavo Calvo <tavo@tavo.cr>\n"
 "Language-Team: Spanish\n"
@@ -15,31 +15,31 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: sign/gui/window.c:14 sign/gui/window.c:100
+#: sign/gui/window.c:15 sign/gui/window.c:108
 msgid "Home"
 msgstr "Inicio"
 
-#: sign/gui/window.c:15
+#: sign/gui/window.c:16
 msgid "Sign"
 msgstr "Firmar"
 
-#: sign/gui/window.c:16
+#: sign/gui/window.c:17
 msgid "Validate"
 msgstr "Validar"
 
-#: sign/gui/window.c:17
+#: sign/gui/window.c:18
 msgid "Settings"
 msgstr "Ajustes"
 
-#: sign/gui/window.c:18
+#: sign/gui/window.c:19
 msgid "About"
 msgstr "Acerca de"
 
-#: sign/gui/window.c:54
+#: sign/gui/window.c:62
 msgid "Menu"
 msgstr "Menú"
 
-#: sign/gui/window.c:110 sign/gui/window.c:114
+#: sign/gui/window.c:118 sign/gui/window.c:122
 msgid "Toggle menu"
 msgstr "Mostrar u ocultar el menú"
 
@@ -84,11 +84,11 @@ msgstr "Agregar módulo"
 msgid "Value"
 msgstr "Valor"
 
-#: sign/gui/settings.c:528
+#: sign/gui/settings.c:528 sign/gui/validation.c:120
 msgid "No"
 msgstr "No"
 
-#: sign/gui/settings.c:529
+#: sign/gui/settings.c:529 sign/gui/validation.c:120
 msgid "Yes"
 msgstr "Sí"
 
@@ -154,11 +154,11 @@ msgstr "Hash"
 msgid "Signature level"
 msgstr "Nivel de firma"
 
-#: sign/gui/settings.c:650
+#: sign/gui/settings.c:650 sign/gui/validation.c:292
 msgid "Format"
 msgstr "Formato"
 
-#: sign/gui/settings.c:655
+#: sign/gui/settings.c:655 sign/gui/validation.c:303
 msgid "Detached signature"
 msgstr "Firma separada"
 
@@ -249,3 +249,189 @@ msgstr "Código fuente"
 #: sign/gui/about.c:75
 msgid "Report an issue"
 msgstr "Informar de un problema"
+
+#: sign/gui/validation.c:80
+#, c-format
+msgid "Valid: %u · Failed: %u · Pending: %u"
+msgstr "Válidos: %u · Fallidos: %u · Pendientes: %u"
+
+#: sign/gui/validation.c:109
+msgid "Not available"
+msgstr "No disponible"
+
+#: sign/gui/validation.c:124
+msgid "Valid"
+msgstr "Válido"
+
+#: sign/gui/validation.c:127
+msgid "Could not validate"
+msgstr "No se pudo validar"
+
+#: sign/gui/validation.c:131
+msgid "Untrusted or expired certificate"
+msgstr "Certificado no confiable o vencido"
+
+#: sign/gui/validation.c:133
+msgid "Original content required"
+msgstr "Se requiere el contenido original"
+
+#: sign/gui/validation.c:135
+msgid "Revoked certificate"
+msgstr "Certificado revocado"
+
+#: sign/gui/validation.c:137
+msgid "Invalid timestamp"
+msgstr "Sello de tiempo inválido"
+
+#: sign/gui/validation.c:139
+msgid "Incomplete validation evidence"
+msgstr "Evidencias de validación incompletas"
+
+#: sign/gui/validation.c:141
+msgid "Revocation check failed"
+msgstr "Falló la comprobación de revocación"
+
+#: sign/gui/validation.c:144
+msgid "Unsupported or unsigned file"
+msgstr "Archivo sin firma o formato no admitido"
+
+#: sign/gui/validation.c:146
+msgid "Validation failed"
+msgstr "Validación fallida"
+
+#: sign/gui/validation.c:199
+msgid "Certificate subject"
+msgstr "Titular del certificado"
+
+#: sign/gui/validation.c:200
+msgid "Certificate issuer"
+msgstr "Emisor del certificado"
+
+#: sign/gui/validation.c:201
+msgid "Valid from"
+msgstr "Válido desde"
+
+#: sign/gui/validation.c:202
+msgid "Valid until"
+msgstr "Válido hasta"
+
+#: sign/gui/validation.c:214
+msgid "Certificate SHA-256"
+msgstr "SHA-256 del certificado"
+
+#: sign/gui/validation.c:234
+msgid "Time not authenticated"
+msgstr "Fecha sin autenticar"
+
+#: sign/gui/validation.c:236
+msgid "Timestamp signature valid"
+msgstr "Firma del sello de tiempo válida"
+
+#: sign/gui/validation.c:239
+msgid "Timestamp certificate trusted"
+msgstr "Certificado del sello de tiempo confiable"
+
+#: sign/gui/validation.c:240 sign/gui/validation.c:301
+msgid "Not checked"
+msgstr "Sin comprobar"
+
+#: sign/gui/validation.c:249
+msgid "File"
+msgstr "Archivo"
+
+#: sign/gui/validation.c:253
+msgid "Original content"
+msgstr "Contenido original"
+
+#: sign/gui/validation.c:279
+msgid "Details"
+msgstr "Detalles"
+
+#: sign/gui/validation.c:295
+msgid "Unknown"
+msgstr "Desconocido"
+
+#: sign/gui/validation.c:297
+msgid "Signature valid"
+msgstr "Firma válida"
+
+#: sign/gui/validation.c:300
+msgid "Certificate chain trusted"
+msgstr "Cadena de certificados confiable"
+
+#: sign/gui/validation.c:306
+#, c-format
+msgid "Signer %zu"
+msgstr "Firmante %zu"
+
+#: sign/gui/validation.c:315
+msgid "Detected signature level"
+msgstr "Nivel de firma detectado"
+
+#: sign/gui/validation.c:318
+msgid "No baseline level detected"
+msgstr "No se detectó un nivel baseline"
+
+#: sign/gui/validation.c:323
+msgid "Signature level validated"
+msgstr "Nivel de firma validado"
+
+#: sign/gui/validation.c:330
+msgid "Certificate trust error"
+msgstr "Error de confianza del certificado"
+
+#: sign/gui/validation.c:336
+msgid "Revocation checked"
+msgstr "Revocación comprobada"
+
+#: sign/gui/validation.c:339
+msgid "Signing timestamp"
+msgstr "Sello de tiempo de firma"
+
+#: sign/gui/validation.c:340
+msgid "Archive timestamp"
+msgstr "Sello de tiempo de archivo"
+
+#: sign/gui/validation.c:353
+msgid "Only local files can be validated"
+msgstr "Solo se pueden validar archivos locales"
+
+#: sign/gui/validation.c:428
+msgid "Cannot create validation flow"
+msgstr "No se pudo preparar la validación"
+
+#: sign/gui/validation.c:479
+msgid "Waiting for another operation"
+msgstr "Esperando a que termine otra operación"
+
+#: sign/gui/validation.c:501
+msgid "Validating…"
+msgstr "Validando…"
+
+#: sign/gui/validation.c:530 sign/gui/validation.c:560
+msgid "Queued"
+msgstr "En cola"
+
+#: sign/gui/validation.c:569
+msgid "Select original content…"
+msgstr "Elegir contenido original…"
+
+#: sign/gui/validation.c:636
+msgid "Select signed files"
+msgstr "Elegir archivos firmados"
+
+#: sign/gui/validation.c:687
+msgid "Select original content"
+msgstr "Elegir contenido original"
+
+#: sign/gui/validation.c:792
+msgid "Drop signed files here"
+msgstr "Arrastra aquí los archivos firmados"
+
+#: sign/gui/validation.c:796
+msgid "Click to choose one or more files"
+msgstr "Haz clic para elegir uno o varios archivos"
+
+#: sign/gui/validation.c:821
+msgid "Clear results"
+msgstr "Limpiar resultados"
