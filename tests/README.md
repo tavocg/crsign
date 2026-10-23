@@ -45,6 +45,13 @@ interpreter with `Python3_EXECUTABLE`.
 - `profiles_cli` checks TOML versions and schema, XDG/HOME lookup, empty profiles,
   CLI overrides (including default-valued overrides), relative certificate paths,
   and signing with automatic token/certificate and PDF format selection.
+- `appearance_cli` decodes SVG, PNG and JPEG, checks EXIF orientation, aspect
+  ratio, placement limits, default certificate text/RFC 3339 dates and profile
+  overrides, then signs and verifies real PDF signatures without a card.
+- `pdf_appearance` verifies real signatures on rotated/cropped pages, UserUnit,
+  existing annotations, selected page, failure cleanup and appearance tampering.
+  `pdf_appearance_render` also checks orientation, coordinates and transparency
+  through Poppler when `pdftoppm` is installed (included in the Nix shell).
 - `trust_cli` runs the actual CLI against local HTTP TSA/OCSP services and checks
   trust, transport errors, levels and failure preservation. It needs localhost
   sockets, not internet access or a physical token.
@@ -58,7 +65,7 @@ interpreter with `Python3_EXECUTABLE`.
 CTest fixtures automatically generate inputs when selecting `-R signatures_cli`
 or `-L conformance`, including parallel runs. Minimal CLI tests are available
 with `SIGN_TEST_LIBSSIG=OFF`; disabling `BUILD_TESTING` needs no test submodules.
-The CI workflow checks both headless and GTK builds without opening a window.
+CI builds the complete GTK application on Linux, Windows and macOS without opening a window.
 
 To exercise argp-standalone even on glibc, configure a separate build with
 `-DARGP_INCLUDE_DIR=/path/include -DARGP_LIBRARY=/path/lib/libargp.a`, build it,

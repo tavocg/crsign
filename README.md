@@ -18,6 +18,65 @@ sin red; también se admiten `-l B-T` y `-l B-LT`. PDF usa PAdES automáticament
 confianza del sistema sigue activa. Si faltan evidencias o falla un sello, no se
 guarda la salida.
 
+## Representación gráfica de la firma PDF
+
+```sh
+sign documento.pdf -n 1 -x 36 -y 48
+sign documento.pdf -n 2 -x 36 -y 48 -S marca.png -w 180
+sign documento.pdf -n 1 -x 36 -y 48 -S marca.svg -h 60
+```
+
+`-n`/`--page-number` cuenta desde 1 y exige `-x` e `-y`. Las coordenadas
+indican la esquina superior izquierda de la imagen respecto a la esquina
+superior izquierda de la página visible, considerando su rotación y CropBox.
+Las distancias usan puntos PDF (72 puntos por pulgada), incluso si el documento
+usa UserUnit. La imagen debe caber por completo en la página seleccionada.
+
+El ancho predeterminado es 144 puntos. `-w`/`--width` o `-h`/`--height` cambia
+una dimensión y calcula la otra manteniendo la relación de aspecto; no se
+admiten ambas opciones juntas. Tanto el tamaño indicado como el calculado deben
+estar entre 12 y 720 puntos. Una página inexistente, coordenadas negativas,
+números no finitos o una imagen que no cabe producen un error sin guardar salida.
+La ayuda sigue disponible con `--help` o `-?`; `-h` ahora significa altura.
+
+`-S`/`--signature-image` admite SVG, PNG y JPEG, incluidos transparencia y
+orientación EXIF de JPEG. Otros formatos dependen de los cargadores GdkPixbuf
+instalados; en imágenes animadas se usa el primer fotograma. Se admiten archivos
+de hasta 32 MiB y raster de hasta 4096×4096 píxeles. SVG se renderiza a 288 ppp
+para su tamaño final, sin una URI base que permita cargar archivos vecinos.
+
+Sin `-S`, se genera un SVG con el nombre común del certificado (o la organización
+si no tiene nombre común), «Firmado digitalmente» y la hora local declarada,
+por ejemplo `2026-10-22T19:23:41-06:00`, en formato
+[RFC 3339](https://www.rfc-editor.org/rfc/rfc3339). No se mezcla `Z` con un desfase;
+la fecha visible no sustituye el sello de tiempo de una TSA. Si el certificado no
+incluye un nombre utilizable, se puede proporcionar una imagen con `-S`.
+
+Los perfiles admiten las mismas opciones; las rutas relativas de imágenes
+parten de la carpeta de `crsign.toml`. Los argumentos CLI prevalecen, y una
+altura o ancho explícito sustituye la dimensión que tuviera el perfil:
+
+```toml
+[[profiles]]
+label = "visible"
+page_number = 1
+x = 36
+y = 48
+width = 144
+# signature_image = "marca.svg" # omitir para generar la marca
+```
+
+La apariencia se incorpora en `/AP` del widget del campo de firma, siguiendo
+[ISO 32000-1, sección 12.7.4.5](https://developer.adobe.com/document-services/docs/assets/35e4369068f86065372c18787171a17e/PDF_ISO_32000-1.pdf),
+y queda cubierta por el ByteRange firmado. El diseño de la marca es configurable;
+no demuestra por sí mismo que la firma sea válida. PAdES define los requisitos
+criptográficos en [ETSI EN 319 142-1](https://www.etsi.org/deliver/etsi_en/319100_319199/31914201/01.02.01_60/en_31914201v010201p.pdf).
+Para firmas visibles se desactiva `/NeedAppearances`; los demás campos de un
+formulario deben tener sus apariencias preparadas antes de firmar.
+Sin opciones de apariencia se conserva la firma invisible. Solo se admite
+apariencia en PDF/PAdES, con las mismas restricciones actuales de libssig sobre
+documentos cifrados o ya firmados.
+
 ## Perfiles de firmado
 
 `sign -p bccr doc.pdf` (o `--profile bccr`) carga el perfil con `label = "bccr"`
@@ -179,10 +238,10 @@ capa común en Linux y los almacenes nativos en Windows y macOS.
 
 ## Construcción
 
-Requiere CMake, un compilador C99, argp, libssig >= 0.1.3, libcurl >= 7.85,
-pkg-config, GLib >= 2.40/GIO y tomlc17 (API con `toml_get`, por ejemplo 20260501).
+Requiere CMake, un compilador C99, argp, libssig >= 0.1.4, libcurl >= 7.85,
+pkg-config, GLib >= 2.40/GIO, librsvg >= 2.52, GdkPixbuf, Cairo/PangoCairo y tomlc17 (API con `toml_get`, por ejemplo 20260501).
 La interfaz gráfica también requiere GTK 4. GLib/GIO y tomlc17 se usan igualmente
-en compilaciones headless; el entorno Nix incluye ambas dependencias.
+en compilaciones headless, junto con los decodificadores de imágenes; el entorno Nix incluye estas dependencias.
 En Windows/macOS, libssig requiere OpenSSL >= 3.5 para consultar el propósito de
 validación. Windows enlaza con Crypt32 y macOS con Security/CoreFoundation
 (macOS >= 10.14). En Linux se conserva el mínimo OpenSSL 3.0 de libssig.

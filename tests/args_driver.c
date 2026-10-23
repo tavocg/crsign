@@ -19,6 +19,7 @@ int main(int argc, char** argv) {
 #define STRING_FIELD(name, member)                                             \
 	fputs(",\"" name "\":", stdout);                                           \
 	json_string(args.member)
+	STRING_FIELD("signature_image", appearance_file);
 	STRING_FIELD("input", input);
 	STRING_FIELD("token", uri);
 	STRING_FIELD("cert_id", id);
@@ -30,6 +31,14 @@ int main(int argc, char** argv) {
 	STRING_FIELD("mime_type", mime_type);
 	STRING_FIELD("output", output);
 #undef STRING_FIELD
+	printf(
+	    ",\"page_number\":%u,\"x\":%g,\"y\":%g,\"width\":%g,\"height\":%g",
+	    args.appearance.page_number,
+	    args.appearance.x,
+	    args.appearance.y,
+	    args.appearance.width,
+	    args.appearance.height
+	);
 	fputs(",\"modules\":[", stdout);
 	for (size_t i = 0; i < args.modules.count; ++i) {
 		if (i) {

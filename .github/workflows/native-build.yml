@@ -13,7 +13,7 @@ jobs:
         with:
           submodules: true
       - name: Install dependencies
-        run: brew install cmake pkgconf openssl@3 argp-standalone p11-kit libmagic qpdf jansson libxml2 glib gtk4
+        run: brew install cmake pkgconf openssl@3 argp-standalone p11-kit libmagic qpdf jansson libxml2 glib gtk4 librsvg
       - name: Build pinned TOML parser
         run: python3 scripts/bootstrap-native.py --prefix "$PWD/build/native-prefix"
       - name: Configure and install libssig
@@ -65,6 +65,7 @@ jobs:
             mingw-w64-ucrt-x86_64-qpdf mingw-w64-ucrt-x86_64-jansson
             mingw-w64-ucrt-x86_64-libxml2 mingw-w64-ucrt-x86_64-glib2
             mingw-w64-ucrt-x86_64-gtk4 mingw-w64-ucrt-x86_64-curl-winssl
+            mingw-w64-ucrt-x86_64-librsvg
       - name: Build pinned argp and TOML parser
         run: python scripts/bootstrap-native.py --prefix "$PWD/build/native-prefix" --with-argp
       - name: Configure and install libssig

@@ -38,7 +38,16 @@ int operation_run(const sign_args* args) {
 		    !memcmp(input.data, "%PDF-", 5)) {
 			resolved.format = LIBSSIG_FORMAT_PADES;
 		}
-		ok = sign_create(args, &input, &trust, &signature);
+		if (args->appearance.page_number &&
+		    args->format != LIBSSIG_FORMAT_PADES) {
+			fputs(
+			    "sign: a visible signature requires a PDF document\n",
+			    stderr
+			);
+			ok = false;
+		} else {
+			ok = sign_create(args, &input, &trust, &signature);
+		}
 
 		if (ok) {
 			ok = file_write(args->output, signature.data, signature.len);

@@ -17,16 +17,19 @@ typedef struct {
 	const char * input, *output, *uri, *id, *authority;
 	const char * ca_file, *intermediates, *tsa_ca_file, *tsa_intermediates;
 	const char*  mime_type;
-	const char* const*  pincmd;
-	libssig_string_list modules;
-	libssig_algo        algo;
-	libssig_hash        hash;
-	libssig_level       level;
-	libssig_format      format;
-	bool                format_explicit;
-	bool                no_bundled_certs;
-	const char*         cert_bundles[32];
-	size_t              cert_bundle_count;
+	const char* const*     pincmd;
+	libssig_string_list    modules;
+	libssig_pdf_appearance appearance;
+	const char*            appearance_file;
+	unsigned int           appearance_options;
+	libssig_algo           algo;
+	libssig_hash           hash;
+	libssig_level          level;
+	libssig_format         format;
+	bool                   format_explicit;
+	bool                   no_bundled_certs;
+	const char*            cert_bundles[32];
+	size_t                 cert_bundle_count;
 	/* Owns strings read from the selected profile; release with arg_free(). */
 	struct sign_config* config;
 	/* Owns the native-encoding argument vector (UTF-8 on Windows). */
@@ -34,6 +37,17 @@ typedef struct {
 	/* Owns normalized CLI module paths; modules borrows this list when set. */
 	char** cli_modules;
 } sign_args;
+
+enum {
+	SIGN_APPEARANCE_X = 1u << 0,
+	SIGN_APPEARANCE_Y = 1u << 1,
+	SIGN_APPEARANCE_WIDTH = 1u << 2,
+	SIGN_APPEARANCE_HEIGHT = 1u << 3,
+	SIGN_APPEARANCE_FILE = 1u << 4
+};
+#define SIGN_APPEARANCE_DEFAULT_WIDTH 144.0
+#define SIGN_APPEARANCE_MIN_SIZE 12.0
+#define SIGN_APPEARANCE_MAX_SIZE 720.0
 
 /* Shared option identifiers and validation for CLI arguments and profiles. */
 enum {
@@ -47,7 +61,8 @@ enum {
 	MIME_TYPE,
 	JSON,
 	ALL_CERTIFICATES,
-	CONTENT
+	CONTENT,
+	HELP
 };
 
 bool arg_setting(

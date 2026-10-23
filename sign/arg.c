@@ -9,7 +9,10 @@
 #pragma pop_macro("__printf__")
 #pragma pop_macro("__format__")
 #pragma pop_macro("__attribute__")
+#include <errno.h>
 #include <glib.h>
+#include <limits.h>
+#include <math.h>
 #include <sign/arg.h>
 #include <sign/certs/certs.h>
 #include <sign/config.h>
@@ -131,7 +134,43 @@ static const struct argp_option options[] = {
         "Content MIME type (default: libmagic)",
         0,
     },
-    {"help", 'h', 0, 0, "Show this help message", 0},
+    {"page-number",
+     'n',
+     "PAGE",
+     0,
+     "Visible PDF signature on page PAGE (starts at 1; requires -x and -y)",
+     0},
+    {"x",
+     'x',
+     "POINTS",
+     0,
+     "Image left edge from the visible page's upper-left corner",
+     0},
+    {"y",
+     'y',
+     "POINTS",
+     0,
+     "Image top edge from the visible page's upper-left corner",
+     0},
+    {"width",
+     'w',
+     "POINTS",
+     0,
+     "Image width (default: 144; 12–720 points; preserves aspect ratio)",
+     0},
+    {"height",
+     'h',
+     "POINTS",
+     0,
+     "Image height instead of width (12–720 points; preserves aspect ratio)",
+     0},
+    {"signature-image",
+     'S',
+     "FILE",
+     0,
+     "PDF appearance image (default: generated SVG with signer and date)",
+     0},
+    {"help", HELP, 0, 0, "Show this help message (also -?)", 0},
     {0}
 };
 
@@ -169,6 +208,77 @@ bool arg_setting(
 	const char* const formats[] = {"cades", "cms", "pades", "xades", "jades"};
 	int               choice = 0;
 	switch (key) {
+	case 'n': {
+		char* end = NULL;
+		errno = 0;
+		guint64 page = g_ascii_strtoull(value, &end, 10);
+		if (!value[0] || g_ascii_isspace(value[0]) || value[0] == '-' ||
+		    value[0] == '+' || errno || *end || !page || page > UINT_MAX) {
+			return setting_error(
+			    error,
+			    error_size,
+			    "--page-number requires a positive page number starting at 1"
+			);
+		}
+		args->appearance.page_number = (unsigned int)page;
+		break;
+	}
+	case 'x':
+	case 'y':
+	case 'w':
+	case 'h': {
+		char* end = NULL;
+		errno = 0;
+		double amount = g_ascii_strtod(value, &end);
+		if (!value[0] || g_ascii_isspace(value[0]) || errno || *end ||
+		    !isfinite(amount) || amount < 0) {
+			return setting_error(
+			    error,
+			    error_size,
+			    "Appearance coordinates and sizes require finite nonnegative "
+			    "numbers in PDF points"
+			);
+		}
+		if ((key == 'w' || key == 'h') && (amount < SIGN_APPEARANCE_MIN_SIZE ||
+		                                   amount > SIGN_APPEARANCE_MAX_SIZE)) {
+			return setting_error(
+			    error,
+			    error_size,
+			    "Appearance width and height must be between 12 and 720 PDF "
+			    "points"
+			);
+		}
+		if (key == 'x') {
+			args->appearance.x = amount;
+			args->appearance_options |= SIGN_APPEARANCE_X;
+		}
+		if (key == 'y') {
+			args->appearance.y = amount;
+			args->appearance_options |= SIGN_APPEARANCE_Y;
+		}
+		if (key == 'w') {
+			args->appearance.width = amount;
+			args->appearance.height = 0;
+			args->appearance_options |= SIGN_APPEARANCE_WIDTH;
+		}
+		if (key == 'h') {
+			args->appearance.height = amount;
+			args->appearance.width = 0;
+			args->appearance_options |= SIGN_APPEARANCE_HEIGHT;
+		}
+		break;
+	}
+	case 'S':
+		if (!value[0]) {
+			return setting_error(
+			    error,
+			    error_size,
+			    "--signature-image requires a nonempty path"
+			);
+		}
+		args->appearance_file = value;
+		args->appearance_options |= SIGN_APPEARANCE_FILE;
+		break;
 	case 'o':
 		args->output = value;
 		break;
@@ -266,7 +376,11 @@ bool arg_setting(
 	return true;
 }
 
-static void args_validate(struct argp_state* state, const sign_args* args) {
+static void args_validate(
+    struct argp_state* state,
+    const sign_args*   args,
+    bool               final
+) {
 	bool verify = args->command == SIGN_COMMAND_VERIFY;
 	bool tokens = args->command == SIGN_COMMAND_TOKENS;
 	if (args->no_bundled_certs && args->cert_bundle_count) {
@@ -309,6 +423,29 @@ static void args_validate(struct argp_state* state, const sign_args* args) {
 	if (!verify && !tokens && args->format == LIBSSIG_FORMAT_PADES &&
 	    args->detached) {
 		argp_error(state, "PAdES cannot use --detached");
+	}
+	if (final && (args->appearance.page_number || args->appearance_options)) {
+		if (!args->appearance.page_number ||
+		    (args->appearance_options &
+		     (SIGN_APPEARANCE_X | SIGN_APPEARANCE_Y)) !=
+		        (SIGN_APPEARANCE_X | SIGN_APPEARANCE_Y)) {
+			argp_error(
+			    state,
+			    "A visible PDF signature requires -n PAGE, -x X and -y Y"
+			);
+		}
+		if ((args->appearance_options &
+		     (SIGN_APPEARANCE_WIDTH | SIGN_APPEARANCE_HEIGHT)) ==
+		    (SIGN_APPEARANCE_WIDTH | SIGN_APPEARANCE_HEIGHT)) {
+			argp_error(
+			    state,
+			    "Use only --width or --height; the other dimension preserves "
+			    "the aspect ratio"
+			);
+		}
+		if (args->format_explicit && args->format != LIBSSIG_FORMAT_PADES) {
+			argp_error(state, "A visible signature requires PDF/PAdES");
+		}
 	}
 }
 
@@ -378,6 +515,12 @@ static error_t parse_option(int key, char* arg, struct argp_state* state) {
 		break;
 	}
 	case 'o':
+	case 'n':
+	case 'x':
+	case 'y':
+	case 'w':
+	case 'h':
+	case 'S':
 	case 't':
 	case 'k':
 	case 'a':
@@ -400,7 +543,7 @@ static error_t parse_option(int key, char* arg, struct argp_state* state) {
 		g_array_append_val(context->settings, setting);
 		break;
 	}
-	case 'h':
+	case HELP:
 		argp_state_help(state, stdout, ARGP_HELP_STD_HELP);
 		break;
 	case JSON:
@@ -424,7 +567,7 @@ static error_t parse_option(int key, char* arg, struct argp_state* state) {
 		if (context->modules->len && args->command == SIGN_COMMAND_VERIFY) {
 			argp_error(state, "--module requires signing or tokens");
 		}
-		args_validate(state, args);
+		args_validate(state, args, false);
 		if ((args->command == SIGN_COMMAND_SIGN && args->input) ||
 		    args->command == SIGN_COMMAND_TOKENS) {
 			bool cli_bundles = args->cert_bundle_count ||
@@ -465,6 +608,21 @@ static error_t parse_option(int key, char* arg, struct argp_state* state) {
 				args->cert_bundle_count = 0;
 				args->no_bundled_certs = false;
 			}
+			/* An explicit CLI dimension replaces the profile's dimension. */
+			for (guint i = 0; i < context->settings->len; ++i) {
+				cli_setting s = g_array_index(
+				    context->settings,
+				    cli_setting,
+				    i
+				);
+				if (s.key == 'w' || s.key == 'h') {
+					args->appearance_options &= ~(
+					    SIGN_APPEARANCE_WIDTH | SIGN_APPEARANCE_HEIGHT
+					);
+					args->appearance.width = args->appearance.height = 0;
+					break;
+				}
+			}
 			for (guint i = 0; i < context->settings->len; ++i) {
 				cli_setting setting = g_array_index(
 				    context->settings,
@@ -481,7 +639,7 @@ static error_t parse_option(int key, char* arg, struct argp_state* state) {
 					argp_error(state, "%s", error);
 				}
 			}
-			args_validate(state, args);
+			args_validate(state, args, true);
 		}
 		break;
 	default:

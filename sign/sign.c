@@ -1,4 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+#include <glib.h>
+#include <sign/appearance.h>
 #include <sign/http.h>
 #include <sign/modules.h>
 #include <sign/pin.h>
@@ -100,8 +102,14 @@ static libssig_status token_sign(
     const libssig_certificate* cert,
     libssig_signature*         signature
 ) {
+	libssig_pdf_appearance appearance = {0};
+	unsigned char*         pixels = NULL;
+	if (!appearance_prepare(args, cert, &appearance, &pixels)) {
+		return LIBSSIG_ERROR_ARGUMENT;
+	}
 	sign_buffer pin = {0};
 	if (pin_required(token) && !pin_read(args->pincmd, &pin)) {
+		g_free(pixels);
 		return LIBSSIG_ERROR_ARGUMENT;
 	}
 	libssig_verify_params validation = {0};
@@ -126,7 +134,11 @@ static libssig_status token_sign(
 	    .mime_type = args->mime_type,
 	    .options = args->detached ? LIBSSIG_SIGN_DETACHED : 0,
 	};
-	libssig_status status = libssig_sign(ctx, &params, signature);
+	libssig_status
+	    status = appearance.page_number
+	                 ? libssig_sign_pdf(ctx, &params, &appearance, signature)
+	                 : libssig_sign(ctx, &params, signature);
+	g_free(pixels);
 	pin_free(&pin);
 	return status;
 }

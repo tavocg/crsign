@@ -2,6 +2,7 @@
 #include <errno.h>
 #include <glib.h>
 #include <glib/gstdio.h>
+#include <inttypes.h>
 #include <sign/config.h>
 #include <sign/io.h>
 #include <stdarg.h>
@@ -39,6 +40,12 @@ static const config_field profile_fields[] = {
     {"intermediates", INTERMEDIATES, TOML_STRING, true},
     {"no_bundled_certs", NO_BUNDLED_CERTS, TOML_BOOLEAN, false},
     {"cert_bundles", CERT_BUNDLE, TOML_ARRAY, false},
+    {"page_number", 'n', TOML_INT64, false},
+    {"x", 'x', TOML_FP64, false},
+    {"y", 'y', TOML_FP64, false},
+    {"width", 'w', TOML_FP64, false},
+    {"height", 'h', TOML_FP64, false},
+    {"signature_image", 'S', TOML_STRING, true},
     {"tsa", 0, TOML_TABLE, false},
 };
 static const config_field tsa_fields[] = {
@@ -188,7 +195,8 @@ static bool read_fields(
 			}
 			continue;
 		}
-		if (value.type != field->type ||
+		if ((value.type != field->type &&
+		     !(field->type == TOML_FP64 && value.type == TOML_INT64)) ||
 		    (value.type == TOML_STRING && !valid_string(value))) {
 			return config_error(
 			    error,
@@ -232,7 +240,15 @@ static bool read_fields(
 			}
 			continue;
 		}
-		const char* text = value.type == TOML_BOOLEAN
+		char numeric[G_ASCII_DTOSTR_BUF_SIZE];
+		if (value.type == TOML_INT64) {
+			snprintf(numeric, sizeof(numeric), "%" PRId64, value.u.int64);
+		} else if (value.type == TOML_FP64) {
+			g_ascii_dtostr(numeric, sizeof(numeric), value.u.fp64);
+		}
+		const char* text = (value.type == TOML_INT64 || value.type == TOML_FP64)
+		                       ? numeric
+		                   : value.type == TOML_BOOLEAN
 		                       ? (value.u.boolean ? "true" : "false")
 		                       : value.u.s;
 		if (!text[0]) {

@@ -56,6 +56,6 @@ with tempfile.TemporaryDirectory(prefix='sign-arguments-') as directory:
                  (source, 'extra'), (source, '--hash=invalid'),
                  (source, '-m'), (source, '--module='), (source, '-m', '')]:
         run(*args, success=False)
-    for flag in ['--help', '-h', '-?', '--usage', '--version', '-V', '-gh']:
+    for flag in ['--help', '-?', '--usage', '--version', '-V']:
         assert run(flag).stdout
 print('Portable argument parsing checks passed')
