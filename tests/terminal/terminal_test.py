@@ -21,7 +21,7 @@ faulthandler.dump_traceback_later(15)
 def interactive(command, data=b'1234\n', *, status=0, send_signal=None, env=None, stars=None):
     master, slave = os.openpty()
     os.set_blocking(master, False)
-    initial = termios.tcgetattr(slave)
+    initial = termios.tcgetattr(master)
 
     # Run terminal setup after exec: Python preexec_fn can deadlock on macOS.
     process = subprocess.Popen([sys.executable, str(Path(__file__).resolve()),
@@ -39,7 +39,7 @@ def interactive(command, data=b'1234\n', *, status=0, send_signal=None, env=None
                     transcript += os.read(master, 4096)
                 except BlockingIOError:
                     pass
-        during = termios.tcgetattr(slave)
+        during = termios.tcgetattr(master)
         assert not during[3] & (termios.ECHO | termios.ECHONL), during
         if data:
             os.write(master, data)
@@ -58,7 +58,7 @@ def interactive(command, data=b'1234\n', *, status=0, send_signal=None, env=None
                     pass
         stdout, _ = process.communicate(timeout=5)
         assert process.returncode == status, (command, process.returncode, stdout, transcript)
-        assert termios.tcgetattr(slave) == initial, 'terminal settings were not restored'
+        assert termios.tcgetattr(master) == initial, 'terminal settings were not restored'
         while select.select([master], [], [], 0)[0]:
             try:
                 chunk = os.read(master, 4096)
