@@ -8,7 +8,7 @@ import tempfile
 
 executable, catalogs, locale_dir = map(Path, sys.argv[1:])
 with tempfile.TemporaryDirectory(prefix='crsign-i18n-') as directory:
-    prefix = Path(directory) / 'relocated prefix'
+    prefix = Path(directory).resolve() / 'relocated prefix'
     destination = prefix / 'bin' / executable.name
     destination.parent.mkdir(parents=True)
     shutil.copy2(executable, destination)
