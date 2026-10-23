@@ -6,6 +6,7 @@
 
 typedef struct sign_preferences sign_preferences;
 /* Sections store explicit values only; absent keys inherit defaults/globals.
+ * Empty values explicitly restore automatic/default selection.
  * Values are UTF-8 strings, booleans or arrays of strings. */
 typedef GHashTable        sign_preferences_section;
 sign_preferences*         preferences_load(GError** error);

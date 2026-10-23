@@ -45,8 +45,11 @@ tsa = { ca = "certs/tsa-root.pem", intermediates = "certs/tsa-chain.pem" }
 
 Las opciones de firmado también pueden indicarse globalmente, antes de
 `[[profiles]]`. La prioridad es argumentos CLI, perfil, valores globales y
-valores predeterminados. Los campos opcionales vacíos equivalen a omitirlos;
-la etiqueta de un perfil siempre debe ser una cadena no vacía y única.
+valores predeterminados. Omitir un campo en un perfil hereda el valor global;
+un campo explícitamente vacío (`token = ""`, `hash = ""` o `modules = []`)
+restaura la selección automática o el valor predeterminado, ignorando el global.
+La etiqueta de un perfil siempre debe ser una cadena no vacía y única.
+`mime_type` no es un ajuste TOML; el motor detecta el tipo de contenido al firmar.
 La selección de bundles de un perfil reemplaza la selección global del grupo.
 
 La [sección Ajustes de la GUI](gui.md#ajustes-y-perfiles) permite crear y editar

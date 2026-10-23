@@ -42,80 +42,174 @@ static GtkWidget* named(GtkWidget* root, const char* name) {
 	}
 	return NULL;
 }
-static void settings_test(GtkWidget* window, const char* directory) {
-	SignSettings* settings = SIGN_SETTINGS(
-	    find_widget(window, SIGN_TYPE_SETTINGS)
+static void set_mode(GtkWidget* settings, const char* key, guint index) {
+	guint offset = adw_combo_row_get_selected(
+	                   ADW_COMBO_ROW(named(settings, "settings-scope"))
+	               ) == 0
+	                   ? 1
+	                   : 0;
+	g_assert_cmpuint(index, >=, offset);
+	adw_combo_row_set_selected(
+	    ADW_COMBO_ROW(named(settings, key)),
+	    index - offset
 	);
-	char* path = config_path();
+}
+static void settings_test(GtkWidget* window, const char* directory) {
+	(void)directory;
+	GtkWidget*    view = find_widget(window, SIGN_TYPE_SETTINGS);
+	SignSettings* settings = SIGN_SETTINGS(view);
+	char*         path = config_path();
 	g_assert_false(g_file_test(path, G_FILE_TEST_EXISTS));
-	GtkWidget* token = named(GTK_WIDGET(settings), "token");
+	g_assert_false(gtk_widget_get_visible(named(view, "settings-status")));
+	g_assert_null(named(view, "mime_type"));
+	GtkWidget*   modules = named(view, "modules");
+	AdwComboRow* global_mode = ADW_COMBO_ROW(named(view, "modules-mode"));
+	g_assert_cmpuint(
+	    g_list_model_get_n_items(adw_combo_row_get_model(global_mode)),
+	    ==,
+	    2
+	);
+	g_assert_cmpstr(
+	    gtk_string_object_get_string(
+	        adw_combo_row_get_selected_item(global_mode)
+	    ),
+	    ==,
+	    "Automático"
+	);
+	g_assert_cmpuint(
+	    adw_combo_row_get_selected(ADW_COMBO_ROW(named(view, "modules-mode"))),
+	    ==,
+	    0
+	);
+	g_assert_false(gtk_widget_get_visible(gtk_widget_get_parent(modules)));
+	GtkWidget* token = named(view, "token");
+	set_mode(view, "token-mode", 2);
 	gtk_editable_set_text(GTK_EDITABLE(token), "pkcs11:token=Global");
-	/* The normal debounce creates the file after a valid edit. */
+	set_mode(view, "hash", 3); /* sha384 */
 	for (int i = 0; i < 3; ++i) {
 		settle();
 	}
 	g_assert_true(g_file_test(path, G_FILE_TEST_IS_REGULAR));
+	g_assert_false(gtk_widget_get_visible(named(view, "settings-status")));
+	set_mode(view, "modules-mode", 2);
+	g_assert_true(gtk_widget_get_visible(gtk_widget_get_parent(modules)));
+	g_assert_cmpint(
+	    gtk_widget_get_margin_top(gtk_widget_get_parent(modules)),
+	    >=,
+	    12
+	);
+	g_assert_false(gtk_widget_get_visible(modules));
+	g_signal_emit_by_name(named(view, "add-module"), "clicked");
+	GtkWidget* first = gtk_widget_get_first_child(modules);
+	gtk_editable_set_text(GTK_EDITABLE(first), "one.so");
+	g_signal_emit_by_name(named(view, "add-module"), "clicked");
+	GtkWidget* second = gtk_widget_get_last_child(modules);
+	gtk_editable_set_text(GTK_EDITABLE(second), "two.so");
+	g_assert_true(sign_settings_flush(settings));
 	char      detail[512];
 	sign_args args = {0};
 	g_assert_true(config_load(&args, NULL, detail, sizeof(detail)));
+	g_assert_cmpuint(args.options.modules.count, ==, 2);
+	arg_free(&args);
+	g_signal_emit_by_name(named(first, "remove-module"), "clicked");
+	g_assert_true(sign_settings_flush(settings));
+	g_assert_true(config_load(&args, NULL, detail, sizeof(detail)));
+	g_assert_cmpuint(args.options.modules.count, ==, 1);
+	g_assert_true(g_str_has_suffix(args.options.modules.items[0], "two.so"));
+	arg_free(&args);
+	g_signal_emit_by_name(named(view, "add-profile"), "clicked");
+	gtk_editable_set_text(GTK_EDITABLE(named(view, "label")), "bccr");
+	g_assert_cmpuint(
+	    g_list_model_get_n_items(adw_combo_row_get_model(global_mode)),
+	    ==,
+	    3
+	);
+	g_assert_cmpstr(
+	    gtk_string_object_get_string(
+	        adw_combo_row_get_selected_item(global_mode)
+	    ),
+	    ==,
+	    "Global"
+	);
+	gtk_editable_set_text(GTK_EDITABLE(named(view, "name")), "Banco ñ");
+	g_assert_cmpuint(
+	    adw_combo_row_get_selected(ADW_COMBO_ROW(named(view, "hash"))),
+	    ==,
+	    0
+	);
+	g_assert_true(sign_settings_flush(settings));
+	g_assert_true(config_load(&args, "bccr", detail, sizeof(detail)));
 	g_assert_cmpstr(args.options.uri, ==, "pkcs11:token=Global");
+	g_assert_cmpint(args.options.hash, ==, LIBSSIG_HASH_SHA384);
+	g_assert_cmpuint(args.options.modules.count, ==, 1);
 	arg_free(&args);
-	g_signal_emit_by_name(
-	    named(GTK_WIDGET(settings), "add-profile"),
-	    "clicked"
-	);
-	gtk_editable_set_text(
-	    GTK_EDITABLE(named(GTK_WIDGET(settings), "label")),
-	    "bccr"
-	);
-	gtk_editable_set_text(
-	    GTK_EDITABLE(named(GTK_WIDGET(settings), "name")),
-	    "Banco ñ"
-	);
-	gtk_editable_set_text(GTK_EDITABLE(token), "pkcs11:token=Profile");
+	set_mode(view, "hash", 1);
+	set_mode(view, "token-mode", 1);
+	set_mode(view, "modules-mode", 1);
+	g_assert_false(gtk_widget_get_visible(gtk_widget_get_parent(modules)));
 	g_assert_true(sign_settings_flush(settings));
 	g_assert_true(config_load(&args, "bccr", detail, sizeof(detail)));
-	g_assert_cmpstr(args.options.uri, ==, "pkcs11:token=Profile");
+	g_assert_null(args.options.uri);
+	g_assert_cmpint(args.options.hash, ==, LIBSSIG_HASH_SHA256);
+	g_assert_cmpuint(args.options.modules.count, ==, 0);
 	arg_free(&args);
-	gtk_editable_set_text(GTK_EDITABLE(token), "");
-	g_assert_true(sign_settings_flush(settings));
-	g_assert_true(config_load(&args, "bccr", detail, sizeof(detail)));
-	g_assert_cmpstr(args.options.uri, ==, "pkcs11:token=Global");
-	arg_free(&args);
-	gtk_editable_set_text(
-	    GTK_EDITABLE(named(GTK_WIDGET(settings), "label")),
-	    ""
-	);
-	g_assert_false(sign_settings_flush(settings));
-	g_assert_true(config_load(&args, "bccr", detail, sizeof(detail)));
-	arg_free(&args);
-	gtk_editable_set_text(
-	    GTK_EDITABLE(named(GTK_WIDGET(settings), "label")),
-	    "bccr"
-	);
-	g_assert_true(sign_settings_flush(settings));
-	/* Reopening the view reads global values and the full profile list. */
 	GtkWidget* reopened = sign_settings_new();
 	g_object_ref_sink(reopened);
-	g_assert_cmpstr(
-	    gtk_editable_get_text(GTK_EDITABLE(named(reopened, "token"))),
-	    ==,
-	    "pkcs11:token=Global"
-	);
-	GtkDropDown* scopes = GTK_DROP_DOWN(named(reopened, "settings-scope"));
+	AdwComboRow* scopes = ADW_COMBO_ROW(named(reopened, "settings-scope"));
 	g_assert_cmpuint(
-	    g_list_model_get_n_items(gtk_drop_down_get_model(scopes)),
+	    g_list_model_get_n_items(adw_combo_row_get_model(scopes)),
 	    ==,
 	    2
 	);
-	gtk_drop_down_set_selected(scopes, 1);
+	adw_combo_row_set_selected(scopes, 1);
+	GtkStringObject* display = adw_combo_row_get_selected_item(scopes);
+	g_assert_cmpstr(gtk_string_object_get_string(display), ==, "Banco ñ");
+	g_assert_cmpuint(
+	    adw_combo_row_get_selected(ADW_COMBO_ROW(named(reopened, "hash"))),
+	    ==,
+	    1
+	);
+	g_assert_cmpuint(
+	    adw_combo_row_get_selected(
+	        ADW_COMBO_ROW(named(reopened, "token-mode"))
+	    ),
+	    ==,
+	    1
+	);
+	g_assert_cmpuint(
+	    adw_combo_row_get_selected(
+	        ADW_COMBO_ROW(named(reopened, "modules-mode"))
+	    ),
+	    ==,
+	    1
+	);
+	g_assert_false(gtk_widget_get_visible(named(reopened, "settings-status")));
+	g_object_unref(reopened);
+	gtk_editable_set_text(GTK_EDITABLE(named(view, "name")), "");
+	g_assert_true(sign_settings_flush(settings));
+	AdwComboRow* current = ADW_COMBO_ROW(named(view, "settings-scope"));
 	g_assert_cmpstr(
-	    gtk_editable_get_text(GTK_EDITABLE(named(reopened, "label"))),
+	    gtk_string_object_get_string(adw_combo_row_get_selected_item(current)),
 	    ==,
 	    "bccr"
 	);
-	g_object_unref(reopened);
-	(void)directory;
+	gtk_editable_set_text(GTK_EDITABLE(named(view, "name")), "Banco ñ");
+	g_assert_true(sign_settings_flush(settings));
+	set_mode(view, "token-mode", 0);
+	set_mode(view, "hash", 0);
+	set_mode(view, "modules-mode", 0);
+	g_assert_true(sign_settings_flush(settings));
+	g_assert_true(config_load(&args, "bccr", detail, sizeof(detail)));
+	g_assert_cmpstr(args.options.uri, ==, "pkcs11:token=Global");
+	g_assert_cmpint(args.options.hash, ==, LIBSSIG_HASH_SHA384);
+	g_assert_cmpuint(args.options.modules.count, ==, 1);
+	arg_free(&args);
+	gtk_editable_set_text(GTK_EDITABLE(named(view, "label")), "");
+	g_assert_false(sign_settings_flush(settings));
+	g_assert_true(gtk_widget_get_visible(named(view, "settings-status")));
+	gtk_editable_set_text(GTK_EDITABLE(named(view, "label")), "bccr");
+	g_assert_true(sign_settings_flush(settings));
+	g_assert_false(gtk_widget_get_visible(named(view, "settings-status")));
 	g_free(path);
 }
 static void snapshot(
@@ -199,8 +293,16 @@ int main(int argc, char** argv) {
 		);
 		g_assert_cmpstr(gtk_stack_get_visible_child_name(stack), ==, ids[i]);
 		GtkWidget* page = gtk_stack_get_visible_child(stack);
-		GtkWidget* label = find_widget(page, GTK_TYPE_LABEL);
-		g_assert_cmpstr(gtk_label_get_label(GTK_LABEL(label)), ==, titles[i]);
+		if (i == 3) {
+			g_assert_true(SIGN_IS_SETTINGS(page));
+		} else {
+			GtkWidget* label = find_widget(page, GTK_TYPE_LABEL);
+			g_assert_cmpstr(
+			    gtk_label_get_label(GTK_LABEL(label)),
+			    ==,
+			    titles[i]
+			);
+		}
 		g_assert_true(adw_overlay_split_view_get_show_sidebar(split));
 	}
 	gtk_list_box_select_row(
@@ -212,7 +314,15 @@ int main(int argc, char** argv) {
 	    navigation,
 	    gtk_list_box_get_row_at_index(navigation, 3)
 	);
+	GtkWidget* settings_view = find_widget(window, SIGN_TYPE_SETTINGS);
+	gtk_widget_grab_focus(named(settings_view, "settings-scope"));
 	snapshot(window, directory, "settings.png");
+	adw_combo_row_set_selected(
+	    ADW_COMBO_ROW(named(settings_view, "settings-scope")),
+	    0
+	);
+	gtk_widget_grab_focus(named(settings_view, "modules-mode"));
+	snapshot(window, directory, "modules.png");
 	gtk_list_box_select_row(
 	    navigation,
 	    gtk_list_box_get_row_at_index(navigation, 0)

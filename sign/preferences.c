@@ -52,11 +52,7 @@ static void section_read(
 			section_read(section, value, nested);
 			g_free(nested);
 		} else if (value.type == TOML_STRING) {
-			if (value.u.s[0]) {
-				preferences_set(section, key, g_variant_new_string(value.u.s));
-			} else if (!strcmp(key, "pincmd")) {
-				preferences_set(section, key, g_variant_new_strv(NULL, 0));
-			}
+			preferences_set(section, key, g_variant_new_string(value.u.s));
 		} else if (value.type == TOML_BOOLEAN) {
 			preferences_set(
 			    section,
@@ -222,10 +218,6 @@ static bool section_write(
 			break;
 		}
 		GVariant* value = preferences_get(section, key);
-		if (g_variant_is_of_type(value, G_VARIANT_TYPE_STRING) &&
-		    !g_variant_get_string(value, NULL)[0]) {
-			continue;
-		}
 		g_string_append_printf(text, "%s = ", key);
 		if (g_variant_is_of_type(value, G_VARIANT_TYPE_STRING)) {
 			quoted(text, g_variant_get_string(value, NULL));

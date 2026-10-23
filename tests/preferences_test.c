@@ -79,6 +79,65 @@ int main(void) {
 	g_assert_cmpuint(args.options.modules.count, ==, 0);
 	g_assert_null(args.pincmd);
 	arg_free(&args);
+	/* Empty values bypass non-default globals and survive every round trip. */
+	text(global, "algorithm", "rsa-pss");
+	text(global, "level", "B-B");
+	text(global, "format", "xades");
+	text(global, "ca", "root.pem");
+	preferences_set(global, "detached", g_variant_new_boolean(true));
+	preferences_set(global, "no_bundled_certs", g_variant_new_boolean(true));
+	const char* automatic[] = {
+	    "token",
+	    "cert_id",
+	    "algorithm",
+	    "hash",
+	    "level",
+	    "format",
+	    "ca",
+	    "intermediates",
+	    "tsa.url",
+	    "tsa.ca",
+	    "tsa.intermediates",
+	    "signature_image",
+	    "detached",
+	    "no_bundled_certs"
+	};
+	for (guint i = 0; i < G_N_ELEMENTS(automatic); ++i) {
+		text(profile, automatic[i], "");
+	}
+	g_assert_true(preferences_save(p, &error));
+	g_assert_no_error(error);
+	g_assert_true(config_load(&args, "bccr", detail, sizeof(detail)));
+	g_assert_null(args.options.uri);
+	g_assert_null(args.options.id);
+	g_assert_null(args.options.ca_file);
+	g_assert_null(args.options.tsa_ca_file);
+	g_assert_null(args.options.appearance_file);
+	g_assert_cmpint(args.options.algo, ==, LIBSSIG_ALGO_RSA_PKCS);
+	g_assert_cmpint(args.options.hash, ==, LIBSSIG_HASH_SHA256);
+	g_assert_cmpint(args.options.level, ==, LIBSSIG_LEVEL_B_LTA);
+	g_assert_false(args.options.format_explicit);
+	g_assert_false(args.options.detached);
+	g_assert_false(args.options.no_bundled_certs);
+	arg_free(&args);
+	sign_preferences* roundtrip = preferences_load(&error);
+	g_assert_no_error(error);
+	for (guint i = 0; i < G_N_ELEMENTS(automatic); ++i) {
+		GVariant* value = preferences_get(
+		    preferences_profile(roundtrip, 0),
+		    automatic[i]
+		);
+		g_assert_nonnull(value);
+		g_assert_cmpstr(g_variant_get_string(value, NULL), ==, "");
+	}
+	g_assert_true(preferences_save(roundtrip, &error));
+	g_assert_no_error(error);
+	preferences_free(roundtrip);
+	/* Reload p after another writer's successful round trip. */
+	preferences_free(p);
+	p = preferences_load(&error);
+	g_assert_no_error(error);
+	profile = preferences_profile(p, 0);
 	char* before = read_file(path);
 	text(profile, "hash", "unsupported");
 	g_assert_false(preferences_save(p, &error));
@@ -123,7 +182,7 @@ int main(void) {
 	g_assert_true(preferences_save(loaded, &error));
 	g_assert_no_error(error);
 	after = read_file(path);
-	g_assert_cmpstr(after, ==, "version = 0.1\n");
+	g_assert_cmpstr(after, ==, "version = 0.1\nhash = \"\"\n");
 	g_free(after);
 	preferences_free(loaded);
 	const char* invalid[] = {

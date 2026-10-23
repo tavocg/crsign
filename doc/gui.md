@@ -33,11 +33,11 @@ en inglés con `LC_ALL=C` o `C.UTF-8`, incluso si se define `LANGUAGE`.
 ## Ajustes y perfiles
 
 Ajustes lee `crsign.toml` al crear la ventana, aunque no se visite esa sección.
-La ruta aparece en la vista y coincide con la usada por la CLI: el directorio
-que resuelve `g_get_user_config_dir()`, seguido de `crsign/crsign.toml`.
+La ubicación coincide con la usada por la CLI: el directorio que resuelve `g_get_user_config_dir()`, seguido de `crsign/crsign.toml`.
 Respeta `XDG_CONFIG_HOME` y los directorios apropiados de cada plataforma.
 
-El selector permite editar los valores globales o un perfil. Los botones `+` y
+El selector permite editar los valores globales o un perfil. Muestra su nombre
+y, cuando no tiene nombre, su etiqueta. Los botones `+` y
 `−` crean y eliminan perfiles; cada perfil necesita una etiqueta única, que
 permite seleccionarlo con `sign --profile ETIQUETA`. El nombre es opcional.
 
@@ -46,14 +46,31 @@ Abrir la aplicación conserva los valores predeterminados sin crear archivos;
 el primer cambio válido crea el directorio y `crsign.toml` con `version = 0.1`.
 También se guardan cambios pendientes válidos al cerrar la ventana.
 
-Los campos vacíos se omiten: en perfiles heredan el valor global y, si no hay
-uno, conservan la selección automática o el valor predeterminado del motor.
-Los selectores de algoritmo, hash, nivel y formato permiten volver a ese estado.
-Las opciones booleanas distinguen herencia, sí y no. Los módulos permiten elegir
-entre herencia, p11-kit o una lista de rutas, una por línea. `pincmd` distingue
-herencia, PIN interactivo y un comando personalizado con argumentos entre comillas.
-Los arreglos de argumentos ya existentes se conservan, incluidos argumentos vacíos.
-La imagen es una preferencia; su posición y dimensiones se decidirán al firmar.
+Cada ajuste distingue los estados siguientes:
+
+- **Global**: omite el campo en el perfil y hereda el ajuste global. Es el estado
+  inicial de los perfiles. No aparece al editar los ajustes globales; allí el
+  estado predeterminado es Automático.
+- **Automático**: escribe un valor vacío explícito y usa la selección automática
+  o el valor predeterminado del motor, aunque exista un ajuste global.
+- **Personalizado**: permite escribir un valor o elegir una opción concreta.
+
+Las cadenas vacías (`token = ""`, `hash = ""`, etc.) restauran los valores
+predeterminados correspondientes. Las opciones booleanas también admiten `""`
+para ese estado, además de `true` y `false`. En listas, el valor vacío es `[]`:
+`modules = []` usa p11-kit y `pincmd = []` solicita el PIN interactivamente.
+La ausencia del campo en un perfil conserva su herencia global.
+
+La lista personalizada de módulos tiene un botón para agregar rutas y otro para
+eliminar cada módulo. Solo aparece al elegir Personalizado. `pincmd` permite
+escribir un comando con argumentos entre comillas; los arreglos de argumentos
+existentes se conservan, incluidos argumentos vacíos. La imagen es una preferencia;
+su posición y dimensiones se decidirán al firmar. El tipo de contenido se detecta
+al firmar y no forma parte de los ajustes TOML ni de la GUI.
+
+El selector de configuración usa el mismo estilo que los selectores de opciones.
+Debajo están los botones para eliminar, crear perfiles y recargar el archivo.
+La vista solo muestra mensajes cuando hay un error; el guardado es automático.
 
 Antes de escribir se validan los valores globales y todos los perfiles con las
 mismas reglas y opciones compartidas con la CLI. Un error se muestra en la vista

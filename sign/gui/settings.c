@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-#include <sign/config.h>
 #include <sign/gui/i18n.h>
 #include <sign/gui/settings.h>
 #include <sign/options.h>
@@ -8,25 +7,27 @@
 
 typedef enum { ENTRY, CHOICE, BOOLEAN, MODULES, COMMAND, BUNDLES } input_kind;
 typedef struct {
-	const char*  key;
-	GtkWidget*   widget;
-	AdwComboRow* mode;
-	input_kind   kind;
+	const char*    key;
+	GtkWidget*     widget;
+	GtkWidget*     details;
+	AdwComboRow*   mode;
+	input_kind     kind;
+	GtkStringList* choices; /* Canonical model includes Global at index zero. */
 } setting_input;
 struct _SignSettings {
 	GtkBox               parent_instance;
 	sign_preferences*    preferences;
 	GPtrArray*           inputs;
-	GtkDropDown*         scopes;
+	AdwComboRow*         scopes;
 	GtkWidget *          editor, *remove, *add;
-	GtkLabel *           status, *path;
+	GtkLabel*            status;
 	AdwPreferencesGroup* identity;
 	bool                 updating, dirty;
 	guint                timer;
 };
 G_DEFINE_TYPE(SignSettings, sign_settings, GTK_TYPE_BOX)
 static sign_preferences_section* selected(SignSettings* self) {
-	guint index = gtk_drop_down_get_selected(self->scopes);
+	guint index = adw_combo_row_get_selected(self->scopes);
 	return index ? preferences_profile(self->preferences, index - 1)
 	             : preferences_global(self->preferences);
 }
@@ -38,15 +39,18 @@ static void refresh_scopes(SignSettings* self, guint index) {
 		    self->preferences,
 		    i
 		);
-		GVariant* label = preferences_get(profile, "label");
-		gtk_string_list_append(
-		    list,
-		    label ? g_variant_get_string(label, NULL) : _("New profile")
-		);
+		GVariant*   name = preferences_get(profile, "name");
+		GVariant*   label = preferences_get(profile, "label");
+		const char* display = name ? g_variant_get_string(name, NULL) : NULL;
+		if (!display || !display[0]) {
+			display = label ? g_variant_get_string(label, NULL)
+			                : _("New profile");
+		}
+		gtk_string_list_append(list, display);
 	}
 	self->updating = true;
-	gtk_drop_down_set_model(self->scopes, G_LIST_MODEL(list));
-	gtk_drop_down_set_selected(self->scopes, index);
+	adw_combo_row_set_model(self->scopes, G_LIST_MODEL(list));
+	adw_combo_row_set_selected(self->scopes, index);
 	self->updating = false;
 	g_object_unref(list);
 }
@@ -62,15 +66,15 @@ bool sign_settings_flush(SignSettings* self) {
 	bool    ok = preferences_save(self->preferences, &error);
 	if (ok) {
 		self->dirty = false;
-		gtk_label_set_text(self->status, _("All changes saved"));
-		gtk_widget_remove_css_class(GTK_WIDGET(self->status), "error");
-		refresh_scopes(self, gtk_drop_down_get_selected(self->scopes));
+		gtk_widget_set_visible(GTK_WIDGET(self->status), FALSE);
+		refresh_scopes(self, adw_combo_row_get_selected(self->scopes));
 	} else {
 		char* message = g_strdup_printf(
 		    _("Changes not saved: %s"),
 		    error->message
 		);
 		gtk_label_set_text(self->status, message);
+		gtk_widget_set_visible(GTK_WIDGET(self->status), TRUE);
 		gtk_widget_add_css_class(GTK_WIDGET(self->status), "error");
 		g_free(message);
 		g_clear_error(&error);
@@ -85,7 +89,7 @@ static gboolean save_later(gpointer data) {
 }
 static void changed(SignSettings* self) {
 	self->dirty = true;
-	gtk_label_set_text(self->status, _("Saving changes…"));
+	gtk_widget_set_visible(GTK_WIDGET(self->status), FALSE);
 	if (self->timer) {
 		g_source_remove(self->timer);
 	}
@@ -93,12 +97,19 @@ static void changed(SignSettings* self) {
 }
 static char* input_text(setting_input* input) {
 	if (input->kind == MODULES) {
-		GtkTextBuffer* buffer = gtk_text_view_get_buffer(
-		    GTK_TEXT_VIEW(input->widget)
-		);
-		GtkTextIter start, end;
-		gtk_text_buffer_get_bounds(buffer, &start, &end);
-		return gtk_text_buffer_get_text(buffer, &start, &end, FALSE);
+		GString* paths = g_string_new(NULL);
+		for (GtkWidget* row = gtk_widget_get_first_child(input->widget); row;
+		     row = gtk_widget_get_next_sibling(row)) {
+			const char* path = gtk_editable_get_text(GTK_EDITABLE(row));
+			if (!path[0]) {
+				continue;
+			}
+			if (paths->len) {
+				g_string_append_c(paths, '\n');
+			}
+			g_string_append(paths, path);
+		}
+		return g_string_free(paths, FALSE);
 	}
 	return g_strdup(gtk_editable_get_text(GTK_EDITABLE(input->widget)));
 }
@@ -110,11 +121,15 @@ static void input_changed(GObject* object, gpointer data) {
 	setting_input* input = g_object_get_data(object, "setting-input");
 	sign_preferences_section* section = selected(self);
 	GVariant*                 value = NULL;
+	guint offset = adw_combo_row_get_selected(self->scopes) == 0 ? 1 : 0;
 	if (input->kind == CHOICE || input->kind == BOOLEAN) {
-		guint index = adw_combo_row_get_selected(ADW_COMBO_ROW(input->widget));
-		if (index) {
+		guint index = adw_combo_row_get_selected(ADW_COMBO_ROW(input->widget)) +
+		              offset;
+		if (index == 1) {
+			value = g_variant_new_string("");
+		} else if (index > 1) {
 			if (input->kind == BOOLEAN) {
-				value = g_variant_new_boolean(index == 2);
+				value = g_variant_new_boolean(index == 3);
 			} else {
 				GtkStringObject* item = adw_combo_row_get_selected_item(
 				    ADW_COMBO_ROW(input->widget)
@@ -125,12 +140,17 @@ static void input_changed(GObject* object, gpointer data) {
 			}
 		}
 	} else {
-		guint mode = input->mode ? adw_combo_row_get_selected(input->mode) : 2;
+		guint mode = input->mode
+		                 ? adw_combo_row_get_selected(input->mode) + offset
+		                 : 2;
 		if (input->mode) {
-			gtk_widget_set_sensitive(input->widget, mode == 2);
+			gtk_widget_set_visible(input->details, mode == 2);
 		}
 		if (mode == 1) {
-			value = g_variant_new_strv(NULL, 0);
+			value = (input->kind == MODULES || input->kind == COMMAND ||
+			         input->kind == BUNDLES)
+			            ? g_variant_new_strv(NULL, 0)
+			            : g_variant_new_string("");
 		} else if (mode == 2) {
 			char* text = input_text(input);
 			if (input->kind == MODULES || input->kind == BUNDLES) {
@@ -141,23 +161,15 @@ static void input_changed(GObject* object, gpointer data) {
 				);
 				GVariantBuilder array;
 				g_variant_builder_init(&array, G_VARIANT_TYPE_STRING_ARRAY);
-				guint count = 0;
 				for (char** item = parts; *item; ++item) {
 					if (*g_strstrip(*item)) {
 						g_variant_builder_add(&array, "s", *item);
-						++count;
 					}
 				}
-				if (count || input->kind == MODULES) {
-					value = g_variant_builder_end(&array);
-				} else {
-					g_variant_builder_clear(&array);
-				}
+				value = g_variant_builder_end(&array);
 				g_strfreev(parts);
-			} else if (text[0]) {
+			} else if (input->mode || text[0]) {
 				value = g_variant_new_string(text);
-			} else if (input->kind == COMMAND) {
-				value = g_variant_new_strv(NULL, 0);
 			}
 			g_free(text);
 		}
@@ -169,29 +181,51 @@ static void choice_changed(GObject* object, GParamSpec* pspec, gpointer data) {
 	(void)pspec;
 	input_changed(object, data);
 }
+static void module_row(
+    SignSettings*  self,
+    setting_input* input,
+    const char*    path
+);
 static void load_inputs(SignSettings* self) {
 	self->updating = true;
-	guint index = gtk_drop_down_get_selected(self->scopes);
+	guint index = adw_combo_row_get_selected(self->scopes);
 	gtk_widget_set_sensitive(self->remove, index != 0);
 	gtk_widget_set_visible(GTK_WIDGET(self->identity), index != 0);
 	sign_preferences_section* section = selected(self);
 	for (guint i = 0; i < self->inputs->len; ++i) {
 		setting_input* input = g_ptr_array_index(self->inputs, i);
 		GVariant*      value = preferences_get(section, input->key);
+		guint          offset = index == 0 ? 1 : 0;
+		if (input->choices) {
+			GtkStringList* choices = gtk_string_list_new(NULL);
+			for (guint n = offset;
+			     n < g_list_model_get_n_items(G_LIST_MODEL(input->choices));
+			     ++n) {
+				gtk_string_list_append(
+				    choices,
+				    gtk_string_list_get_string(input->choices, n)
+				);
+			}
+			AdwComboRow* row = input->mode ? input->mode
+			                               : ADW_COMBO_ROW(input->widget);
+			adw_combo_row_set_model(row, G_LIST_MODEL(choices));
+			g_object_unref(choices);
+		}
 		if (input->kind == CHOICE || input->kind == BOOLEAN) {
 			guint choice = 0;
-			if (input->kind == BOOLEAN && value) {
-				choice = g_variant_get_boolean(value) ? 2 : 1;
+			if (value && g_variant_is_of_type(value, G_VARIANT_TYPE_STRING) &&
+			    !g_variant_get_string(value, NULL)[0]) {
+				choice = 1;
+			} else if (input->kind == BOOLEAN && value) {
+				choice = g_variant_get_boolean(value) ? 3 : 2;
 			} else if (value) {
 				const char* text = g_variant_get_string(value, NULL);
 				if (!strcmp(input->key, "algorithm") &&
 				    !g_ascii_strcasecmp(text, "rsa")) {
 					text = "rsa-pkcs";
 				}
-				GListModel* model = adw_combo_row_get_model(
-				    ADW_COMBO_ROW(input->widget)
-				);
-				for (guint n = 1; n < g_list_model_get_n_items(model); ++n) {
+				GListModel* model = G_LIST_MODEL(input->choices);
+				for (guint n = 2; n < g_list_model_get_n_items(model); ++n) {
 					GtkStringObject* item = g_list_model_get_item(model, n);
 					if (!g_ascii_strcasecmp(
 					        text,
@@ -202,7 +236,10 @@ static void load_inputs(SignSettings* self) {
 					g_object_unref(item);
 				}
 			}
-			adw_combo_row_set_selected(ADW_COMBO_ROW(input->widget), choice);
+			adw_combo_row_set_selected(
+			    ADW_COMBO_ROW(input->widget),
+			    choice >= offset ? choice - offset : 0
+			);
 		} else {
 			char* text = NULL;
 			guint mode = value ? 2 : 0;
@@ -233,17 +270,31 @@ static void load_inputs(SignSettings* self) {
 				g_free(items);
 			} else {
 				text = g_strdup(value ? g_variant_get_string(value, NULL) : "");
+				if (value && !text[0]) {
+					mode = 1;
+				}
 			}
 			if (input->mode) {
-				adw_combo_row_set_selected(input->mode, mode);
-				gtk_widget_set_sensitive(input->widget, mode == 2);
+				adw_combo_row_set_selected(
+				    input->mode,
+				    mode >= offset ? mode - offset : 0
+				);
+				gtk_widget_set_visible(input->details, mode == 2);
 			}
 			if (input->kind == MODULES) {
-				gtk_text_buffer_set_text(
-				    gtk_text_view_get_buffer(GTK_TEXT_VIEW(input->widget)),
-				    text,
-				    -1
-				);
+				GtkWidget* row;
+				while ((row = gtk_widget_get_first_child(input->widget))) {
+					gtk_list_box_remove(GTK_LIST_BOX(input->widget), row);
+				}
+				gtk_widget_set_visible(input->widget, FALSE);
+				if (value) {
+					gsize        count;
+					const char** paths = g_variant_get_strv(value, &count);
+					for (gsize n = 0; n < count; ++n) {
+						module_row(self, input, paths[n]);
+					}
+					g_free(paths);
+				}
 			} else {
 				gtk_editable_set_text(GTK_EDITABLE(input->widget), text);
 			}
@@ -273,6 +324,7 @@ static void reload(GtkButton* button, gpointer data) {
 	loaded = preferences_load(&error);
 	if (!loaded) {
 		gtk_label_set_text(self->status, error->message);
+		gtk_widget_set_visible(GTK_WIDGET(self->status), TRUE);
 		gtk_widget_add_css_class(GTK_WIDGET(self->status), "error");
 		gtk_widget_set_sensitive(self->editor, FALSE);
 		gtk_widget_set_sensitive(self->add, FALSE);
@@ -284,12 +336,7 @@ static void reload(GtkButton* button, gpointer data) {
 	preferences_free(self->preferences);
 	self->preferences = loaded;
 	self->dirty = false;
-	gtk_label_set_text(self->path, preferences_path(loaded));
-	gtk_label_set_text(
-	    self->status,
-	    _("Valid changes are saved automatically")
-	);
-	gtk_widget_remove_css_class(GTK_WIDGET(self->status), "error");
+	gtk_widget_set_visible(GTK_WIDGET(self->status), FALSE);
 	gtk_widget_set_sensitive(self->editor, TRUE);
 	gtk_widget_set_sensitive(self->add, TRUE);
 	gtk_widget_set_sensitive(GTK_WIDGET(self->scopes), TRUE);
@@ -325,7 +372,7 @@ static void add_profile(GtkButton* button, gpointer data) {
 static void remove_profile(GtkButton* button, gpointer data) {
 	(void)button;
 	SignSettings* self = data;
-	guint         index = gtk_drop_down_get_selected(self->scopes);
+	guint         index = adw_combo_row_get_selected(self->scopes);
 	if (!index) {
 		return;
 	}
@@ -342,7 +389,9 @@ static AdwPreferencesGroup* group(
 	AdwPreferencesGroup* group = ADW_PREFERENCES_GROUP(
 	    adw_preferences_group_new()
 	);
-	adw_preferences_group_set_title(group, title);
+	if (title) {
+		adw_preferences_group_set_title(group, title);
+	}
 	if (description) {
 		adw_preferences_group_set_description(group, description);
 	}
@@ -366,6 +415,44 @@ static void connect_input(
 	g_object_set_data(object, "setting-input", input);
 	g_signal_connect(object, signal, G_CALLBACK(input_changed), self);
 }
+static void module_remove(GtkButton* button, gpointer data) {
+	SignSettings*  self = data;
+	setting_input* input = g_object_get_data(G_OBJECT(button), "setting-input");
+	GtkWidget*     row = g_object_get_data(G_OBJECT(button), "module-row");
+	gtk_list_box_remove(GTK_LIST_BOX(input->widget), row);
+	gtk_widget_set_visible(
+	    input->widget,
+	    gtk_widget_get_first_child(input->widget) != NULL
+	);
+	input_changed(G_OBJECT(input->widget), self);
+}
+static void module_row(
+    SignSettings*  self,
+    setting_input* input,
+    const char*    path
+) {
+	GtkWidget* row = adw_entry_row_new();
+	adw_preferences_row_set_title(ADW_PREFERENCES_ROW(row), _("Module path"));
+	gtk_editable_set_text(GTK_EDITABLE(row), path);
+	GtkWidget* remove = gtk_button_new_from_icon_name("list-remove-symbolic");
+	gtk_widget_set_valign(remove, GTK_ALIGN_CENTER);
+	gtk_widget_add_css_class(remove, "flat");
+	gtk_widget_set_tooltip_text(remove, _("Remove module"));
+	gtk_widget_set_name(remove, "remove-module");
+	adw_entry_row_add_suffix(ADW_ENTRY_ROW(row), remove);
+	g_object_set_data(G_OBJECT(remove), "setting-input", input);
+	g_object_set_data(G_OBJECT(remove), "module-row", row);
+	g_signal_connect(remove, "clicked", G_CALLBACK(module_remove), self);
+	connect_input(self, input, G_OBJECT(row), "changed");
+	gtk_list_box_append(GTK_LIST_BOX(input->widget), row);
+	gtk_widget_set_visible(input->widget, TRUE);
+}
+static void module_add(GtkButton* button, gpointer data) {
+	SignSettings*  self = data;
+	setting_input* input = g_object_get_data(G_OBJECT(button), "setting-input");
+	module_row(self, input, "");
+	gtk_widget_grab_focus(gtk_widget_get_last_child(input->widget));
+}
 static void entry(
     SignSettings*        self,
     AdwPreferencesGroup* group,
@@ -376,14 +463,12 @@ static void entry(
 	setting_input* input = g_new0(setting_input, 1);
 	input->key = key;
 	input->kind = kind;
-	if (kind == MODULES || kind == COMMAND) {
-		const char* modes[] = {
-		    _("Use global settings / default"),
-		    kind == MODULES ? _("Automatic (p11-kit)") : _("Interactive PIN"),
-		    _("Custom"),
-		    NULL
-		};
-		input->mode = ADW_COMBO_ROW(combo(_("Selection"), modes));
+	if (strcmp(key, "name") && strcmp(key, "label")) {
+		const char* modes[] = {_("Global"), _("Automatic"), _("Custom"), NULL};
+		input->mode = ADW_COMBO_ROW(combo(title, modes));
+		input->choices = g_object_ref(
+		    GTK_STRING_LIST(adw_combo_row_get_model(input->mode))
+		);
 		adw_preferences_group_add(group, GTK_WIDGET(input->mode));
 		g_object_set_data(G_OBJECT(input->mode), "setting-input", input);
 		g_signal_connect(
@@ -392,30 +477,35 @@ static void entry(
 		    G_CALLBACK(choice_changed),
 		    self
 		);
-		gtk_widget_set_name(GTK_WIDGET(input->mode), key);
+		char* name = g_strconcat(key, "-mode", NULL);
+		gtk_widget_set_name(GTK_WIDGET(input->mode), name);
+		g_free(name);
 	}
 	if (kind == MODULES) {
-		input->widget = gtk_text_view_new();
-		gtk_text_view_set_top_margin(GTK_TEXT_VIEW(input->widget), 12);
-		gtk_text_view_set_left_margin(GTK_TEXT_VIEW(input->widget), 12);
-		GtkWidget* scroll = gtk_scrolled_window_new();
-		gtk_widget_set_size_request(scroll, -1, 110);
-		gtk_scrolled_window_set_child(
-		    GTK_SCROLLED_WINDOW(scroll),
-		    input->widget
+		input->details = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
+		gtk_widget_set_margin_top(input->details, 12);
+		input->widget = gtk_list_box_new();
+		gtk_widget_add_css_class(input->widget, "boxed-list");
+		gtk_widget_set_visible(input->widget, FALSE);
+		gtk_list_box_set_selection_mode(
+		    GTK_LIST_BOX(input->widget),
+		    GTK_SELECTION_NONE
 		);
-		adw_preferences_group_add(group, scroll);
-		connect_input(
-		    self,
-		    input,
-		    G_OBJECT(gtk_text_view_get_buffer(GTK_TEXT_VIEW(input->widget))),
-		    "changed"
-		);
+		g_object_set_data(G_OBJECT(input->widget), "setting-input", input);
+		gtk_box_append(GTK_BOX(input->details), input->widget);
+		GtkWidget* add = gtk_button_new_with_label(_("Add module"));
+		gtk_widget_set_name(add, "add-module");
+		gtk_widget_set_halign(add, GTK_ALIGN_END);
+		g_object_set_data(G_OBJECT(add), "setting-input", input);
+		g_signal_connect(add, "clicked", G_CALLBACK(module_add), self);
+		gtk_box_append(GTK_BOX(input->details), add);
+		adw_preferences_group_add(group, input->details);
 	} else {
 		input->widget = adw_entry_row_new();
+		input->details = input->widget;
 		adw_preferences_row_set_title(
 		    ADW_PREFERENCES_ROW(input->widget),
-		    title
+		    input->mode ? _("Value") : title
 		);
 		adw_preferences_group_add(group, input->widget);
 		connect_input(self, input, G_OBJECT(input->widget), "changed");
@@ -432,7 +522,8 @@ static void choice(
     bool                 boolean
 ) {
 	GtkStringList* list = gtk_string_list_new(NULL);
-	gtk_string_list_append(list, _("Automatic / use global settings"));
+	gtk_string_list_append(list, _("Global"));
+	gtk_string_list_append(list, _("Automatic"));
 	if (boolean) {
 		gtk_string_list_append(list, _("No"));
 		gtk_string_list_append(list, _("Yes"));
@@ -451,6 +542,7 @@ static void choice(
 	input->widget = adw_combo_row_new();
 	adw_preferences_row_set_title(ADW_PREFERENCES_ROW(input->widget), title);
 	adw_combo_row_set_model(ADW_COMBO_ROW(input->widget), G_LIST_MODEL(list));
+	input->choices = g_object_ref(list);
 	g_object_unref(list);
 	gtk_widget_set_name(input->widget, key);
 	adw_preferences_group_add(group, input->widget);
@@ -462,6 +554,11 @@ static void choice(
 	    self
 	);
 	g_ptr_array_add(self->inputs, input);
+}
+static void input_free(gpointer data) {
+	setting_input* input = data;
+	g_clear_object(&input->choices);
+	g_free(input);
 }
 static void sign_settings_dispose(GObject* object) {
 	SignSettings* self = SIGN_SETTINGS(object);
@@ -484,28 +581,17 @@ static void sign_settings_init(SignSettings* self) {
 	    GTK_ORIENTABLE(self),
 	    GTK_ORIENTATION_VERTICAL
 	);
-	self->inputs = g_ptr_array_new_with_free_func(g_free);
-	GtkWidget* top = gtk_box_new(GTK_ORIENTATION_VERTICAL, 12);
-	gtk_widget_set_margin_start(top, 18);
-	gtk_widget_set_margin_end(top, 18);
-	gtk_widget_set_margin_top(top, 12);
-	GtkWidget* title = gtk_label_new(_("Settings"));
-	gtk_widget_add_css_class(title, "title-1");
-	gtk_box_append(GTK_BOX(top), title);
-	self->path = GTK_LABEL(gtk_label_new(NULL));
-	char* path = config_path();
-	gtk_label_set_text(self->path, path);
-	g_free(path);
-	gtk_label_set_wrap(self->path, TRUE);
-	gtk_label_set_wrap_mode(self->path, PANGO_WRAP_WORD_CHAR);
-	gtk_label_set_selectable(self->path, TRUE);
-	gtk_widget_add_css_class(GTK_WIDGET(self->path), "dim-label");
-	gtk_box_append(GTK_BOX(top), GTK_WIDGET(self->path));
-	GtkWidget* controls = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
-	self->scopes = GTK_DROP_DOWN(gtk_drop_down_new(NULL, NULL));
-	gtk_widget_set_hexpand(GTK_WIDGET(self->scopes), TRUE);
+	self->inputs = g_ptr_array_new_with_free_func(input_free);
+	self->editor = adw_preferences_page_new();
+	gtk_widget_set_vexpand(self->editor, TRUE);
+	gtk_box_append(GTK_BOX(self), self->editor);
+	AdwPreferencesGroup* selection = group(self, NULL, NULL);
+	self->scopes = ADW_COMBO_ROW(combo(_("Configuration"), NULL));
 	gtk_widget_set_name(GTK_WIDGET(self->scopes), "settings-scope");
-	gtk_box_append(GTK_BOX(controls), GTK_WIDGET(self->scopes));
+	adw_preferences_group_add(selection, GTK_WIDGET(self->scopes));
+	GtkWidget* controls = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+	gtk_widget_set_halign(controls, GTK_ALIGN_END);
+	gtk_widget_set_margin_top(controls, 6);
 	self->add = gtk_button_new_from_icon_name("list-add-symbolic");
 	gtk_widget_set_tooltip_text(self->add, _("Create profile"));
 	gtk_widget_set_name(self->add, "add-profile");
@@ -516,19 +602,17 @@ static void sign_settings_init(SignSettings* self) {
 	    "view-refresh-symbolic"
 	);
 	gtk_widget_set_tooltip_text(reload_button, _("Reload configuration"));
-	gtk_box_append(GTK_BOX(controls), self->add);
+	gtk_widget_set_name(reload_button, "reload-settings");
 	gtk_box_append(GTK_BOX(controls), self->remove);
+	gtk_box_append(GTK_BOX(controls), self->add);
 	gtk_box_append(GTK_BOX(controls), reload_button);
-	gtk_box_append(GTK_BOX(top), controls);
+	adw_preferences_group_add(selection, controls);
 	self->status = GTK_LABEL(gtk_label_new(NULL));
 	gtk_label_set_wrap(self->status, TRUE);
 	gtk_label_set_wrap_mode(self->status, PANGO_WRAP_WORD_CHAR);
 	gtk_widget_set_name(GTK_WIDGET(self->status), "settings-status");
-	gtk_box_append(GTK_BOX(top), GTK_WIDGET(self->status));
-	gtk_box_append(GTK_BOX(self), top);
-	self->editor = adw_preferences_page_new();
-	gtk_widget_set_vexpand(self->editor, TRUE);
-	gtk_box_append(GTK_BOX(self), self->editor);
+	gtk_widget_add_css_class(GTK_WIDGET(self->status), "error");
+	adw_preferences_group_add(selection, GTK_WIDGET(self->status));
 	self->identity = group(
 	    self,
 	    _("Profile"),
@@ -539,8 +623,8 @@ static void sign_settings_init(SignSettings* self) {
 	AdwPreferencesGroup* signing = group(
 	    self,
 	    _("Signing defaults"),
-	    _("Empty fields inherit global settings. Without a global value, "
-	      "selection is automatic.")
+	    _("Global inherits the global value. Automatic uses the engine "
+	      "default.")
 	);
 	entry(self, signing, "token", _("Token URI"), ENTRY);
 	entry(self, signing, "cert_id", _("Certificate ID"), ENTRY);
@@ -562,7 +646,6 @@ static void sign_settings_init(SignSettings* self) {
 	    false
 	);
 	choice(self, signing, "format", _("Format"), SIGN_OPTION_FORMAT, false);
-	entry(self, signing, "mime_type", _("Content type"), ENTRY);
 	choice(
 	    self,
 	    signing,
@@ -607,8 +690,7 @@ static void sign_settings_init(SignSettings* self) {
 	AdwPreferencesGroup* modules = group(
 	    self,
 	    _("PKCS#11 modules"),
-	    _("One module path per line. Automatic uses modules registered with "
-	      "p11-kit.")
+	    _("Automatic uses modules registered with p11-kit.")
 	);
 	entry(self, modules, "modules", _("Module paths"), MODULES);
 	AdwPreferencesGroup* pin = group(

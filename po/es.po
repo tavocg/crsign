@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: CRSign 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/tavocg/crsign/issues\n"
-"POT-Creation-Date: 2026-10-23 09:35-0600\n"
+"POT-Creation-Date: 2026-10-23 10:54-0600\n"
 "PO-Revision-Date: 2026-10-23 00:00-0600\n"
 "Last-Translator: Gustavo Calvo <tavo@tavo.cr>\n"
 "Language-Team: Spanish\n"
@@ -27,7 +27,7 @@ msgstr "Firmar"
 msgid "Validate"
 msgstr "Validar"
 
-#: sign/gui/window.c:16 sign/gui/settings.c:491
+#: sign/gui/window.c:16
 msgid "Settings"
 msgstr "Ajustes"
 
@@ -43,200 +43,193 @@ msgstr "Menú"
 msgid "Toggle menu"
 msgstr "Mostrar u ocultar el menú"
 
-#: sign/gui/settings.c:35
+#: sign/gui/settings.c:36
 msgid "Global settings"
 msgstr "Ajustes globales"
 
-#: sign/gui/settings.c:44
+#: sign/gui/settings.c:47
 msgid "New profile"
 msgstr "Nuevo perfil"
 
-#: sign/gui/settings.c:65
-msgid "All changes saved"
-msgstr "Todos los cambios guardados"
-
-#: sign/gui/settings.c:70
+#: sign/gui/settings.c:73
 #, c-format
 msgid "Changes not saved: %s"
 msgstr "Cambios sin guardar: %s"
 
-#: sign/gui/settings.c:88
-msgid "Saving changes…"
-msgstr "Guardando cambios…"
+#: sign/gui/settings.c:435
+msgid "Module path"
+msgstr "Ruta del módulo"
 
-#: sign/gui/settings.c:289
-msgid "Valid changes are saved automatically"
-msgstr "Los cambios válidos se guardan automáticamente"
+#: sign/gui/settings.c:440
+msgid "Remove module"
+msgstr "Eliminar módulo"
 
-#: sign/gui/settings.c:380
-msgid "Use global settings / default"
-msgstr "Usar ajustes globales o predeterminados"
+#: sign/gui/settings.c:467 sign/gui/settings.c:525
+msgid "Global"
+msgstr "Global"
 
-#: sign/gui/settings.c:381
-msgid "Automatic (p11-kit)"
-msgstr "Automático (p11-kit)"
+#: sign/gui/settings.c:467 sign/gui/settings.c:526
+msgid "Automatic"
+msgstr "Automático"
 
-#: sign/gui/settings.c:381
-msgid "Interactive PIN"
-msgstr "PIN interactivo"
-
-#: sign/gui/settings.c:382
+#: sign/gui/settings.c:467
 msgid "Custom"
 msgstr "Personalizado"
 
-#: sign/gui/settings.c:385
-msgid "Selection"
-msgstr "Selección"
+#: sign/gui/settings.c:496
+msgid "Add module"
+msgstr "Agregar módulo"
 
-#: sign/gui/settings.c:434
-msgid "Automatic / use global settings"
-msgstr "Automático o usar ajustes globales"
+#: sign/gui/settings.c:508
+msgid "Value"
+msgstr "Valor"
 
-#: sign/gui/settings.c:436
+#: sign/gui/settings.c:528
 msgid "No"
 msgstr "No"
 
-#: sign/gui/settings.c:437
+#: sign/gui/settings.c:529
 msgid "Yes"
 msgstr "Sí"
 
-#: sign/gui/settings.c:508
+#: sign/gui/settings.c:589
+msgid "Configuration"
+msgstr "Configuración"
+
+#: sign/gui/settings.c:596
 msgid "Create profile"
 msgstr "Crear perfil"
 
-#: sign/gui/settings.c:511
+#: sign/gui/settings.c:599
 msgid "Delete profile"
 msgstr "Eliminar perfil"
 
-#: sign/gui/settings.c:516
+#: sign/gui/settings.c:604
 msgid "Reload configuration"
 msgstr "Recargar configuración"
 
-#: sign/gui/settings.c:531
+#: sign/gui/settings.c:618
 msgid "Profile"
 msgstr "Perfil"
 
-#: sign/gui/settings.c:532
+#: sign/gui/settings.c:619
 msgid "The label selects this profile with --profile."
 msgstr "La etiqueta permite elegir este perfil con --profile."
 
-#: sign/gui/settings.c:534
+#: sign/gui/settings.c:621
 msgid "Name"
 msgstr "Nombre"
 
-#: sign/gui/settings.c:535
+#: sign/gui/settings.c:622
 msgid "Label"
 msgstr "Etiqueta"
 
-#: sign/gui/settings.c:538
+#: sign/gui/settings.c:625
 msgid "Signing defaults"
 msgstr "Valores de firmado"
 
-#: sign/gui/settings.c:539
-msgid ""
-"Empty fields inherit global settings. Without a global value, selection is "
-"automatic."
-msgstr "Los campos vacíos heredan los ajustes globales. Sin un valor global, la selección es automática."
+#: sign/gui/settings.c:626
+msgid "Global inherits the global value. Automatic uses the engine default."
+msgstr ""
+"Global hereda el valor global. Automático usa el valor predeterminado del "
+"motor."
 
-#: sign/gui/settings.c:542
+#: sign/gui/settings.c:629
 msgid "Token URI"
 msgstr "URI del token"
 
-#: sign/gui/settings.c:543
+#: sign/gui/settings.c:630
 msgid "Certificate ID"
 msgstr "ID del certificado"
 
-#: sign/gui/settings.c:548
+#: sign/gui/settings.c:635
 msgid "Algorithm"
 msgstr "Algoritmo"
 
-#: sign/gui/settings.c:552
+#: sign/gui/settings.c:639
 msgid "Hash"
 msgstr "Hash"
 
-#: sign/gui/settings.c:557
+#: sign/gui/settings.c:644
 msgid "Signature level"
 msgstr "Nivel de firma"
 
-#: sign/gui/settings.c:561
+#: sign/gui/settings.c:648
 msgid "Format"
 msgstr "Formato"
 
-#: sign/gui/settings.c:562
-msgid "Content type"
-msgstr "Tipo de contenido"
-
-#: sign/gui/settings.c:567
+#: sign/gui/settings.c:653
 msgid "Detached signature"
 msgstr "Firma separada"
 
-#: sign/gui/settings.c:571
+#: sign/gui/settings.c:657
 msgid "Signature image"
 msgstr "Imagen de firma"
 
-#: sign/gui/settings.c:572
+#: sign/gui/settings.c:658
 msgid "Timestamp authority"
 msgstr "Autoridad de sellado de tiempo"
 
-#: sign/gui/settings.c:573
+#: sign/gui/settings.c:659
 msgid "URL"
 msgstr "URL"
 
-#: sign/gui/settings.c:574
+#: sign/gui/settings.c:660
 msgid "TSA trust certificates"
 msgstr "Certificados de confianza de la TSA"
 
-#: sign/gui/settings.c:579
+#: sign/gui/settings.c:665
 msgid "TSA intermediate certificates"
 msgstr "Certificados intermedios de la TSA"
 
-#: sign/gui/settings.c:584
+#: sign/gui/settings.c:670
 msgid "Document trust"
 msgstr "Confianza del documento"
 
-#: sign/gui/settings.c:585
+#: sign/gui/settings.c:671
 msgid "Relative paths resolve against the configuration directory."
 msgstr "Las rutas relativas parten del directorio de configuración."
 
-#: sign/gui/settings.c:587
+#: sign/gui/settings.c:673
 msgid "Trust certificates"
 msgstr "Certificados de confianza"
 
-#: sign/gui/settings.c:588
+#: sign/gui/settings.c:674
 msgid "Intermediate certificates"
 msgstr "Certificados intermedios"
 
-#: sign/gui/settings.c:593
+#: sign/gui/settings.c:679
 msgid "Disable bundled certificates"
 msgstr "Desactivar certificados incorporados"
 
-#: sign/gui/settings.c:601
+#: sign/gui/settings.c:687
 msgid "Certificate bundles (comma separated)"
 msgstr "Bundles de certificados (separados por comas)"
 
-#: sign/gui/settings.c:606
+#: sign/gui/settings.c:692
 msgid "PKCS#11 modules"
 msgstr "Módulos PKCS#11"
 
-#: sign/gui/settings.c:607
-msgid ""
-"One module path per line. Automatic uses modules registered with p11-kit."
-msgstr "Una ruta de módulo por línea. Automático usa los módulos registrados en p11-kit."
+#: sign/gui/settings.c:693
+msgid "Automatic uses modules registered with p11-kit."
+msgstr "Automático usa los módulos registrados en p11-kit."
 
-#: sign/gui/settings.c:610
+#: sign/gui/settings.c:695
 msgid "Module paths"
 msgstr "Rutas de módulos"
 
-#: sign/gui/settings.c:613
+#: sign/gui/settings.c:698
 msgid "PIN command"
 msgstr "Comando del PIN"
 
-#: sign/gui/settings.c:614
+#: sign/gui/settings.c:699
 msgid ""
 "Command and arguments, with shell-style quoting. The PIN is requested only "
 "when signing."
-msgstr "Comando y argumentos, con comillas como en la terminal. El PIN solo se solicita al firmar."
+msgstr ""
+"Comando y argumentos, con comillas como en la terminal. El PIN solo se "
+"solicita al firmar."
 
-#: sign/gui/settings.c:617
+#: sign/gui/settings.c:702
 msgid "Command"
 msgstr "Comando"

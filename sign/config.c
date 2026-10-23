@@ -33,7 +33,6 @@ static const config_field profile_fields[] = {
     {"hash", 'H', TOML_STRING, false},
     {"level", 'l', TOML_STRING, false},
     {"format", 'f', TOML_STRING, false},
-    {"mime_type", MIME_TYPE, TOML_STRING, false},
     {"detached", DETACHED, TOML_BOOLEAN, false},
     {"ca", CA_FILE, TOML_STRING, true},
     {"intermediates", INTERMEDIATES, TOML_STRING, true},
@@ -160,6 +159,60 @@ static bool read_modules(
 	return true;
 }
 
+/* An explicit empty scalar bypasses inherited values and restores the engine
+ * default. Missing fields are never passed here and keep their inheritance. */
+static void reset_setting(sign_args* args, int option) {
+	sign_options* settings = &args->options;
+	switch (option) {
+	case 't':
+		settings->uri = NULL;
+		break;
+	case 'k':
+		settings->id = NULL;
+		break;
+	case 'a':
+		settings->algo = LIBSSIG_ALGO_RSA_PKCS;
+		break;
+	case 'H':
+		settings->hash = LIBSSIG_HASH_SHA256;
+		break;
+	case 'l':
+		settings->level = LIBSSIG_LEVEL_B_LTA;
+		break;
+	case 'f':
+		settings->format = LIBSSIG_FORMAT_CADES;
+		settings->format_explicit = false;
+		break;
+	case 'A':
+		settings->authority = NULL;
+		break;
+	case 'i':
+		settings->appearance_file = NULL;
+		settings->appearance_options &= ~SIGN_APPEARANCE_FILE;
+		break;
+	case CA_FILE:
+		settings->ca_file = NULL;
+		break;
+	case INTERMEDIATES:
+		settings->intermediates = NULL;
+		break;
+	case TSA_CA_FILE:
+		settings->tsa_ca_file = NULL;
+		break;
+	case TSA_INTERMEDIATES:
+		settings->tsa_intermediates = NULL;
+		break;
+	case NO_BUNDLED_CERTS:
+		settings->no_bundled_certs = false;
+		break;
+	case DETACHED:
+		settings->detached = false;
+		break;
+	default:
+		break;
+	}
+}
+
 static bool read_fields(
     sign_args*          args,
     struct sign_config* config,
@@ -221,6 +274,11 @@ static bool read_fields(
 			}
 			continue;
 		}
+		if (field->option && field->type != TOML_ARRAY && valid_string(value) &&
+		    !value.u.s[0]) {
+			reset_setting(args, field->option);
+			continue;
+		}
 		if (value.type != field->type ||
 		    (value.type == TOML_STRING && !valid_string(value))) {
 			return config_error(
@@ -269,10 +327,6 @@ static bool read_fields(
 		const char* text = value.type == TOML_BOOLEAN
 		                       ? (value.u.boolean ? "true" : "false")
 		                       : value.u.s;
-		if (!text[0]) {
-			/* An empty optional scalar has the same meaning as omission. */
-			continue;
-		}
 		if (field->path && !g_path_is_absolute(text)) {
 			char* path = g_build_filename(directory, text, NULL);
 			g_ptr_array_add(config->allocations, path);
