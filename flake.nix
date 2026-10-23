@@ -41,6 +41,11 @@
 
             shellHook = ''
               export CMAKE_PREFIX_PATH="$HOME/Projects/libssig/build''${CMAKE_PREFIX_PATH:+:$CMAKE_PREFIX_PATH}"
+              # Unwrapped GTK binaries also need the schema paths collected by
+              # Nix's GLib setup hook, including on runners without a desktop.
+              if [[ -n "''${GSETTINGS_SCHEMAS_PATH:-}" ]]; then
+                export XDG_DATA_DIRS="$GSETTINGS_SCHEMAS_PATH''${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
+              fi
 
               if [[ $- == *i* ]]; then
                 PS1="(crsign) $PS1"
