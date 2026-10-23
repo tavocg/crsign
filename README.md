@@ -174,13 +174,12 @@ descarga emisores ni respuestas OCSP/CRL; libssig conserva sus comprobaciones de
 evidencia de revocación. Si el sistema elige una cadena diferente, se rechaza esa
 ruta en lugar de atribuirle la confianza de otra cadena.
 
-La selección automática de TSA usa la misma integración. Este paso incluye
-pruebas de la capa común en Linux y una suite mínima con CI para Windows/macOS;
-la ejecución nativa queda pendiente hasta que se ejecute esa CI.
+La selección automática de TSA usa la misma integración. La CI comprueba la
+capa común en Linux y los almacenes nativos en Windows y macOS.
 
 ## Construcción
 
-Requiere CMake, un compilador C, argp, libssig >= 0.1.3, libcurl >= 7.85,
+Requiere CMake, un compilador C99, argp, libssig >= 0.1.3, libcurl >= 7.85,
 pkg-config, GLib >= 2.40/GIO y tomlc17 (API con `toml_get`, por ejemplo 20260501).
 La interfaz gráfica también requiere GTK 4. GLib/GIO y tomlc17 se usan igualmente
 en compilaciones headless; el entorno Nix incluye ambas dependencias.
@@ -212,9 +211,10 @@ Los tokens con teclado propio no solicitan un PIN en la CLI.
 La compilación y el empaquetado nativos se automatizan con una matriz de CI
 para Windows UCRT64 y macOS, en variantes CLI y GTK. Genera paquetes portables
 con bibliotecas transitivas, recursos de GTK y la base de libmagic incorporada.
-La matriz también comprueba la ejecución tras trasladar el paquete. Su ejecución
-nativa sigue pendiente hasta ejecutar esa CI; las pruebas locales en Linux no
-implican validación completa en los otros sistemas.
+La matriz también comprueba la ejecución tras trasladar el paquete. Las cuatro
+variantes completaron la [validación nativa](https://github.com/tavocg/crsign/actions/runs/39879818514),
+incluida la verificación de una firma real y la apertura de GTK. El firmado con
+un token físico requiere una comprobación adicional con el controlador del proveedor.
 Consulta [las instrucciones de paquetes nativos](packaging/README.md) para
 compilar, generar los archivos y conocer los sistemas y arquitecturas de destino.
 

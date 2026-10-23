@@ -121,7 +121,7 @@ Crypt32/Security backend against the existing public system stores, rejects an
 unknown self-signed certificate and checks an explicit anchor. It installs no
 certificates, changes no trust settings and accesses no private keys.
 `native-trust.yml` registers these standalone tests on Windows/MSYS2 UCRT64 and
-macOS with Homebrew OpenSSL; this does not yet build the whole application.
+macOS with Homebrew OpenSSL, independently of the full application build.
 
 `native_packaging` checks PE/Mach-O dependency parsing, closure and cycles,
 missing/conflicting libraries, relative macOS references, signing of copied
@@ -134,5 +134,9 @@ relocation, explicit resource overrides and cache read failures.
 runs the CLI and native trust suites, then bundles and launches the relocated
 package with development-library paths removed. The package check verifies a
 real CMS/CAdES signature and, for GTK, opens the existing application window.
-Its native results are pending until that workflow runs. See
+All four variants passed the [native matrix](https://github.com/tavocg/crsign/actions/runs/39879818514)
+on Windows x86_64 and macOS arm64. The POSIX PIN tests drain PTY output while
+the child runs, inspect modes through the retained master, and feed bounded
+input chunks to avoid overflowing BSD terminal queues. Loopback HTTP fixtures
+avoid reverse DNS lookups. See
 [packaging/README.md](../packaging/README.md) for dependencies and artifact layout.

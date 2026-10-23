@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+from unittest.mock import patch
 
 sign, driver, openssl, mock_sign = sys.argv[1:]
 
@@ -18,7 +19,8 @@ with tempfile.TemporaryDirectory(prefix='sign-trust-') as directory:
     env.pop('NIX_SSL_CERT_FILE', None)
     env['SSL_CERT_DIR'] = str(root / 'empty-store')
     env['NO_PROXY'] = env['no_proxy'] = '127.0.0.1'
-    server = http.server.HTTPServer(('127.0.0.1', 0), http.server.BaseHTTPRequestHandler)
+    with patch('socket.getfqdn', return_value='localhost'):
+        server = http.server.HTTPServer(('127.0.0.1', 0), http.server.BaseHTTPRequestHandler)
     ocsp_url = f'http://127.0.0.1:{server.server_port}/ocsp'
     issuers = {}
 

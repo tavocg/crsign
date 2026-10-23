@@ -6,10 +6,12 @@ de CLI, almacenes nativos y recursos; produce ZIP en Windows y tar.gz en macOS.
 Los artefactos se publican en la ejecución de Actions, sin crear releases ni
 publicar el sitio. La variante GTK conserva la interfaz que ya tiene el proyecto.
 
-La ejecución nativa de esta nueva matriz queda pendiente hasta ejecutar el
-workflow. Las comprobaciones locales en Linux validan el parser de Windows,
-TOML, libmagic embebido, recursos trasladados y las reglas de dependencias.
-No equivalen a haber compilado o ejecutado los binarios de Windows/macOS.
+Las cuatro variantes completaron la [matriz nativa](https://github.com/tavocg/crsign/actions/runs/39879818514)
+en Windows x86_64 y macOS arm64: compilación, pruebas de CLI y almacenes,
+generación de paquetes y ejecución tras trasladarlos a una ruta con espacios y
+Unicode. GTK también abrió la ventana desde el paquete trasladado. Los
+artefactos descargables están en esa ejecución. El firmado con un token físico
+se valida por separado con el controlador del proveedor.
 
 ## Dependencias
 

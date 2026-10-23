@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+from unittest.mock import patch
 
 sign, driver, openssl, fixtures = sys.argv[1:]
 fixtures = Path(fixtures)
@@ -97,7 +98,8 @@ ess_cert_id_chain = no
             self.end_headers()
             self.wfile.write(body)
 
-    server = http.server.HTTPServer(('127.0.0.1', 0), Handler)
+    with patch('socket.getfqdn', return_value='localhost'):
+        server = http.server.HTTPServer(('127.0.0.1', 0), Handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
