@@ -49,7 +49,7 @@ with tempfile.TemporaryDirectory(prefix='sign-modules-') as temporary:
         return {token['label'] for token in data['tokens'] if token['label'].startswith('Sign-')}
 
     def options(*args):
-        return json.loads(run(driver, source, *args).stdout)['modules']
+        return [str(Path(path)) for path in json.loads(run(driver, source, *args).stdout)['modules']]
 
     # No configuration, omitted modules and [] preserve registered discovery.
     assert labels() == {'Sign-first'}

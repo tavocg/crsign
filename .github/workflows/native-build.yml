@@ -39,6 +39,7 @@ jobs:
           cmake --build build --parallel 4
       - name: Test CLI and native stores
         run: |
+          export PATH="$PWD/build/native-prefix/bin:$PATH"
           ctest --test-dir build --parallel 4 --output-on-failure
           cmake -S tests/libssig/tests/system_trust -B build/system-trust -DCMAKE_BUILD_TYPE=Release -DOPENSSL_ROOT_DIR="$(brew --prefix openssl@3)"
           cmake --build build/system-trust --parallel 4
@@ -103,6 +104,7 @@ jobs:
           cmake --build build --parallel 4
       - name: Test CLI and native stores
         run: |
+          export PATH="$PWD/build/native-prefix/bin:$PATH"
           ctest --test-dir build --parallel 4 --output-on-failure
           cmake -S tests/libssig/tests/system_trust -B build/system-trust -G Ninja -DCMAKE_BUILD_TYPE=Release
           cmake --build build/system-trust --parallel 4

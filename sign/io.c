@@ -78,8 +78,12 @@ bool file_load(
 	              )) {
 		ok = false;
 	}
-	g_clear_object(&info);
-	g_clear_object(&stream);
+	if (info) {
+		g_object_unref(info);
+	}
+	if (stream) {
+		g_object_unref(stream);
+	}
 	if (ok) {
 		data[size] = 0;
 		*bytes = (sign_buffer){data, (size_t)size};

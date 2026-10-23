@@ -45,12 +45,12 @@ with tempfile.TemporaryDirectory(prefix='sign-arguments-') as directory:
     assert options(source, '-pperfil ñ 文件', '-Hsha256') == options(source, '-Hsha256')
     assert options('-Hsha256', source, '-p', 'perfil ñ 文件') == options(source, '-Hsha256')
     modules = options(source, '-m', 'módulo ñ 文件.so', '--module=other.so')['modules']
-    assert modules == [str(Path('módulo ñ 文件.so').resolve()), str(Path('other.so').resolve())]
+    assert list(map(Path, modules)) == [Path('módulo ñ 文件.so').resolve(), Path('other.so').resolve()]
     assert options('-mmódulo ñ 文件.so', source, '--module', 'other.so')['modules'] == modules
     # CLI module lists are dynamic, without a fixed maximum inherited from bundles.
     paths = [f'module-{i}.so' for i in range(80)]
     arguments = [arg for path in paths for arg in ('-m', path)]
-    assert options(source, *arguments)['modules'] == [str(Path(path).resolve()) for path in paths]
+    assert list(map(Path, options(source, *arguments)['modules'])) == [Path(path).resolve() for path in paths]
     run('-vo', 'unused', source, success=False)
     for args in [(source, '--hash'), (source, '--unknown'), (source, '-p'),
                  (source, 'extra'), (source, '--hash=invalid'),

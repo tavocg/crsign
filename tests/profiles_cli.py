@@ -23,11 +23,16 @@ with tempfile.TemporaryDirectory(prefix='sign-profiles-') as directory:
     def run(*args, program=args_driver, success=True):
         result = subprocess.run([program, *map(str, args)], env=env, cwd=root,
                                 capture_output=True, text=True, timeout=10)
+        result.stderr = result.stderr.replace('\\', '/')
         assert (result.returncode == 0) == success, (args, result.stdout, result.stderr)
         return result
 
     def options(*args):
-        return json.loads(run(source, *args).stdout)
+        result = json.loads(run(source, *args).stdout)
+        for name in ('ca', 'intermediates', 'tsa_ca', 'tsa_intermediates'):
+            if result[name] is not None:
+                result[name] = Path(result[name])
+        return result
 
     def write(profile='', version='0.1'):
         config.write_text(f'version = {version}\n[[profiles]]\nlabel = "bccr"\n' + profile)
@@ -36,7 +41,7 @@ with tempfile.TemporaryDirectory(prefix='sign-profiles-') as directory:
     # The global file is optional, but if present it must be valid TOML.
     assert 'crsign.toml' in run(source, '-p', 'bccr', success=False).stderr
     config.write_text('this is invalid TOML')
-    assert str(config) in run(source, success=False).stderr
+    assert config.as_posix() in run(source, success=False).stderr
     run('--help', program=sign)
     write()
     assert options('-p', 'bccr') == defaults
@@ -122,14 +127,14 @@ label = "empty"
     for body, message in invalid_profiles:
         write(body)
         result = run(source, '-p', 'bccr', success=False)
-        assert message in result.stderr and str(config) in result.stderr, result.stderr
+        assert message in result.stderr and config.as_posix() in result.stderr, result.stderr
     for document in ['version = 0.2', 'version = "1.0"', 'version = true',
                      '[[profiles]]\nlabel = "bccr"', 'version = 0.1\nprofiles = {}',
                      'version = 0.1\nprofiles = [1]', 'version = 0.1\nunknown = true',
                      'version = 0.1\n[[profiles]]\nlabel = "bccr"\nhash = "sha384"\nhash = "sha512"']:
         config.write_text(document)
         result = run(source, '-p', 'bccr', success=False)
-        assert str(config) in result.stderr
+        assert config.as_posix() in result.stderr
     write('format = "pades"\ndetached = true\n')
     assert 'PAdES' in run(source, '-p', 'bccr', success=False).stderr
     assert options('-p', 'bccr', '-f', 'cades') == options('--detached', '-f', 'cades')

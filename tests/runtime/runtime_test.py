@@ -31,10 +31,11 @@ with tempfile.TemporaryDirectory(prefix='crsign-runtime-') as temporary:
     template = root / 'share/crsign/loaders.cache.in'
     template.write_text('"@CRSIGN_PREFIX@/lib/gdk-pixbuf-loaders/loader.so"\n')
     options = run()
-    assert options['GSETTINGS_SCHEMA_DIR'] == str(root / 'share/glib-2.0/schemas')
-    assert options['FONTCONFIG_FILE'] == str(root / 'etc/fonts/fonts.conf')
-    assert options['GIO_EXTRA_MODULES'] == str(root / 'lib/gio/modules')
-    assert options['XDG_DATA_DIRS'] == str(root / 'share') + os.pathsep + 'existing-data'
+    assert Path(options['GSETTINGS_SCHEMA_DIR']) == root / 'share/glib-2.0/schemas'
+    assert Path(options['FONTCONFIG_FILE']) == root / 'etc/fonts/fonts.conf'
+    assert Path(options['GIO_EXTRA_MODULES']) == root / 'lib/gio/modules'
+    data = options['XDG_DATA_DIRS'].split(os.pathsep)
+    assert Path(data[0]) == root / 'share' and data[1:] == ['existing-data']
     assert Path(options['GDK_PIXBUF_MODULE_FILE']).is_file()
     cache = Path(options['GDK_PIXBUF_MODULE_FILE']).read_text()
     assert '@CRSIGN_PREFIX@' not in cache and 'loader.so' in cache
