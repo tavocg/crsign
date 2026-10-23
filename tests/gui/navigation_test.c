@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include <glib/gstdio.h>
 #include <sign/config.h>
+#include <sign/gui/config.h>
 #include <sign/gui/i18n.h>
 #include <sign/gui/settings.h>
 #include <sign/gui/window.h>
@@ -295,6 +296,22 @@ int main(int argc, char** argv) {
 		GtkWidget* page = gtk_stack_get_visible_child(stack);
 		if (i == 3) {
 			g_assert_true(SIGN_IS_SETTINGS(page));
+		} else if (i == 4) {
+			g_assert_cmpstr(
+			    gtk_label_get_text(GTK_LABEL(named(page, "about-version"))),
+			    ==,
+			    "CR Sign v" SIGN_GUI_VERSION
+			);
+			g_assert_nonnull(
+			    gtk_image_get_paintable(GTK_IMAGE(named(page, "about-icon")))
+			);
+			g_assert_cmpstr(
+			    gtk_link_button_get_uri(
+			        GTK_LINK_BUTTON(find_widget(page, GTK_TYPE_LINK_BUTTON))
+			    ),
+			    ==,
+			    "https://github.com/tavocg/crsign/blob/main/LICENSE"
+			);
 		} else {
 			GtkWidget* label = find_widget(page, GTK_TYPE_LABEL);
 			g_assert_cmpstr(
@@ -323,6 +340,15 @@ int main(int argc, char** argv) {
 	);
 	gtk_widget_grab_focus(named(settings_view, "modules-mode"));
 	snapshot(window, directory, "modules.png");
+	gtk_list_box_select_row(
+	    navigation,
+	    gtk_list_box_get_row_at_index(navigation, 0)
+	);
+	gtk_list_box_select_row(
+	    navigation,
+	    gtk_list_box_get_row_at_index(navigation, 4)
+	);
+	snapshot(window, directory, "about.png");
 	gtk_list_box_select_row(
 	    navigation,
 	    gtk_list_box_get_row_at_index(navigation, 0)

@@ -61,6 +61,19 @@ if(NOT HEADLESS)
     target_include_directories(sign_gui_deps SYSTEM INTERFACE ${Intl_INCLUDE_DIRS})
     target_include_directories(sign_gui_deps INTERFACE "${PROJECT_BINARY_DIR}/generated")
     target_compile_definitions(sign_gui_deps INTERFACE SIGN_WITH_GUI GETTEXT_PACKAGE="crsign")
+    find_program(GLIB_COMPILE_RESOURCES_EXECUTABLE glib-compile-resources REQUIRED)
+    set(SIGN_GUI_RESOURCES "${PROJECT_BINARY_DIR}/generated/sign/gui/resources.c")
+    add_custom_command(OUTPUT "${SIGN_GUI_RESOURCES}"
+        COMMAND "${GLIB_COMPILE_RESOURCES_EXECUTABLE}"
+            "${PROJECT_SOURCE_DIR}/sign/gui/resources.gresource.xml"
+            --sourcedir "${PROJECT_SOURCE_DIR}" --generate-source --c-name sign_gui
+            --target "${SIGN_GUI_RESOURCES}"
+        DEPENDS sign/gui/resources.gresource.xml packaging/icon-rounded.svg
+        VERBATIM)
+    add_library(sign_gui_resources OBJECT "${SIGN_GUI_RESOURCES}")
+    target_link_libraries(sign_gui_resources PRIVATE PkgConfig::GIO)
+    target_sources(sign_gui_deps INTERFACE $<TARGET_OBJECTS:sign_gui_resources>)
+    add_dependencies(sign_gui_deps sign_gui_resources)
     add_dependencies(sign_gui_deps translations)
 endif()
 

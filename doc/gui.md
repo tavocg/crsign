@@ -6,7 +6,8 @@
 
 La ventana usa GTK 4 y libadwaita. Tiene cinco vistas: Inicio, Firmar, Validar,
 Ajustes y Acerca de. Ajustes permite editar la configuración y los perfiles;
-las demás vistas conservan por ahora su texto de identificación.
+Acerca de muestra la identidad y los enlaces del proyecto. Inicio, Firmar y
+Validar conservan por ahora su texto de identificación.
 
 La barra lateral tiene el título «Menú». Con una anchura de hasta 640sp pasa
 a ser un panel superpuesto: aparece un botón para abrirla en la cabecera del
@@ -83,3 +84,11 @@ El guardado reemplaza el archivo de forma atómica y detecta cambios externos:
 si otro programa lo modifica, hay que recargarlo antes de guardar. Se conservan
 los ajustes admitidos, pero se normaliza el TOML y no se conservan sus comentarios
 ni su disposición original. No se almacena el PIN ni se ejecuta `pincmd` al editar.
+
+## Acerca de
+
+La vista muestra el icono redondo SVG de `packaging/icon-rounded.svg`,
+`CR Sign vX.X.X` con la versión de CMake, una descripción, el copyright y enlaces
+a la licencia GPL-3.0-or-later, el código fuente y el registro de incidencias.
+El icono se incorpora como recurso GResource en el ejecutable, para que funcione
+sin depender del directorio de trabajo ni de archivos externos de la instalación.

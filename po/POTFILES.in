@@ -1,2 +1,3 @@
 sign/gui/window.c
 sign/gui/settings.c
+sign/gui/about.c

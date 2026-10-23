@@ -16,7 +16,7 @@ if(NOT IS_ABSOLUTE "${CMAKE_INSTALL_LOCALEDIR}")
         ENVIRONMENT "LC_ALL=en_US.UTF-8;LANGUAGE=es")
 endif()
 
-add_executable(gui_navigation_test navigation_test.c ../../sign/gui/window.c
+add_executable(gui_navigation_test navigation_test.c ../../sign/gui/window.c ../../sign/gui/about.c
     ../../sign/gui/i18n.c ../../sign/runtime.c ../../sign/gui/settings.c
     ../../sign/preferences.c ../../sign/config.c ../../sign/arg.c ../../sign/options.c
     ../../sign/json.c ../../sign/io.c ../../sign/certs/certs.c "${SIGN_CERT_CATALOG}")

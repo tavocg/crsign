@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: CRSign 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/tavocg/crsign/issues\n"
-"POT-Creation-Date: 2026-10-23 10:54-0600\n"
+"POT-Creation-Date: 2026-10-23 11:05-0600\n"
 "PO-Revision-Date: 2026-10-23 00:00-0600\n"
 "Last-Translator: Gustavo Calvo <tavo@tavo.cr>\n"
 "Language-Team: Spanish\n"
@@ -15,31 +15,31 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: sign/gui/window.c:13 sign/gui/window.c:99
+#: sign/gui/window.c:14 sign/gui/window.c:100
 msgid "Home"
 msgstr "Inicio"
 
-#: sign/gui/window.c:14
+#: sign/gui/window.c:15
 msgid "Sign"
 msgstr "Firmar"
 
-#: sign/gui/window.c:15
+#: sign/gui/window.c:16
 msgid "Validate"
 msgstr "Validar"
 
-#: sign/gui/window.c:16
+#: sign/gui/window.c:17
 msgid "Settings"
 msgstr "Ajustes"
 
-#: sign/gui/window.c:17
+#: sign/gui/window.c:18
 msgid "About"
 msgstr "Acerca de"
 
-#: sign/gui/window.c:53
+#: sign/gui/window.c:54
 msgid "Menu"
 msgstr "Menú"
 
-#: sign/gui/window.c:109 sign/gui/window.c:113
+#: sign/gui/window.c:110 sign/gui/window.c:114
 msgid "Toggle menu"
 msgstr "Mostrar u ocultar el menú"
 
@@ -92,137 +92,137 @@ msgstr "No"
 msgid "Yes"
 msgstr "Sí"
 
-#: sign/gui/settings.c:589
+#: sign/gui/settings.c:591
 msgid "Configuration"
 msgstr "Configuración"
 
-#: sign/gui/settings.c:596
+#: sign/gui/settings.c:598
 msgid "Create profile"
 msgstr "Crear perfil"
 
-#: sign/gui/settings.c:599
+#: sign/gui/settings.c:601
 msgid "Delete profile"
 msgstr "Eliminar perfil"
 
-#: sign/gui/settings.c:604
+#: sign/gui/settings.c:606
 msgid "Reload configuration"
 msgstr "Recargar configuración"
 
-#: sign/gui/settings.c:618
+#: sign/gui/settings.c:620
 msgid "Profile"
 msgstr "Perfil"
 
-#: sign/gui/settings.c:619
+#: sign/gui/settings.c:621
 msgid "The label selects this profile with --profile."
 msgstr "La etiqueta permite elegir este perfil con --profile."
 
-#: sign/gui/settings.c:621
+#: sign/gui/settings.c:623
 msgid "Name"
 msgstr "Nombre"
 
-#: sign/gui/settings.c:622
+#: sign/gui/settings.c:624
 msgid "Label"
 msgstr "Etiqueta"
 
-#: sign/gui/settings.c:625
+#: sign/gui/settings.c:627
 msgid "Signing defaults"
 msgstr "Valores de firmado"
 
-#: sign/gui/settings.c:626
+#: sign/gui/settings.c:628
 msgid "Global inherits the global value. Automatic uses the engine default."
 msgstr ""
 "Global hereda el valor global. Automático usa el valor predeterminado del "
 "motor."
 
-#: sign/gui/settings.c:629
+#: sign/gui/settings.c:631
 msgid "Token URI"
 msgstr "URI del token"
 
-#: sign/gui/settings.c:630
+#: sign/gui/settings.c:632
 msgid "Certificate ID"
 msgstr "ID del certificado"
 
-#: sign/gui/settings.c:635
+#: sign/gui/settings.c:637
 msgid "Algorithm"
 msgstr "Algoritmo"
 
-#: sign/gui/settings.c:639
+#: sign/gui/settings.c:641
 msgid "Hash"
 msgstr "Hash"
 
-#: sign/gui/settings.c:644
+#: sign/gui/settings.c:646
 msgid "Signature level"
 msgstr "Nivel de firma"
 
-#: sign/gui/settings.c:648
+#: sign/gui/settings.c:650
 msgid "Format"
 msgstr "Formato"
 
-#: sign/gui/settings.c:653
+#: sign/gui/settings.c:655
 msgid "Detached signature"
 msgstr "Firma separada"
 
-#: sign/gui/settings.c:657
+#: sign/gui/settings.c:659
 msgid "Signature image"
 msgstr "Imagen de firma"
 
-#: sign/gui/settings.c:658
+#: sign/gui/settings.c:660
 msgid "Timestamp authority"
 msgstr "Autoridad de sellado de tiempo"
 
-#: sign/gui/settings.c:659
+#: sign/gui/settings.c:661
 msgid "URL"
 msgstr "URL"
 
-#: sign/gui/settings.c:660
+#: sign/gui/settings.c:662
 msgid "TSA trust certificates"
 msgstr "Certificados de confianza de la TSA"
 
-#: sign/gui/settings.c:665
+#: sign/gui/settings.c:667
 msgid "TSA intermediate certificates"
 msgstr "Certificados intermedios de la TSA"
 
-#: sign/gui/settings.c:670
+#: sign/gui/settings.c:672
 msgid "Document trust"
 msgstr "Confianza del documento"
 
-#: sign/gui/settings.c:671
+#: sign/gui/settings.c:673
 msgid "Relative paths resolve against the configuration directory."
 msgstr "Las rutas relativas parten del directorio de configuración."
 
-#: sign/gui/settings.c:673
+#: sign/gui/settings.c:675
 msgid "Trust certificates"
 msgstr "Certificados de confianza"
 
-#: sign/gui/settings.c:674
+#: sign/gui/settings.c:676
 msgid "Intermediate certificates"
 msgstr "Certificados intermedios"
 
-#: sign/gui/settings.c:679
+#: sign/gui/settings.c:681
 msgid "Disable bundled certificates"
 msgstr "Desactivar certificados incorporados"
 
-#: sign/gui/settings.c:687
+#: sign/gui/settings.c:689
 msgid "Certificate bundles (comma separated)"
 msgstr "Bundles de certificados (separados por comas)"
 
-#: sign/gui/settings.c:692
+#: sign/gui/settings.c:694
 msgid "PKCS#11 modules"
 msgstr "Módulos PKCS#11"
 
-#: sign/gui/settings.c:693
+#: sign/gui/settings.c:695
 msgid "Automatic uses modules registered with p11-kit."
 msgstr "Automático usa los módulos registrados en p11-kit."
 
-#: sign/gui/settings.c:695
+#: sign/gui/settings.c:697
 msgid "Module paths"
 msgstr "Rutas de módulos"
 
-#: sign/gui/settings.c:698
+#: sign/gui/settings.c:700
 msgid "PIN command"
 msgstr "Comando del PIN"
 
-#: sign/gui/settings.c:699
+#: sign/gui/settings.c:701
 msgid ""
 "Command and arguments, with shell-style quoting. The PIN is requested only "
 "when signing."
@@ -230,6 +230,22 @@ msgstr ""
 "Comando y argumentos, con comillas como en la terminal. El PIN solo se "
 "solicita al firmar."
 
-#: sign/gui/settings.c:702
+#: sign/gui/settings.c:704
 msgid "Command"
 msgstr "Comando"
+
+#: sign/gui/about.c:42
+msgid "Digital signing and signature validation"
+msgstr "Firmado digital y validación de firmas"
+
+#: sign/gui/about.c:61
+msgid "License (GPL-3.0-or-later)"
+msgstr "Licencia (GPL-3.0-or-later)"
+
+#: sign/gui/about.c:68
+msgid "Source code"
+msgstr "Código fuente"
+
+#: sign/gui/about.c:75
+msgid "Report an issue"
+msgstr "Informar de un problema"

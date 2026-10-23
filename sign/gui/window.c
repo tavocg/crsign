@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+#include <sign/gui/about.h>
 #include <sign/gui/i18n.h>
 #include <sign/gui/settings.h>
 #include <sign/gui/window.h>
@@ -141,6 +142,15 @@ static GtkWidget* create_content(SignWindow* self) {
 			gtk_stack_add_titled(
 			    self->pages,
 			    sign_settings_new(),
+			    sections[i].id,
+			    _(sections[i].title)
+			);
+			continue;
+		}
+		if (!strcmp(sections[i].id, "about")) {
+			gtk_stack_add_titled(
+			    self->pages,
+			    sign_about_new(),
 			    sections[i].id,
 			    _(sections[i].title)
 			);
