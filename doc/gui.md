@@ -4,11 +4,40 @@
 ./build/sign --gui
 ```
 
-La ventana usa GTK 4 y libadwaita. Tiene cinco vistas: Inicio, Firmar, Validar,
-Ajustes y Acerca de. Ajustes permite editar la configuración y los perfiles;
+La ventana usa GTK 4 y libadwaita. Tiene seis vistas: Inicio, Firmar, Validar,
+Dispositivos, Ajustes y Acerca de. Ajustes permite editar la configuración y los perfiles;
 Acerca de muestra la identidad y los enlaces del proyecto. Validar permite
 procesar varios archivos firmados. Inicio y Firmar conservan por ahora su texto
 de identificación.
+
+## Dispositivos
+
+La búsqueda comienza al abrir la aplicación, en segundo plano. Mientras se
+explora, el icono de Dispositivos en el menú se sustituye por un spinner.
+Los lectores aparecen colapsados y agrupan los slots informados por el módulo
+PKCS#11. Dentro de cada slot se pueden desplegar certificados y llaves, con sus
+identificadores, algoritmos, tamaños en bits y los atributos públicos disponibles.
+También se muestran el fabricante, modelo, número de serie, versiones, memoria
+y estado del PIN. No se solicita PIN ni se leen valores de llaves privadas.
+Algunos objetos no son visibles hasta iniciar sesión en el token.
+
+Por defecto sólo se exploran slots de hardware; los certificados de los tokens
+de software no se leen. La casilla «Incluir tokens y certificados de software»
+permite incorporarlos a la búsqueda. No modifica `crsign.toml`.
+
+La aplicación comprueba cambios aproximadamente cada segundo mediante eventos
+no bloqueantes del módulo y los metadatos de slots y tarjetas. Al retirar,
+insertar o cambiar una tarjeta vuelve a cargar la información. Se conserva el
+botón de actualización, que además vuelve a leer la configuración global de
+módulos y certificados. Si no se especifican módulos, se usa p11-kit.
+
+La identidad y agrupación de lectores dependen de lo que publique el módulo
+PKCS#11; no se enumeran dispositivos USB que no estén expuestos por un módulo.
+Por certificado se comprueba por separado la cadena de confianza del sistema
+y la de CRSign, incluidos los certificados incorporados y configurados. Son
+comprobaciones locales de cadena y vigencia: no consultan revocación ni prueban
+que una llave privada pueda firmar. Un tamaño inferido por ID de certificado
+se identifica como tal.
 
 La barra lateral tiene el título «Menú». Con una anchura de hasta 640sp pasa
 a ser un panel superpuesto: aparece un botón para abrirla en la cabecera del

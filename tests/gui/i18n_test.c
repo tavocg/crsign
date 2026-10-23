@@ -19,6 +19,12 @@ int main(int argc, char** argv) {
 		g_assert_cmpstr(_("Home"), ==, "Inicio");
 		g_assert_cmpstr(_("Sign"), ==, "Firmar");
 		g_assert_cmpstr(_("Validate"), ==, "Validar");
+		g_assert_cmpstr(_("Devices"), ==, "Dispositivos");
+		g_assert_cmpstr(
+		    _("No readers found"),
+		    ==,
+		    "No se encontraron lectores"
+		);
 		g_assert_cmpstr(_("Settings"), ==, "Ajustes");
 		g_assert_cmpstr(_("About"), ==, "Acerca de");
 		g_assert_cmpstr(_("Menu"), ==, "Menú");

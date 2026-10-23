@@ -3,6 +3,7 @@
 #include <openssl/x509.h>
 #include <openssl/x509_vfy.h>
 #include <sign/config.h>
+#include <sign/gui/certificate.h>
 #include <sign/gui/i18n.h>
 #include <sign/gui/validation.h>
 #include <stdlib.h>
@@ -146,40 +147,6 @@ static const char* outcome(validation_item* item) {
 		return _("Validation failed");
 	}
 }
-static char* certificate_name(X509_NAME* name) {
-	BIO* bio = BIO_new(BIO_s_mem());
-	if (!bio) {
-		return NULL;
-	}
-	char* text = NULL;
-	if (name && X509_NAME_print_ex(bio, name, 0, XN_FLAG_RFC2253) >= 0) {
-		char* bytes;
-		long  length = BIO_get_mem_data(bio, &bytes);
-		text = length > 0 ? g_utf8_make_valid(bytes, length) : g_strdup("");
-	}
-	BIO_free(bio);
-	return text;
-}
-static char* certificate_time(const ASN1_TIME* value) {
-	struct tm parsed;
-	if (!value || ASN1_TIME_to_tm(value, &parsed) != 1) {
-		return NULL;
-	}
-	GDateTime* date = g_date_time_new_utc(
-	    parsed.tm_year + 1900,
-	    parsed.tm_mon + 1,
-	    parsed.tm_mday,
-	    parsed.tm_hour,
-	    parsed.tm_min,
-	    parsed.tm_sec
-	);
-	if (!date) {
-		return NULL;
-	}
-	char* text = g_date_time_format_iso8601(date);
-	g_date_time_unref(date);
-	return text;
-}
 static void certificate_details(
     validation_item*             item,
     const libssig_verify_signer* signer
@@ -192,10 +159,10 @@ static void certificate_details(
 	if (!cert) {
 		return;
 	}
-	char* subject = certificate_name(X509_get_subject_name(cert));
-	char* issuer = certificate_name(X509_get_issuer_name(cert));
-	char* from = certificate_time(X509_get0_notBefore(cert));
-	char* until = certificate_time(X509_get0_notAfter(cert));
+	char* subject = sign_certificate_name(X509_get_subject_name(cert));
+	char* issuer = sign_certificate_name(X509_get_issuer_name(cert));
+	char* from = sign_certificate_time(X509_get0_notBefore(cert));
+	char* until = sign_certificate_time(X509_get0_notAfter(cert));
 	detail(item, _("Certificate subject"), subject);
 	detail(item, _("Certificate issuer"), issuer);
 	detail(item, _("Valid from"), from);

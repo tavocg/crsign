@@ -3,6 +3,7 @@
 #include <glib/gstdio.h>
 #include <sign/config.h>
 #include <sign/gui/config.h>
+#include <sign/gui/devices.h>
 #include <sign/gui/i18n.h>
 #include <sign/gui/settings.h>
 #include <sign/gui/validation.h>
@@ -220,10 +221,11 @@ int main(int argc, char** argv) {
 	g_assert_false(adw_overlay_split_view_get_collapsed(split));
 	g_assert_true(adw_overlay_split_view_get_show_sidebar(split));
 	g_assert_false(gtk_widget_get_visible(GTK_WIDGET(toggle)));
-	const char* ids[] = {"home", "sign", "verify", "settings", "about"};
+	const char* ids[] =
+	    {"home", "sign", "verify", "devices", "settings", "about"};
 	const char* titles[] =
-	    {"Inicio", "Firmar", "Validar", "Ajustes", "Acerca de"};
-	for (int i = 0; i < 5; ++i) {
+	    {"Inicio", "Firmar", "Validar", "Dispositivos", "Ajustes", "Acerca de"};
+	for (int i = 0; i < 6; ++i) {
 		gtk_list_box_select_row(
 		    navigation,
 		    gtk_list_box_get_row_at_index(navigation, i)
@@ -233,8 +235,10 @@ int main(int argc, char** argv) {
 		if (i == 2) {
 			g_assert_true(SIGN_IS_VALIDATION(page));
 		} else if (i == 3) {
-			g_assert_true(SIGN_IS_SETTINGS(page));
+			g_assert_true(SIGN_IS_DEVICES(page));
 		} else if (i == 4) {
+			g_assert_true(SIGN_IS_SETTINGS(page));
+		} else if (i == 5) {
 			g_assert_cmpstr(
 			    gtk_label_get_text(GTK_LABEL(named(page, "about-version"))),
 			    ==,
@@ -267,7 +271,7 @@ int main(int argc, char** argv) {
 	settings_test(window, settings_directory);
 	gtk_list_box_select_row(
 	    navigation,
-	    gtk_list_box_get_row_at_index(navigation, 3)
+	    gtk_list_box_get_row_at_index(navigation, 4)
 	);
 	GtkWidget* settings_view = find_widget(window, SIGN_TYPE_SETTINGS);
 	gtk_widget_grab_focus(named(settings_view, "settings-scope"));
@@ -284,7 +288,7 @@ int main(int argc, char** argv) {
 	);
 	gtk_list_box_select_row(
 	    navigation,
-	    gtk_list_box_get_row_at_index(navigation, 4)
+	    gtk_list_box_get_row_at_index(navigation, 5)
 	);
 	snapshot(window, directory, "about.png");
 	gtk_list_box_select_row(
@@ -311,16 +315,16 @@ int main(int argc, char** argv) {
 	    gtk_list_box_get_selected_row(navigation)
 	);
 	g_assert_false(adw_overlay_split_view_get_show_sidebar(split));
-	for (int i = 1; i <= 5; ++i) {
+	for (int i = 1; i <= 6; ++i) {
 		gtk_toggle_button_set_active(toggle, TRUE);
 		gtk_list_box_select_row(
 		    navigation,
-		    gtk_list_box_get_row_at_index(navigation, i % 5)
+		    gtk_list_box_get_row_at_index(navigation, i % 6)
 		);
 		g_assert_cmpstr(
 		    gtk_stack_get_visible_child_name(stack),
 		    ==,
-		    ids[i % 5]
+		    ids[i % 6]
 		);
 		g_assert_false(adw_overlay_split_view_get_show_sidebar(split));
 		g_assert_false(gtk_toggle_button_get_active(toggle));

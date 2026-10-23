@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include <sign/gui/about.h>
+#include <sign/gui/devices.h>
 #include <sign/gui/i18n.h>
 #include <sign/gui/settings.h>
 #include <sign/gui/validation.h>
@@ -15,6 +16,7 @@ static const struct {
     {"home", N_("Home"), "user-home-symbolic"},
     {"sign", N_("Sign"), "document-edit-symbolic"},
     {"verify", N_("Validate"), "object-select-symbolic"},
+    {"devices", N_("Devices"), "drive-removable-media-symbolic"},
     {"settings", N_("Settings"), "emblem-system-symbolic"},
     {"about", N_("About"), "help-about-symbolic"},
 };
@@ -27,6 +29,23 @@ struct _SignWindow {
 };
 
 G_DEFINE_TYPE(SignWindow, sign_window, ADW_TYPE_APPLICATION_WINDOW)
+
+static void devices_busy_changed(
+    SignDevices* devices,
+    GParamSpec*  property,
+    gpointer     data
+) {
+	(void)property;
+	GtkStack*  icons = GTK_STACK(data);
+	bool       busy = sign_devices_is_busy(devices);
+	GtkWidget* spinner = gtk_stack_get_child_by_name(icons, "loading");
+	if (busy) {
+		gtk_spinner_start(GTK_SPINNER(spinner));
+	} else {
+		gtk_spinner_stop(GTK_SPINNER(spinner));
+	}
+	gtk_stack_set_visible_child_name(icons, busy ? "loading" : "icon");
+}
 
 static void section_selected(
     GtkListBox*    list,
@@ -42,14 +61,20 @@ static void section_selected(
 	if (index < 0 || (guint)index >= G_N_ELEMENTS(sections)) {
 		return;
 	}
-	if (!strcmp(sections[index].id, "verify")) {
-		/* Apply valid pending preferences before validation reads its trust
-		 * configuration on the worker thread. Invalid drafts remain unsaved. */
+	if (!strcmp(sections[index].id, "verify") ||
+	    !strcmp(sections[index].id, "devices")) {
+		/* Apply valid pending preferences before either worker reads its
+		 * configuration. Invalid drafts remain unsaved. */
 		sign_settings_flush(
 		    SIGN_SETTINGS(gtk_stack_get_child_by_name(self->pages, "settings"))
 		);
 	}
 	gtk_stack_set_visible_child_name(self->pages, sections[index].id);
+	if (!strcmp(sections[index].id, "devices")) {
+		sign_devices_refresh(
+		    SIGN_DEVICES(gtk_stack_get_child_by_name(self->pages, "devices"))
+		);
+	}
 	gtk_label_set_label(self->title, _(sections[index].title));
 	if (adw_overlay_split_view_get_collapsed(self->split_view)) {
 		adw_overlay_split_view_set_show_sidebar(self->split_view, FALSE);
@@ -81,10 +106,28 @@ static GtkWidget* create_sidebar(SignWindow* self) {
 		gtk_widget_set_margin_end(box, 12);
 		gtk_widget_set_margin_top(box, 10);
 		gtk_widget_set_margin_bottom(box, 10);
-		gtk_box_append(
-		    GTK_BOX(box),
-		    gtk_image_new_from_icon_name(sections[i].icon)
-		);
+		GtkWidget* icon = gtk_image_new_from_icon_name(sections[i].icon);
+		if (!strcmp(sections[i].id, "devices")) {
+			GtkWidget* icons = gtk_stack_new();
+			gtk_widget_set_size_request(icons, 16, 16);
+			gtk_stack_add_named(GTK_STACK(icons), icon, "icon");
+			GtkWidget* spinner = gtk_spinner_new();
+			gtk_widget_set_name(spinner, "devices-nav-spinner");
+			gtk_stack_add_named(GTK_STACK(icons), spinner, "loading");
+			SignDevices* devices = SIGN_DEVICES(
+			    gtk_stack_get_child_by_name(self->pages, "devices")
+			);
+			g_signal_connect_object(
+			    devices,
+			    "notify::busy",
+			    G_CALLBACK(devices_busy_changed),
+			    icons,
+			    0
+			);
+			devices_busy_changed(devices, NULL, icons);
+			icon = icons;
+		}
+		gtk_box_append(GTK_BOX(box), icon);
 		GtkWidget* label = gtk_label_new(_(sections[i].title));
 		gtk_label_set_xalign(GTK_LABEL(label), 0);
 		gtk_box_append(GTK_BOX(box), label);
@@ -150,6 +193,15 @@ static GtkWidget* create_content(SignWindow* self) {
 			gtk_stack_add_titled(
 			    self->pages,
 			    sign_validation_new(),
+			    sections[i].id,
+			    _(sections[i].title)
+			);
+			continue;
+		}
+		if (!strcmp(sections[i].id, "devices")) {
+			gtk_stack_add_titled(
+			    self->pages,
+			    sign_devices_new(),
 			    sections[i].id,
 			    _(sections[i].title)
 			);
@@ -228,6 +280,9 @@ static void sign_window_init(SignWindow* self) {
 	adw_application_window_add_breakpoint(
 	    ADW_APPLICATION_WINDOW(self),
 	    breakpoint
+	);
+	sign_devices_refresh(
+	    SIGN_DEVICES(gtk_stack_get_child_by_name(self->pages, "devices"))
 	);
 }
 

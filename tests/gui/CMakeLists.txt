@@ -18,6 +18,7 @@ endif()
 
 set(GUI_TEST_SOURCES
     ../../sign/gui/window.c ../../sign/gui/about.c ../../sign/gui/validation.c
+    ../../sign/gui/devices.c ../../sign/gui/inventory.c ../../sign/gui/certificate.c
     ../../sign/flow.c ../../sign/execution.c ../../sign/sign.c ../../sign/modules.c
     ../../sign/appearance.c ../../sign/pin.c ../../sign/terminal.c ../../sign/http.c
     ../../sign/timestamp/authority.c ../../sign/trust.c
@@ -27,7 +28,10 @@ set(GUI_TEST_SOURCES
 add_executable(gui_navigation_test navigation_test.c ${GUI_TEST_SOURCES})
 add_executable(gui_validation_test validation_test.c ${GUI_TEST_SOURCES})
 add_executable(gui_drop_test drop_test.c ${GUI_TEST_SOURCES})
-foreach(target IN ITEMS gui_navigation_test gui_validation_test gui_drop_test)
+set(GUI_DEVICE_TEST_SOURCES ${GUI_TEST_SOURCES})
+list(REMOVE_ITEM GUI_DEVICE_TEST_SOURCES "${SIGN_CERT_CATALOG}")
+add_executable(gui_devices_test devices_test.c ${GUI_DEVICE_TEST_SOURCES} $<TARGET_OBJECTS:bundle_catalog>)
+foreach(target IN ITEMS gui_navigation_test gui_validation_test gui_drop_test gui_devices_test)
     target_compile_definitions(${target} PRIVATE SIGN_VERSION="${PROJECT_VERSION}")
     target_include_directories(${target} PRIVATE "${PROJECT_SOURCE_DIR}")
     target_link_libraries(${target} PRIVATE sign_gui_deps sign_config_deps
@@ -55,6 +59,13 @@ if(UNIX AND NOT APPLE)
             set_tests_properties(gui_validation PROPERTIES TIMEOUT 45 RESOURCE_LOCK gtk_display)
         endif()
         set_tests_properties(gui_navigation PROPERTIES TIMEOUT 30 RESOURCE_LOCK gtk_display)
+        if(TARGET device_fixture)
+            add_test(NAME gui_devices COMMAND ${GUI_TEST_COMMAND}
+                "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/devices_test.py"
+                $<TARGET_FILE:gui_devices_test> $<TARGET_FILE:device_fixture>
+                "${BUNDLE_FIXTURES}" "${CMAKE_CURRENT_BINARY_DIR}/snapshots" "${OPENSSL_EXECUTABLE}")
+            set_tests_properties(gui_devices PROPERTIES TIMEOUT 60 RESOURCE_LOCK gtk_display)
+        endif()
         find_program(XDOTOOL_EXECUTABLE xdotool)
         if(XDOTOOL_EXECUTABLE)
             add_test(NAME gui_native_drop COMMAND ${GUI_TEST_COMMAND}
