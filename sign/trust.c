@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include <gio/gio.h>
 #include <sign/certs/certs.h>
+#include <sign/error.h>
 #include <sign/trust.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,14 +26,14 @@ bool trust_load_full(
 	        detail,
 	        sizeof(detail)
 	    )) {
-		g_set_error_literal(error, G_IO_ERROR, G_IO_ERROR_FAILED, detail);
+		g_set_error_literal(error, SIGN_ERROR, SIGN_ERROR_TRUST, detail);
 		return false;
 	}
 	if (!certs_load(args, trust)) {
 		g_set_error_literal(
 		    error,
-		    G_IO_ERROR,
-		    G_IO_ERROR_FAILED,
+		    SIGN_ERROR,
+		    SIGN_ERROR_TRUST,
 		    "Cannot load certificate bundles"
 		);
 		return false;

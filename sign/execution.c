@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+#include <sign/error.h>
 #include <sign/execution.h>
 #include <sign/sign.h>
 #include <stdlib.h>
@@ -54,7 +55,7 @@ bool sign_document_execute(
 	libssig_signature signature = {0};
 	bool ok = file_load(resolved.input, &input, detail, sizeof(detail));
 	if (!ok) {
-		g_set_error_literal(error, G_IO_ERROR, G_IO_ERROR_FAILED, detail);
+		g_set_error_literal(error, SIGN_ERROR, SIGN_ERROR_INPUT, detail);
 	}
 	if (ok && !resolved.format_explicit && input.len >= 5 &&
 	    !memcmp(input.data, "%PDF-", 5)) {
@@ -101,7 +102,7 @@ bool sign_document_execute(
 		    sizeof(detail)
 		);
 		if (!ok) {
-			g_set_error_literal(error, G_IO_ERROR, G_IO_ERROR_FAILED, detail);
+			g_set_error_literal(error, SIGN_ERROR, SIGN_ERROR_OUTPUT, detail);
 		} else {
 			result->len = signature.len;
 		}

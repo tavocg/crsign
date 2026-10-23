@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include <glib.h>
+#include <p11-kit/pkcs11.h>
 #include <sign/appearance.h>
+#include <sign/error.h>
 #include <sign/http.h>
 #include <sign/modules.h>
 #include <sign/pin.h>
@@ -24,8 +26,8 @@ static const libssig_token* token_find(
 		if (match) {
 			g_set_error_literal(
 			    error,
-			    G_IO_ERROR,
-			    G_IO_ERROR_FAILED,
+			    SIGN_ERROR,
+			    SIGN_ERROR_MANY_TOKENS,
 			    "multiple matching tokens; select a token URI"
 			);
 			return NULL;
@@ -35,8 +37,8 @@ static const libssig_token* token_find(
 	if (!match) {
 		g_set_error_literal(
 		    error,
-		    G_IO_ERROR,
-		    G_IO_ERROR_NOT_FOUND,
+		    SIGN_ERROR,
+		    SIGN_ERROR_NO_TOKEN,
 		    "no matching hardware token"
 		);
 	}
@@ -79,8 +81,8 @@ static const libssig_certificate* certificate_find(
 		if (match) {
 			g_set_error_literal(
 			    error,
-			    G_IO_ERROR,
-			    G_IO_ERROR_FAILED,
+			    SIGN_ERROR,
+			    SIGN_ERROR_MANY_CERTIFICATES,
 			    "multiple matching certificates; select a certificate ID"
 			);
 			return NULL;
@@ -90,8 +92,8 @@ static const libssig_certificate* certificate_find(
 	if (!match) {
 		g_set_error_literal(
 		    error,
-		    G_IO_ERROR,
-		    G_IO_ERROR_NOT_FOUND,
+		    SIGN_ERROR,
+		    SIGN_ERROR_NO_CERTIFICATE,
 		    "no matching signing certificate"
 		);
 	}
@@ -126,6 +128,12 @@ static libssig_status token_sign(
 	libssig_pdf_appearance appearance = {0};
 	unsigned char*         pixels = NULL;
 	if (!appearance_prepare(args, cert, &appearance, &pixels)) {
+		g_set_error_literal(
+		    error,
+		    SIGN_ERROR,
+		    SIGN_ERROR_IMAGE,
+		    "Cannot prepare signature appearance"
+		);
 		return LIBSSIG_ERROR_ARGUMENT;
 	}
 	sign_buffer pin = {0};
@@ -134,8 +142,8 @@ static libssig_status token_sign(
 		if (!ok) {
 			g_set_error_literal(
 			    error,
-			    G_IO_ERROR,
-			    G_IO_ERROR_NOT_INITIALIZED,
+			    SIGN_ERROR,
+			    SIGN_ERROR_PIN,
 			    "A PIN provider is required at execution time"
 			);
 		}
@@ -146,8 +154,8 @@ static libssig_status token_sign(
 		if (ok && (!pin.data || pin.len > SIGN_PIN_LIMIT)) {
 			g_set_error_literal(
 			    error,
-			    G_IO_ERROR,
-			    G_IO_ERROR_INVALID_ARGUMENT,
+			    SIGN_ERROR,
+			    SIGN_ERROR_PIN,
 			    "Invalid PIN provider response"
 			);
 			ok = false;
@@ -209,6 +217,14 @@ libssig_status sign_identity_open(
     GError**            error
 ) {
 	libssig_status status = modules_open(options, &identity->context);
+	if (status != LIBSSIG_OK) {
+		g_set_error_literal(
+		    error,
+		    SIGN_ERROR,
+		    SIGN_ERROR_MODULES,
+		    "Cannot load signing modules"
+		);
+	}
 	if (status == LIBSSIG_OK) {
 		status = libssig_tokens(&identity->context, &identity->tokens, 0);
 	}
@@ -271,12 +287,42 @@ bool sign_create(
 		}
 		free(authority);
 	}
+	sign_error_code code = SIGN_ERROR_CRYPTO;
+	switch (status) {
+	case LIBSSIG_ERROR_MODULES:
+	case LIBSSIG_ERROR_PKCS11:
+		code = SIGN_ERROR_MODULES;
+		break;
+	case LIBSSIG_ERROR_TRUST:
+	case LIBSSIG_ERROR_REVOKED:
+		code = SIGN_ERROR_TRUST;
+		break;
+	case LIBSSIG_ERROR_TIMESTAMP:
+	case LIBSSIG_ERROR_OCSP:
+	case LIBSSIG_ERROR_EVIDENCE:
+		code = SIGN_ERROR_TIMESTAMP;
+		break;
+	case LIBSSIG_ERROR_UNSUPPORTED:
+	case LIBSSIG_ERROR_FORMAT:
+		code = SIGN_ERROR_UNSUPPORTED;
+		break;
+	default:
+		break;
+	}
+	if (signature->ck_rv == CKR_PIN_INCORRECT) {
+		code = SIGN_ERROR_PIN_INCORRECT;
+	} else if (signature->ck_rv == CKR_PIN_LOCKED) {
+		code = SIGN_ERROR_PIN_LOCKED;
+	} else if (signature->ck_rv == CKR_TOKEN_NOT_PRESENT ||
+	           signature->ck_rv == CKR_DEVICE_REMOVED) {
+		code = SIGN_ERROR_DEVICE_REMOVED;
+	}
 	bool ok = cert && status == LIBSSIG_OK;
 	if (!ok && error && !*error) {
 		g_set_error(
 		    error,
-		    G_IO_ERROR,
-		    G_IO_ERROR_FAILED,
+		    SIGN_ERROR,
+		    code,
 		    "Signing failed (status=%d, CK_RV=0x%lx)",
 		    (int)status,
 		    signature->ck_rv
