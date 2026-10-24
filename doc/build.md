@@ -1,6 +1,6 @@
 # Construcción
 
-Requiere CMake, un compilador C99, argp, libssig >= 0.1.5, libcurl >= 7.85,
+Requiere CMake, compiladores C99 y C++ (C++20 para compilar QPDF), argp, libssig >= 0.1.5, libcurl >= 7.85,
 pkg-config, GLib >= 2.40/GIO, Jansson >= 2.11, p11-kit, librsvg >= 2.52, GdkPixbuf, Cairo/PangoCairo y tomlc17 (API con `toml_get`, por ejemplo 20260501).
 La interfaz gráfica también requiere GTK >= 4.10, libadwaita >= 1.4, Poppler GLib >= 0.82, QPDF (API C) y GNU gettext
 (herramientas `msgfmt`, `msgmerge` y `xgettext`, además de libintl cuando no forma parte de libc). GLib/GIO y tomlc17 se usan igualmente
@@ -53,14 +53,17 @@ Para compilar sin GTK, añade `-DHEADLESS=ON`.
 
 CRSign compila automáticamente libssig desde el submódulo `tests/libssig` y la
 incorpora estáticamente. No hace falta compilarla ni instalarla por separado.
-También requiere archivos estáticos de tomlc17, Jansson y zlib. argp
+También requiere archivos estáticos de tomlc17, Jansson, zlib, libxml2 y QPDF. argp
 se obtiene de libc en Linux/glibc o de un archivo estático externo. CMake falla
 si encuentra libssig compartida o faltan los archivos requeridos; no hay una
 segunda variante dinámica de CRSign.
 
-`nix develop` proporciona Jansson y zlib estáticas. En Windows/macOS ejecuta
+`nix develop` proporciona los archivos estáticos requeridos, incluidos libxml2 y QPDF. En Windows/macOS ejecuta
 `scripts/bootstrap-native.py` como indica [la guía nativa](../packaging/README.md).
-Ese paso compila tomlc17, Jansson y zlib desde fuentes fijadas y verificadas.
+Ese paso compila tomlc17, Jansson, zlib, libxml2 y QPDF desde fuentes fijadas y
+verificadas. QPDF se configura después de instalar las dependencias pequeñas.
+El código de CRSign continúa siendo C; el enlazador C++ incorpora las
+dependencias necesarias de QPDF sin aplicar opciones de C++ a los archivos C.
 
 ```sh
 git submodule update --init --recursive
@@ -81,8 +84,8 @@ cmake -S . -B build -Dlibssig_DIR="$PWD/../libssig/build-static"
 Para volver a la copia fijada, configura con `cmake -S . -B build -Ulibssig_DIR`.
 Mantén disponibles los paquetes de desarrollo de las dependencias en ambos casos.
 
-GTK/GLib, OpenSSL, curl, QPDF, libxml2, libmagic y la infraestructura PKCS#11
-conservan el enlace dinámico. Algunas de ellas también necesitan zlib compartida;
+GTK/GLib, OpenSSL, curl, libmagic y la infraestructura PKCS#11 conservan el
+enlace dinámico, junto con JPEG y el runtime C++ que necesita QPDF. Algunas de ellas también necesitan zlib compartida;
 incorporar zlib en CRSign no elimina esas dependencias transitivas. Los módulos
 PKCS#11 del proveedor siguen cargándose en ejecución.
 

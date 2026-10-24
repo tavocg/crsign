@@ -13,12 +13,15 @@ jobs:
         with:
           submodules: true
       - name: Install dependencies
-        run: brew install cmake pkgconf openssl@3 argp-standalone p11-kit libmagic qpdf poppler libxml2 glib gtk4 librsvg libadwaita gettext
+        run: brew install cmake pkgconf openssl@3 argp-standalone p11-kit libmagic jpeg-turbo poppler glib gtk4 librsvg libadwaita gettext
       - name: Build pinned static dependencies
-        run: python3 scripts/bootstrap-native.py --prefix "$PWD/build/native-prefix"
+        run: |
+          export PKG_CONFIG_PATH="$(brew --prefix openssl@3)/lib/pkgconfig:$(brew --prefix jpeg-turbo)/lib/pkgconfig"
+          export CMAKE_PREFIX_PATH="$(brew --prefix openssl@3):$(brew --prefix jpeg-turbo)"
+          python3 scripts/bootstrap-native.py --prefix "$PWD/build/native-prefix"
       - name: Configure and build CRSign
         run: |
-          export PKG_CONFIG_PATH="$PWD/build/native-prefix/lib/pkgconfig:$(brew --prefix libxml2)/lib/pkgconfig:$(brew --prefix openssl@3)/lib/pkgconfig:$(brew --prefix libmagic)/lib/pkgconfig"
+          export PKG_CONFIG_PATH="$PWD/build/native-prefix/lib/pkgconfig:$(brew --prefix openssl@3)/lib/pkgconfig:$(brew --prefix jpeg-turbo)/lib/pkgconfig:$(brew --prefix libmagic)/lib/pkgconfig"
           sdk="$(xcrun --show-sdk-path)"
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DHEADLESS=OFF -DBUILD_TESTING=ON \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 -DSIGN_TEST_LIBSSIG=OFF \
@@ -54,9 +57,9 @@ jobs:
             mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-pkgconf
             mingw-w64-ucrt-x86_64-python mingw-w64-ucrt-x86_64-openssl
             mingw-w64-ucrt-x86_64-p11-kit mingw-w64-ucrt-x86_64-file
-            mingw-w64-ucrt-x86_64-qpdf
+            mingw-w64-ucrt-x86_64-libjpeg-turbo
             mingw-w64-ucrt-x86_64-poppler
-            mingw-w64-ucrt-x86_64-libxml2 mingw-w64-ucrt-x86_64-glib2
+            mingw-w64-ucrt-x86_64-glib2
             mingw-w64-ucrt-x86_64-gtk4 mingw-w64-ucrt-x86_64-curl-winssl
             mingw-w64-ucrt-x86_64-librsvg mingw-w64-ucrt-x86_64-libadwaita
             mingw-w64-ucrt-x86_64-gettext-tools

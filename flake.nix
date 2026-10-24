@@ -19,6 +19,7 @@
       devShells = forAllSystems (system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
+          staticXml = pkgs.libxml2.override { enableStatic = true; };
           staticJansson = pkgs.jansson.overrideAttrs (old: {
             cmakeFlags = (old.cmakeFlags or []) ++ [ "-DJANSSON_BUILD_SHARED_LIBS=OFF" ];
           });
@@ -36,7 +37,7 @@
             ];
             nativeBuildInputs = with pkgs; [ pkg-config gettext ];
             buildInputs = with pkgs; [
-              gtk4 libadwaita poppler glib librsvg gdk-pixbuf cairo tomlc17 curl openssl p11-kit file qpdf zlib zlib.static staticJansson libxml2
+              gtk4 libadwaita poppler glib librsvg gdk-pixbuf cairo tomlc17 curl openssl p11-kit file qpdf zlib zlib.static staticJansson staticXml staticXml.static
               # FindPkgConfig also queries GTK private dependencies for static linking.
               libsysprof-capture pcre2 util-linux libselinux libsepol
               fribidi libthai libdatrie libxdmcp libxau dav1d appstream

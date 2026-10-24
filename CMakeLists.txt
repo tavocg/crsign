@@ -7,7 +7,7 @@
 
 cmake_minimum_required(VERSION 3.16)
 
-project(CRSign VERSION 0.1.0 LANGUAGES C)
+project(CRSign VERSION 0.1.0 LANGUAGES C CXX)
 
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -52,15 +52,11 @@ if(NOT HEADLESS)
     pkg_check_modules(GTK4 REQUIRED IMPORTED_TARGET gtk4>=4.10)
     pkg_check_modules(ADWAITA REQUIRED IMPORTED_TARGET libadwaita-1>=1.4)
     pkg_check_modules(PDF_VIEW REQUIRED IMPORTED_TARGET poppler-glib>=0.82)
-    # libqpdf.pc exports C++ flags; the preview only consumes its C API.
-    find_path(SIGN_QPDF_INCLUDE_DIR qpdf/qpdf-c.h REQUIRED)
-    find_library(SIGN_QPDF_LIBRARY NAMES qpdf REQUIRED)
     find_package(Intl REQUIRED)
     add_subdirectory(po)
     configure_file(sign/gui/config.h.in generated/sign/gui/config.h @ONLY)
     add_library(sign_gui_deps INTERFACE)
-    target_link_libraries(sign_gui_deps INTERFACE PkgConfig::GTK4 PkgConfig::ADWAITA PkgConfig::PDF_VIEW ${SIGN_QPDF_LIBRARY} ${Intl_LIBRARIES})
-    target_include_directories(sign_gui_deps SYSTEM INTERFACE "${SIGN_QPDF_INCLUDE_DIR}")
+    target_link_libraries(sign_gui_deps INTERFACE PkgConfig::GTK4 PkgConfig::ADWAITA PkgConfig::PDF_VIEW LibssigQPDF::LibssigQPDF ${Intl_LIBRARIES})
     target_include_directories(sign_gui_deps SYSTEM INTERFACE ${Intl_INCLUDE_DIRS})
     target_include_directories(sign_gui_deps INTERFACE "${PROJECT_BINARY_DIR}/generated")
     target_compile_definitions(sign_gui_deps INTERFACE SIGN_WITH_GUI GETTEXT_PACKAGE="crsign")

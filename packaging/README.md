@@ -25,7 +25,8 @@ El workflow contiene la lista exacta de paquetes de cada gestor. Windows usa
 confianza TLS nativa. La validación de documentos y TSA sigue a cargo de libssig.
 
 `bootstrap-native.py` compila estáticamente tomlc17 **R20260501**, Jansson
-**2.15.0**, zlib **1.3.2** y, con `--with-argp`, la
+**2.15.0**, zlib **1.3.2**, libxml2 **2.15.4**, QPDF **12.3.2** y, con
+`--with-argp`, la
 variante de argp-standalone **1.2.0** compatible con MinGW. macOS usa
 argp-standalone de Homebrew. Los archivos descargados tienen SHA-256 fijado y
 se comprueban también al reutilizar la caché. La descarga ocurre exclusivamente
@@ -41,14 +42,17 @@ python scripts/bootstrap-native.py --prefix "$PWD/build/native-prefix" --with-ar
 
 Se necesitan Python >= 3.10, CMake >= 3.18 y Git para este proceso. Los gestores
 nativos aportan el compilador, pkg-config, GTK/GLib, libadwaita, gettext, OpenSSL >= 3.5, p11-kit,
-libmagic, QPDF, Poppler GLib y libxml2. Consulta el workflow para las rutas de
-OpenSSL, libxml2 y libcurl del SDK en macOS.
+libmagic, JPEG y Poppler GLib. Se requiere un compilador C++20 para QPDF.
+Consulta el workflow para las rutas de OpenSSL, JPEG y libcurl del SDK en macOS.
+La preparación nativa instala primero las dependencias C y después compila
+únicamente el archivo estático de QPDF y sus encabezados. Su proveedor
+criptográfico usa OpenSSL, sin añadir GnuTLS ni una dependencia de libssl.
 
 ## Compilar e instalar en un prefijo temporal
 
 Tras instalar las dependencias y ejecutar bootstrap, antepón
 `build/native-prefix/lib/pkgconfig` a `PKG_CONFIG_PATH` para seleccionar Jansson
-y zlib del prefijo. CRSign compila libssig estática desde el submódulo:
+zlib, libxml2 y QPDF del prefijo. CRSign compila libssig estática desde el submódulo:
 
 ```sh
 export PKG_CONFIG_PATH="$PWD/build/native-prefix/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
@@ -65,7 +69,7 @@ indicadas en `native-build.yml`. `LIBSSIG_MAGIC_DATABASE` permite indicar el
 archivo `magic.mgc` que corresponde a la versión de libmagic enlazada. La base
 se comprime y se incorpora en libssig; no se busca en el equipo de compilación
 al ejecutar el paquete. `MAGIC` sigue siendo un override explícito, incluidos
-sus errores. libssig, tomlc17, Jansson, zlib y argp externo quedan incorporados
+sus errores. libssig, tomlc17, Jansson, zlib, libxml2, QPDF y argp externo quedan incorporados
 al ejecutable; las bibliotecas de GUI y del sistema conservan el enlace dinámico.
 
 ## Crear y comprobar el archivo distribuible
@@ -82,7 +86,7 @@ python scripts/test-native-package.py build/dist/CRSign-windows-x86_64 \
 ```
 
 En macOS pasa `--dependency-prefix` para `brew --prefix` y para los kegs de
-libmagic, libxml2 y OpenSSL, como hace el workflow; indica la ruta al ejecutable
+libmagic, JPEG y OpenSSL, como hace el workflow; indica la ruta al ejecutable
 OpenSSL de Homebrew al comprobar el paquete. Omite `--gui` en la variante CLI.
 
 El empaquetador recorre las dependencias PE/Mach-O, incluye las bibliotecas
