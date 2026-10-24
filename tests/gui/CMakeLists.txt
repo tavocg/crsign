@@ -36,6 +36,8 @@ add_executable(gui_devices_test devices_test.c ${GUI_DEVICE_TEST_SOURCES} $<TARG
 set(GUI_TEST_TARGETS gui_home_test gui_navigation_test gui_validation_test gui_drop_test gui_devices_test)
 if(EXISTS "${PROJECT_SOURCE_DIR}/tests/libssig/tests/document_sign_fixture.c")
     add_executable(gui_signing_test signing_test.c ../flows/crypto_module.c ${GUI_TEST_SOURCES})
+    # The PKCS#11 fixture includes private headers that installed libssig omits.
+    target_include_directories(gui_signing_test PRIVATE "${PROJECT_SOURCE_DIR}/tests/libssig")
     list(APPEND GUI_TEST_TARGETS gui_signing_test)
 endif()
 foreach(target IN LISTS GUI_TEST_TARGETS)
