@@ -14,15 +14,19 @@ ades, documents = Path(ades_dir), Path(document_dir)
 levels = ['B-B', 'B-T', 'B-LT', 'B-LTA']
 
 
-def verify(path, ca, tsa, success=True, structured=True):
+def verify(path, ca, tsa, success=True, structured=True, content=False):
     args = [sign, 'verify', str(path), '--ca-file', str(ca), '--tsa-ca-file', str(tsa)]
     if structured:
         args.append('--json')
+    if content:
+        args.append('--content')
     result = subprocess.run(args, capture_output=True, text=True, timeout=30)
     assert (result.returncode == 0) == success, (args, result.stdout, result.stderr)
     if structured:
         value = json.loads(result.stdout)
         assert value['command'] == 'verify' and value['ok'] == success
+        for signer in value['signers']:
+            assert ('certificate_der_hex' in signer) == content, signer
         return value, result.stderr
     return result.stdout, result.stderr
 
@@ -31,6 +35,11 @@ def valid(path, ca, tsa, fmt, level):
     value, _ = verify(path, ca, tsa)
     assert value['signature_valid'] and value['trusted'] and value['trust_checked'], value
     assert value['format'] == fmt and value['count'] == 1 and not value['detached'], value
+    expanded, _ = verify(path, ca, tsa, content=True)
+    for summary, detailed in zip(value['signers'], expanded['signers'], strict=True):
+        der = bytes.fromhex(detailed.pop('certificate_der_hex'))
+        assert der and der[0] == 0x30, detailed
+        assert summary == detailed, (summary, detailed)
     signer = value['signers'][0]
     assert signer['level'] == level and signer['level_validated'], signer
     assert signer['timestamp']['present'] == (level != 'B-B'), signer
@@ -51,7 +60,10 @@ for fmt, name in [('cades', 'ades-renewed.p7m'), ('pades', 'pades-renewed.pdf')]
 for case in cases:
     valid(*case)
     # Text and JSON must report the same outcome on the real CLI.
-    verify(*case[:3], structured=False)
+    text, _ = verify(*case[:3], structured=False)
+    assert 'Certificate DER hex:' not in text, text
+    text, _ = verify(*case[:3], structured=False, content=True)
+    assert 'Certificate DER hex:' in text, text
 
 # Sign currently has no argument for supplying detached content: require a
 # useful failure, never report successful verification without those bytes.
@@ -96,5 +108,7 @@ with tempfile.TemporaryDirectory(prefix='sign-conformance-') as temp:
         if level == 'B-B':
             value, _ = verify(path, documents / 'document-tsa-root.pem' if fmt in ['cades', 'pades'] else ades / 'cades-0-0.pem', tsa, success=False)
             assert value['signature_valid'] and not value['trusted'], value
+            expanded, _ = verify(path, documents / 'document-tsa-root.pem' if fmt in ['cades', 'pades'] else ades / 'cades-0-0.pem', tsa, success=False, content=True)
+            assert bytes.fromhex(expanded['signers'][0]['certificate_der_hex'])
 
 print('Real Sign CLI conformance fixtures passed: four formats/levels, renewal and negative cases')

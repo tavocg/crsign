@@ -2,6 +2,19 @@
 
 Los [flows JSON de firmado y validación](flows.md) son la base interna para ejecutar lotes desde la GUI.
 
+## Contenido de certificados
+
+Las salidas JSON omiten el certificado DER por defecto. Añade `--content` para
+incluirlo en hexadecimal:
+
+```sh
+sign tokens --json --content
+sign verify documento.pdf --json --content
+```
+
+En `tokens` el campo se llama `der_hex`; en `verify`, `certificate_der_hex` dentro
+de cada firmante. La opción también muestra el DER en la salida de texto.
+
 ## Interfaz gráfica
 
 ```sh

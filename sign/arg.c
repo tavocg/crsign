@@ -52,7 +52,7 @@ static const struct argp_option options[] = {
      CONTENT,
      0,
      0,
-     "Show certificate DER in hexadecimal (tokens only)",
+     "Show certificate DER in hexadecimal (tokens or verify)",
      0},
     {"gui", 'g', 0, 0, "Open the graphical interface", 0},
     {"verify", 'v', 0, OPTION_HIDDEN, "Alias for verify", 0},
@@ -300,8 +300,11 @@ static void args_validate(struct argp_state* state, const sign_args* args) {
 		argp_error(state, "tokens accepts no file or trust options");
 	}
 
-	if (!tokens && (args->all_certificates || args->content)) {
-		argp_error(state, "--all and --content require tokens");
+	if (!tokens && args->all_certificates) {
+		argp_error(state, "--all requires tokens");
+	}
+	if (!tokens && !verify && args->content) {
+		argp_error(state, "--content requires tokens or verify");
 	}
 }
 

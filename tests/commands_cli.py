@@ -88,7 +88,7 @@ with tempfile.TemporaryDirectory(prefix='sign-commands-') as directory:
                     ('tokens', '-A', 'url'), ('verify',),
                     ('verify', 'file', '-a', 'rsa-pkcs'),
                     ('verify', 'file', '-o', 'out'),
-                    ('verify', 'file', '--content'),
+                    ('verify', 'file', '--all'),
                     ('file', '--content'),
                     ('file', '--all', '-o', 'out'),
                     ('file', 'extra', '-o', 'out'), ('--gui', '--json')]:

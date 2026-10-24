@@ -50,7 +50,7 @@ with tempfile.TemporaryDirectory(prefix='crsign-flow-crypto-') as directory:
     report = json.loads(result.stdout)
     assert report['completed'] == len(documents) and report['pin_requests'] == len(documents)
     # The fixture's self-signed certificate is trusted only by this test invocation.
-    inspection = subprocess.run([sign, 'verify', '--json', str(root/'binary.p7m')],
+    inspection = subprocess.run([sign, 'verify', '--json', '--content', str(root/'binary.p7m')],
                                 env=env, capture_output=True, timeout=10)
     inspected = json.loads(inspection.stdout)
     assert inspected['signature_valid'] and not inspected['trusted'], inspected

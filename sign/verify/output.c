@@ -62,7 +62,16 @@ static void signer_profile_json(const libssig_verify_signer* signer) {
 	printf(",\"revocation_checked\":%s", json_bool(signer->revocation_checked));
 }
 
-static void signer_profile_text(const libssig_verify_signer* signer, size_t i) {
+static void signer_profile_text(
+    const libssig_verify_signer* signer,
+    size_t                       i,
+    bool                         content
+) {
+	if (content) {
+		fputs("Certificate DER hex: ", stdout);
+		json_hex(signer->cert_der, signer->cert_der_len);
+		putchar('\n');
+	}
 	const char* level = level_name(signer);
 	printf(
 	    "Signer %zu: %s (%s).\n",
@@ -165,8 +174,10 @@ static void verify_json(
 		}
 		printf("{\"trust_error\":%ld,\"mime_type\":", signer->trust_error);
 		json_print_string(signer->mime_type);
-		fputs(",\"certificate_der_hex\":", stdout);
-		json_hex(signer->cert_der, signer->cert_der_len);
+		if (args->content) {
+			fputs(",\"certificate_der_hex\":", stdout);
+			json_hex(signer->cert_der, signer->cert_der_len);
+		}
 		fputs(",\"anchor\":", stdout);
 		anchor_json(args, &signer->anchor);
 		fputs(",\"timestamp\":", stdout);
@@ -195,7 +206,7 @@ void verify_output(
 
 	if (status != LIBSSIG_OK) {
 		for (size_t i = 0; i < result->count; ++i) {
-			signer_profile_text(&result->signers[i], i);
+			signer_profile_text(&result->signers[i], i, args->content);
 		}
 		return;
 	}
@@ -204,7 +215,7 @@ void verify_output(
 	    result->count
 	);
 	for (size_t i = 0; i < result->count; ++i) {
-		signer_profile_text(&result->signers[i], i);
+		signer_profile_text(&result->signers[i], i, args->content);
 		anchor_text(args, "Signer", &result->signers[i].anchor);
 		anchor_text(args, "Timestamp", &result->signers[i].timestamp.anchor);
 		anchor_text(args, "Archive", &result->signers[i].archive.anchor);
