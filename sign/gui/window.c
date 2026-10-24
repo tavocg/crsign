@@ -29,9 +29,8 @@ struct _SignWindow {
 	AdwOverlaySplitView* split_view;
 	GtkStack*            pages;
 	GtkLabel*            title;
-	GtkWidget *          title_box, *profile_selector, *view_toggle, *home_row,
-	    *devices_menu;
-	SignHome* home;
+	GtkWidget *profile_selector, *view_toggle, *home_row, *devices_menu;
+	SignHome*  home;
 };
 
 G_DEFINE_TYPE(SignWindow, sign_window, ADW_TYPE_APPLICATION_WINDOW)
@@ -95,7 +94,6 @@ static void section_selected(
 	gtk_widget_set_visible(self->view_toggle, index == 0);
 	gtk_widget_set_visible(self->devices_menu, index == 3);
 	bool signing = !strcmp(sections[index].id, "sign");
-	gtk_widget_set_visible(GTK_WIDGET(self->title), !signing);
 	gtk_widget_set_visible(self->profile_selector, signing);
 	if (signing) {
 		sign_signing_reload_profiles(
@@ -237,9 +235,10 @@ static GtkWidget* create_content(SignWindow* self) {
 	self->title = GTK_LABEL(gtk_label_new(_("Home")));
 	gtk_widget_set_name(GTK_WIDGET(self->title), "section-title");
 	gtk_widget_add_css_class(GTK_WIDGET(self->title), "title");
-	self->title_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-	gtk_box_append(GTK_BOX(self->title_box), GTK_WIDGET(self->title));
-	adw_header_bar_set_title_widget(ADW_HEADER_BAR(header), self->title_box);
+	adw_header_bar_set_title_widget(
+	    ADW_HEADER_BAR(header),
+	    GTK_WIDGET(self->title)
+	);
 
 	GtkWidget* toggle = gtk_toggle_button_new();
 	gtk_widget_set_name(toggle, "menu-toggle");
@@ -318,7 +317,10 @@ static GtkWidget* create_content(SignWindow* self) {
 			self->profile_selector = sign_signing_profile_selector(
 			    SIGN_SIGNING(signing)
 			);
-			gtk_box_append(GTK_BOX(self->title_box), self->profile_selector);
+			adw_header_bar_pack_start(
+			    ADW_HEADER_BAR(header),
+			    self->profile_selector
+			);
 			gtk_widget_set_visible(self->profile_selector, FALSE);
 			gtk_stack_add_titled(
 			    self->pages,
