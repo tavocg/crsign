@@ -415,7 +415,7 @@ int main(int argc, char** argv) {
 		        gtk_popover_menu_get_menu_model(GTK_POPOVER_MENU(menu))
 		    ),
 		    ==,
-		    2
+		    3
 		);
 		snapshot(menu, argv[2], "home-document-menu.png");
 		GtkWidget* location_item = find_widget(

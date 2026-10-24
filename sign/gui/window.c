@@ -226,6 +226,30 @@ static void signing_completed(
 	    gtk_list_box_get_row_at_index(navigation, 2)
 	);
 }
+static void validate_file(
+    GSimpleAction* action,
+    GVariant*      parameter,
+    gpointer       data
+) {
+	(void)action;
+	SignWindow* self = data;
+	GtkListBox* navigation = GTK_LIST_BOX(
+	    gtk_widget_get_parent(self->home_row)
+	);
+	gtk_list_box_select_row(
+	    navigation,
+	    gtk_list_box_get_row_at_index(navigation, 2)
+	);
+	GFile* file = g_file_new_for_uri(g_variant_get_string(parameter, NULL));
+	GListStore* files = g_list_store_new(G_TYPE_FILE);
+	g_list_store_append(files, file);
+	sign_validation_add_files(
+	    SIGN_VALIDATION(gtk_stack_get_child_by_name(self->pages, "verify")),
+	    G_LIST_MODEL(files)
+	);
+	g_object_unref(files);
+	g_object_unref(file);
+}
 static GtkWidget* create_content(SignWindow* self) {
 	GtkWidget* toolbar = adw_toolbar_view_new();
 	GtkWidget* header = adw_header_bar_new();
@@ -418,6 +442,17 @@ static void home_history_changed(SignHome* home, gpointer data) {
 	}
 }
 static void sign_window_init(SignWindow* self) {
+	const GActionEntry actions[] = {
+	    {.name = "validate-file",
+	     .activate = validate_file,
+	     .parameter_type = "s"}
+	};
+	g_action_map_add_action_entries(
+	    G_ACTION_MAP(self),
+	    actions,
+	    G_N_ELEMENTS(actions),
+	    self
+	);
 	gtk_window_set_title(GTK_WINDOW(self), "CRSign");
 	gtk_window_set_default_size(GTK_WINDOW(self), 900, 600);
 	gtk_widget_set_size_request(GTK_WIDGET(self), 320, 360);

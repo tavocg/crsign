@@ -5,7 +5,7 @@
 typedef struct {
 	GtkWidget*            widget;
 	GFile*                file;
-	bool                  allow_favorite;
+	bool                  allow_favorite, allow_validation;
 	sign_favorite_changed favorite;
 	gpointer              data;
 	GtkWidget*            popover;
@@ -161,6 +161,18 @@ static void location(
 	);
 	g_object_unref(launcher);
 }
+static void validate_file(
+    GSimpleAction* action,
+    GVariant*      parameter,
+    gpointer       data
+) {
+	(void)action;
+	(void)parameter;
+	file_actions* binding = data;
+	char*         uri = g_file_get_uri(binding->file);
+	gtk_widget_activate_action(binding->widget, "win.validate-file", "s", uri);
+	g_free(uri);
+}
 static void favorite(
     GSimpleAction* action,
     GVariant*      parameter,
@@ -203,6 +215,9 @@ static void pressed(
 	g_menu_append(model, _("Open file location"), "document.location");
 	if (binding->allow_favorite) {
 		g_menu_append(model, _("Favorite"), "document.favorite");
+	}
+	if (binding->allow_validation) {
+		g_menu_append(model, _("Validate"), "document.validate");
 	}
 	GtkWidget* popover = gtk_popover_menu_new_from_model(G_MENU_MODEL(model));
 	g_object_unref(model);
@@ -256,6 +271,15 @@ void sign_file_actions_attach(
 		);
 		g_action_map_add_action(G_ACTION_MAP(group), G_ACTION(open_action));
 		g_object_unref(open_action);
+		GSimpleAction* validate = g_simple_action_new("validate", NULL);
+		g_signal_connect(
+		    validate,
+		    "activate",
+		    G_CALLBACK(validate_file),
+		    binding
+		);
+		g_action_map_add_action(G_ACTION_MAP(group), G_ACTION(validate));
+		g_object_unref(validate);
 		binding->favorite_action = g_simple_action_new_stateful(
 		    "favorite",
 		    NULL,
@@ -304,6 +328,14 @@ void sign_file_actions_attach(
 	    binding->favorite_action,
 	    g_variant_new_boolean(active)
 	);
+}
+void sign_file_allow_validation(GtkWidget* widget) {
+	file_actions* binding = g_object_get_data(
+	    G_OBJECT(widget),
+	    "crsign-file-actions"
+	);
+	g_return_if_fail(binding != NULL);
+	binding->allow_validation = true;
 }
 void sign_file_drag_attach(GtkWidget* widget, GFile* file) {
 	GtkDragSource* source = g_object_get_data(

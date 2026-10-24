@@ -718,6 +718,7 @@ void sign_signing_open_document(SignSigning* self, size_t index) {
 	    NULL,
 	    NULL
 	);
+	sign_file_allow_validation(GTK_WIDGET(self->reader));
 	g_object_unref(location);
 	sign_pdf_reader_set_document(self->reader, NULL, 0, NULL);
 	if (self->surface) {
@@ -988,6 +989,7 @@ void sign_signing_add_files(SignSigning* self, GListModel* files) {
 		gtk_widget_set_name(remove, "sign-remove-document");
 		GFile* location = g_file_new_for_path(item->path);
 		sign_file_actions_attach(item->row, location, false, false, NULL, NULL);
+		sign_file_allow_validation(item->row);
 		g_object_unref(location);
 		adw_action_row_add_suffix(ADW_ACTION_ROW(item->row), remove);
 		gtk_list_box_append(self->list, item->row);

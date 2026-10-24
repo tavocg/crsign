@@ -183,6 +183,36 @@ static void settings_test(GtkWidget* window, const char* directory) {
 	g_assert_false(gtk_widget_get_visible(named(view, "settings-status")));
 	g_free(path);
 }
+static void validate_context(
+    GtkWidget* item,
+    GtkWidget* window,
+    GtkStack*  stack,
+    int        return_section
+) {
+	SignValidation* validation = SIGN_VALIDATION(
+	    gtk_stack_get_child_by_name(stack, "verify")
+	);
+	g_assert_cmpuint(sign_validation_count(validation), ==, 0);
+	g_assert_true(gtk_widget_activate_action(item, "document.validate", NULL));
+	g_assert_cmpstr(gtk_stack_get_visible_child_name(stack), ==, "verify");
+	g_assert_cmpuint(sign_validation_count(validation), ==, 1);
+	gint64 deadline = g_get_monotonic_time() + 5 * G_TIME_SPAN_SECOND;
+	while (sign_validation_is_busy(validation) &&
+	       g_get_monotonic_time() < deadline) {
+		g_main_context_iteration(NULL, FALSE);
+		g_usleep(1000);
+	}
+	g_assert_false(sign_validation_is_busy(validation));
+	g_signal_emit_by_name(
+	    named(GTK_WIDGET(validation), "validation-clear"),
+	    "clicked"
+	);
+	GtkListBox* navigation = GTK_LIST_BOX(named(window, "navigation"));
+	gtk_list_box_select_row(
+	    navigation,
+	    gtk_list_box_get_row_at_index(navigation, return_section)
+	);
+}
 int main(int argc, char** argv) {
 	const char* directory = argc > 1 ? argv[1] : NULL;
 	if (directory) {
@@ -377,6 +407,15 @@ int main(int argc, char** argv) {
 	g_assert_true(
 	    gtk_widget_get_visible(named(GTK_WIDGET(home), "home-recents"))
 	);
+	GtkListBox* home_files = GTK_LIST_BOX(
+	    find_widget(named(GTK_WIDGET(home), "home-recents"), GTK_TYPE_LIST_BOX)
+	);
+	validate_context(
+	    GTK_WIDGET(gtk_list_box_get_row_at_index(home_files, 0)),
+	    reopened,
+	    reopened_stack,
+	    0
+	);
 	char* emptied = history_path();
 	g_assert_cmpint(g_unlink(emptied), ==, 0);
 	g_free(emptied);
@@ -400,6 +439,16 @@ int main(int argc, char** argv) {
 	sign_signing_add_files(signing, G_LIST_MODEL(pending));
 	g_object_unref(file);
 	g_object_unref(pending);
+	GtkListBox* signing_files = GTK_LIST_BOX(
+	    named(GTK_WIDGET(signing), "sign-documents")
+	);
+	validate_context(
+	    GTK_WIDGET(gtk_list_box_get_row_at_index(signing_files, 0)),
+	    reopened,
+	    reopened_stack,
+	    1
+	);
+	g_assert_cmpuint(sign_signing_count(signing), ==, 1);
 	sign_flow_item item = {.operation = SIGN_FLOW_VERIFY};
 	item.options.input = output;
 	sign_flow* verification = sign_flow_from_items(&item, 1, &error);
