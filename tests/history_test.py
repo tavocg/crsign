@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 import json
+from concurrent.futures import ThreadPoolExecutor
 import os
 from pathlib import Path
 import subprocess
@@ -70,12 +71,11 @@ with tempfile.TemporaryDirectory(prefix='crsign-history-') as directory:
     history = json.loads(path.read_text())
     assert len(history['documents']) == 1 and history['documents'][0]['favorite']
     assert history['documents'][0]['signed_at'] > initial['documents'][0]['signed_at']
-    # Concurrent processes merge additions rather than overwriting each other.
-    processes = [subprocess.Popen([binary,'record',str(root/f'signed-{n}.pdf')],env=env,
-                                 stdout=subprocess.PIPE,stderr=subprocess.PIPE) for n in range(40)]
-    for p in processes:
-        out,err=p.communicate(timeout=10)
-        assert p.returncode == 0,(out,err)
+    # Exercise independent writers without exceeding the bounded lock wait on
+    # slower runners. The pool also reaps every child before temporary cleanup.
+    with ThreadPoolExecutor(max_workers=4) as writers:
+        records=list(writers.map(lambda n: run('record',root/f'signed-{n}.pdf'),range(40)))
+    assert len(records)==40
     history = json.loads(path.read_text())
     assert len(history['documents']) == 41
     assert len({item['path'] for item in history['documents']}) == 41
