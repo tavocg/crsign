@@ -21,5 +21,5 @@ assert imports, f'No dynamic imports found in {binary}: {output}'
 # shared zlib; this checks what CRSign directly imports rather than their closure.
 for dependency in imports:
     name = Path(dependency).name.lower()
-    assert not re.match(r'(lib)?(ssig|tomlc17|jansson|argp|zlib|z|xml2|qpdf)([-.\d]|$)', name), dependency
+    assert not re.match(r'(lib)?(ssig|tomlc17|jansson|argp|zlib|z|xml2|qpdf|crypto|ssl|magic|jpeg)([-.\d]|$)', name), dependency
 print('Static application dependencies verified; direct imports:', ', '.join(imports))

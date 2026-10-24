@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Restrict only the small dependencies below, not GTK or system libraries.
+# Incorporate the signing engine dependencies, keeping GTK and system libraries dynamic.
 function(sign_find_static_library variable)
     set(CMAKE_FIND_LIBRARY_SUFFIXES .a .lib)
     find_library(${variable} ${ARGN} REQUIRED)
@@ -29,6 +29,37 @@ find_package(ZLIB REQUIRED)
 find_path(TOMLC17_INCLUDE_DIR tomlc17.h REQUIRED)
 sign_find_static_library(TOMLC17_LIBRARY NAMES tomlc17)
 
+# Keep the same libcrypto archive across CRSign, libssig and QPDF. Use fresh
+# selectors so an existing build cache containing DLL/.so paths also migrates.
+pkg_check_modules(SIGN_CRYPTO REQUIRED libcrypto>=3.0)
+sign_find_static_library(SIGN_CRYPTO_STATIC_LIBRARY NAMES crypto libcrypto
+    HINTS "${OPENSSL_ROOT_DIR}/lib" ${SIGN_CRYPTO_LIBRARY_DIRS})
+sign_find_static_library(SIGN_SSL_STATIC_LIBRARY NAMES ssl libssl
+    HINTS "${OPENSSL_ROOT_DIR}/lib" ${SIGN_CRYPTO_LIBRARY_DIRS})
+find_path(SIGN_CRYPTO_INCLUDE_DIR openssl/opensslv.h
+    HINTS "${OPENSSL_ROOT_DIR}/include" ${SIGN_CRYPTO_INCLUDE_DIRS} REQUIRED)
+set(OPENSSL_USE_STATIC_LIBS TRUE)
+set(OPENSSL_CRYPTO_LIBRARY "${SIGN_CRYPTO_STATIC_LIBRARY}")
+set(OPENSSL_SSL_LIBRARY "${SIGN_SSL_STATIC_LIBRARY}")
+set(OPENSSL_INCLUDE_DIR "${SIGN_CRYPTO_INCLUDE_DIR}")
+if(MINGW)
+    set(LIB_EAY "${SIGN_CRYPTO_STATIC_LIBRARY}")
+    set(SSL_EAY "${SIGN_SSL_STATIC_LIBRARY}")
+endif()
+if(WIN32 OR APPLE)
+    find_package(OpenSSL 3.5 REQUIRED COMPONENTS Crypto)
+else()
+    find_package(OpenSSL 3.0 REQUIRED COMPONENTS Crypto)
+endif()
+
+pkg_check_modules(SIGN_JPEG REQUIRED libjpeg)
+sign_find_static_library(SIGN_JPEG_STATIC_LIBRARY NAMES jpeg jpeg-static
+    HINTS ${SIGN_JPEG_LIBRARY_DIRS})
+set(JPEG_LIBRARY "${SIGN_JPEG_STATIC_LIBRARY}")
+set(JPEG_LIBRARY_RELEASE "${SIGN_JPEG_STATIC_LIBRARY}")
+set(JPEG_LIBRARY_DEBUG "${SIGN_JPEG_STATIC_LIBRARY}")
+find_package(JPEG REQUIRED)
+
 # Resolve pkg-config's private link dependencies, keeping zlib on the archive
 # already selected above. Public pkg-config targets omit these for shared libs.
 function(sign_static_pkg_dependencies output prefix own_library archive)
@@ -38,6 +69,10 @@ function(sign_static_pkg_dependencies output prefix own_library archive)
             continue()
         elseif(dependency STREQUAL "z")
             list(APPEND libraries ZLIB::ZLIB)
+        elseif(dependency STREQUAL "crypto")
+            list(APPEND libraries OpenSSL::Crypto)
+        elseif(dependency STREQUAL "jpeg")
+            list(APPEND libraries JPEG::JPEG)
         else()
             find_library(${prefix}_DEPENDENCY_${dependency} NAMES "${dependency}"
                 HINTS ${${prefix}_STATIC_LIBRARY_DIRS} REQUIRED)
@@ -46,6 +81,24 @@ function(sign_static_pkg_dependencies output prefix own_library archive)
     endforeach()
     set(${output} "${libraries}" PARENT_SCOPE)
 endfunction()
+
+# Include platform dependencies recorded by libcrypto.pc (for example bcrypt
+# on Windows), in addition to those provided by CMake's OpenSSL finder.
+sign_static_pkg_dependencies(SIGN_CRYPTO_PRIVATE_LIBRARIES SIGN_CRYPTO crypto
+    "${SIGN_CRYPTO_STATIC_LIBRARY}")
+list(REMOVE_ITEM SIGN_CRYPTO_PRIVATE_LIBRARIES "${SIGN_CRYPTO_STATIC_LIBRARY}")
+set_property(TARGET OpenSSL::Crypto APPEND PROPERTY INTERFACE_LINK_LIBRARIES
+    "${SIGN_CRYPTO_PRIVATE_LIBRARIES}")
+set_property(TARGET OpenSSL::Crypto APPEND PROPERTY INTERFACE_LINK_OPTIONS
+    "${SIGN_CRYPTO_STATIC_LDFLAGS_OTHER}")
+
+pkg_check_modules(MAGIC REQUIRED IMPORTED_TARGET libmagic)
+sign_find_static_library(SIGN_MAGIC_STATIC_LIBRARY NAMES magic
+    HINTS ${MAGIC_LIBRARY_DIRS})
+sign_static_pkg_dependencies(SIGN_MAGIC_LINK_LIBRARIES MAGIC magic "${SIGN_MAGIC_STATIC_LIBRARY}")
+set_target_properties(PkgConfig::MAGIC PROPERTIES
+    INTERFACE_LINK_LIBRARIES "${SIGN_MAGIC_LINK_LIBRARIES}"
+    INTERFACE_LINK_OPTIONS "${MAGIC_STATIC_LDFLAGS_OTHER}")
 
 pkg_check_modules(XML2 REQUIRED IMPORTED_TARGET libxml-2.0)
 sign_find_static_library(SIGN_XML2_LIBRARY NAMES xml2 libxml2

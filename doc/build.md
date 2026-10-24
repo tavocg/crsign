@@ -53,12 +53,14 @@ Para compilar sin GTK, añade `-DHEADLESS=ON`.
 
 CRSign compila automáticamente libssig desde el submódulo `tests/libssig` y la
 incorpora estáticamente. No hace falta compilarla ni instalarla por separado.
-También requiere archivos estáticos de tomlc17, Jansson, zlib, libxml2 y QPDF. argp
-se obtiene de libc en Linux/glibc o de un archivo estático externo. CMake falla
+También requiere archivos estáticos de tomlc17, Jansson, zlib, libxml2, QPDF,
+libcrypto (OpenSSL), libmagic y JPEG. argp se obtiene de libc en Linux/glibc o de un archivo estático externo. CMake falla
 si encuentra libssig compartida o faltan los archivos requeridos; no hay una
 segunda variante dinámica de CRSign.
 
-`nix develop` proporciona los archivos estáticos requeridos, incluidos libxml2 y QPDF. En Windows/macOS ejecuta
+`nix develop` proporciona los archivos estáticos requeridos. En Windows/macOS,
+OpenSSL, libmagic y jpeg-turbo de los gestores nativos incluyen los archivos
+estáticos; se seleccionan también sus dependencias privadas de enlace. Ejecuta
 `scripts/bootstrap-native.py` como indica [la guía nativa](../packaging/README.md).
 Ese paso compila tomlc17, Jansson, zlib, libxml2 y QPDF desde fuentes fijadas y
 verificadas. QPDF se configura después de instalar las dependencias pequeñas.
@@ -84,10 +86,19 @@ cmake -S . -B build -Dlibssig_DIR="$PWD/../libssig/build-static"
 Para volver a la copia fijada, configura con `cmake -S . -B build -Ulibssig_DIR`.
 Mantén disponibles los paquetes de desarrollo de las dependencias en ambos casos.
 
-GTK/GLib, OpenSSL, curl, libmagic y la infraestructura PKCS#11 conservan el
-enlace dinámico, junto con JPEG y el runtime C++ que necesita QPDF. Algunas de ellas también necesitan zlib compartida;
-incorporar zlib en CRSign no elimina esas dependencias transitivas. Los módulos
-PKCS#11 del proveedor siguen cargándose en ejecución.
+La libssig integrada incorpora además la base `magic.mgc` que corresponde a
+libmagic. No necesita ese archivo durante la ejecución; `MAGIC` conserva su
+función de override explícito, incluidos los errores de una ruta inválida.
+`LIBSSIG_MAGIC_DATABASE` permite seleccionar otra base compatible al compilar.
+
+GTK/GLib, curl, la infraestructura PKCS#11 y el runtime C++ conservan el enlace
+dinámico. Algunas de ellas pueden cargar OpenSSL, JPEG, libxml2 o zlib compartidas;
+incorporarlas en CRSign elimina sus importaciones directas, no las dependencias
+transitivas de otras bibliotecas. Los módulos PKCS#11 del proveedor siguen
+cargándose en ejecución.
+
+Las actualizaciones de las bibliotecas incorporadas, incluida libcrypto,
+requieren recompilar y distribuir CRSign de nuevo.
 
 ## Pruebas
 

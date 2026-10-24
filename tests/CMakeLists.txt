@@ -33,6 +33,16 @@ find_program(OPENSSL_EXECUTABLE openssl REQUIRED)
 add_test(NAME static_linkage COMMAND "${Python3_EXECUTABLE}"
     "${CMAKE_CURRENT_SOURCE_DIR}/linkage_test.py" $<TARGET_FILE:sign>)
 
+# The bundled library embeds the database. External packages may intentionally
+# use libmagic's filesystem database, so this contract applies to bundled builds.
+if(TARGET ssig)
+    add_executable(magic_driver magic_driver.c)
+    target_link_libraries(magic_driver PRIVATE libssig::ssig)
+    target_compile_options(magic_driver PRIVATE -Wall -Wextra -Wpedantic -Werror)
+    add_test(NAME embedded_magic COMMAND "${Python3_EXECUTABLE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/magic_test.py" $<TARGET_FILE:magic_driver>)
+endif()
+
 add_executable(timestamp_driver
     timestamp_driver.c
     ../sign/timestamp/timestamp.c

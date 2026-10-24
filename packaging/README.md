@@ -42,7 +42,8 @@ python scripts/bootstrap-native.py --prefix "$PWD/build/native-prefix" --with-ar
 
 Se necesitan Python >= 3.10, CMake >= 3.18 y Git para este proceso. Los gestores
 nativos aportan el compilador, pkg-config, GTK/GLib, libadwaita, gettext, OpenSSL >= 3.5, p11-kit,
-libmagic, JPEG y Poppler GLib. Se requiere un compilador C++20 para QPDF.
+libmagic, JPEG y Poppler GLib. OpenSSL, libmagic y JPEG se consumen como
+archivos estáticos de esos paquetes; no se compilan otra vez en bootstrap. Se requiere un compilador C++20 para QPDF.
 Consulta el workflow para las rutas de OpenSSL, JPEG y libcurl del SDK en macOS.
 La preparación nativa instala primero las dependencias C y después compila
 únicamente el archivo estático de QPDF y sus encabezados. Su proveedor
@@ -58,7 +59,7 @@ zlib, libxml2 y QPDF del prefijo. CRSign compila libssig estática desde el subm
 export PKG_CONFIG_PATH="$PWD/build/native-prefix/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
 
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DHEADLESS=OFF -DBUILD_TESTING=ON \
-  -DLIBSSIG_EMBED_MAGIC_DATABASE=ON -DSIGN_TEST_LIBSSIG=OFF \
+  -DSIGN_TEST_LIBSSIG=OFF \
   -DCMAKE_PREFIX_PATH="$PWD/build/native-prefix"
 cmake --build build --parallel 4
 ctest --test-dir build --parallel 4 --output-on-failure
@@ -69,8 +70,10 @@ indicadas en `native-build.yml`. `LIBSSIG_MAGIC_DATABASE` permite indicar el
 archivo `magic.mgc` que corresponde a la versión de libmagic enlazada. La base
 se comprime y se incorpora en libssig; no se busca en el equipo de compilación
 al ejecutar el paquete. `MAGIC` sigue siendo un override explícito, incluidos
-sus errores. libssig, tomlc17, Jansson, zlib, libxml2, QPDF y argp externo quedan incorporados
-al ejecutable; las bibliotecas de GUI y del sistema conservan el enlace dinámico.
+sus errores. La incorporación de la base se activa automáticamente para la
+libssig integrada. libssig, tomlc17, Jansson, zlib, libxml2, QPDF, libcrypto,
+libmagic, JPEG y argp externo quedan incorporados al ejecutable; las bibliotecas
+de GUI y del sistema conservan el enlace dinámico.
 
 ## Crear y comprobar el archivo distribuible
 
