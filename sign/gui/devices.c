@@ -105,7 +105,15 @@ static void defer_details(
 	details->inventory = sign_device_inventory_ref(inventory);
 	details->populate = populate;
 	/* An empty child keeps the expander enabled before its details exist. */
-	details->placeholder = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+	details->placeholder = gtk_list_box_row_new();
+	gtk_list_box_row_set_activatable(
+	    GTK_LIST_BOX_ROW(details->placeholder),
+	    FALSE
+	);
+	gtk_list_box_row_set_selectable(
+	    GTK_LIST_BOX_ROW(details->placeholder),
+	    FALSE
+	);
 	adw_expander_row_add_row(row, details->placeholder);
 	g_signal_connect_data(
 	    row,

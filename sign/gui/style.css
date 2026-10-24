@@ -24,3 +24,13 @@ button.signature-remove {
   padding: 0;
 }
 button.signature-remove:hover { background: #e8e8e8; }
+
+/* Adwaita's descendant selector also matches arrows inside expanded ancestors.
+ * Limit the collapsed appearance to this expander's own header. */
+#devices-content row.expander:not(:checked) > box > list > row.header image.expander-row-arrow {
+  -gtk-icon-transform: rotate(0.5turn);
+  color: inherit;
+}
+#devices-content row.expander:not(:checked) > box > list > row.header image.expander-row-arrow:dir(rtl) {
+  -gtk-icon-transform: rotate(-0.5turn);
+}

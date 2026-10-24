@@ -13,6 +13,51 @@ static guint widget_count(GtkWidget* widget) {
 	}
 	return count;
 }
+/* Compare arrow shapes independently of accent/foreground color changes. */
+static GBytes* arrow_shape(GtkWidget* window, GtkWidget* row) {
+	settle();
+	GtkWidget* arrow = NULL;
+	GQueue     queue = G_QUEUE_INIT;
+	g_queue_push_tail(&queue, row);
+	while (!g_queue_is_empty(&queue)) {
+		GtkWidget* current = g_queue_pop_head(&queue);
+		if (gtk_widget_has_css_class(current, "expander-row-arrow")) {
+			arrow = current;
+			g_queue_clear(&queue);
+			break;
+		}
+		for (GtkWidget* child = gtk_widget_get_first_child(current); child;
+		     child = gtk_widget_get_next_sibling(child)) {
+			g_queue_push_tail(&queue, child);
+		}
+	}
+	g_assert_nonnull(arrow);
+	int width = gtk_widget_get_width(arrow),
+	    height = gtk_widget_get_height(arrow);
+	GdkPaintable* paintable = gtk_widget_paintable_new(arrow);
+	GtkSnapshot*  snapshot = gtk_snapshot_new();
+	gdk_paintable_snapshot(paintable, GDK_SNAPSHOT(snapshot), width, height);
+	GskRenderNode* node = gtk_snapshot_free_to_node(snapshot);
+	g_assert_nonnull(node);
+	graphene_rect_t bounds = GRAPHENE_RECT_INIT(0, 0, width, height);
+	GdkTexture*     texture = gsk_renderer_render_texture(
+        gtk_native_get_renderer(GTK_NATIVE(window)),
+        node,
+        &bounds
+    );
+	gsize   size = (gsize)width * height;
+	guchar* pixels = g_malloc(size * 4);
+	guchar* alpha = g_malloc(size);
+	gdk_texture_download(texture, pixels, (gsize)width * 4);
+	for (gsize n = 0; n < size; ++n) {
+		alpha[n] = pixels[4 * n + 3];
+	}
+	g_free(pixels);
+	g_object_unref(texture);
+	gsk_render_node_unref(node);
+	g_object_unref(paintable);
+	return g_bytes_new_take(alpha, size);
+}
 static void clipboard_read(
     GObject*      source,
     GAsyncResult* result,
@@ -128,6 +173,8 @@ static void trust_test(void) {
 }
 int main(int argc, char** argv) {
 	g_assert_cmpint(argc, ==, 3);
+	GLogLevelFlags fatal = g_log_set_always_fatal(G_LOG_FATAL_MASK);
+	g_log_set_always_fatal(fatal | G_LOG_LEVEL_WARNING | G_LOG_LEVEL_CRITICAL);
 	trust_test();
 	adw_init();
 	adw_style_manager_set_color_scheme(
@@ -185,8 +232,19 @@ int main(int argc, char** argv) {
 	AdwExpanderRow* slot = ADW_EXPANDER_ROW(named(view, "devices-slot"));
 	guint           collapsed = widget_count(content);
 	g_assert_false(adw_expander_row_get_expanded(slot));
+	GBytes* collapsed_arrow = arrow_shape(window, GTK_WIDGET(slot));
 	adw_expander_row_set_expanded(slot, TRUE);
 	g_assert_true(adw_expander_row_get_expanded(slot));
+	GBytes* expanded_arrow = arrow_shape(window, GTK_WIDGET(slot));
+	g_assert_false(g_bytes_equal(collapsed_arrow, expanded_arrow));
+	adw_expander_row_set_expanded(slot, FALSE);
+	GBytes* closed_again = arrow_shape(window, GTK_WIDGET(slot));
+	g_assert_true(g_bytes_equal(collapsed_arrow, closed_again));
+	g_bytes_unref(collapsed_arrow);
+	g_bytes_unref(expanded_arrow);
+	g_bytes_unref(closed_again);
+	snapshot(window, argv[2], "devices-slot-collapsed.png");
+	adw_expander_row_set_expanded(slot, TRUE);
 	g_assert_true(contains(view, "2048 bits"));
 	g_assert_true(contains(view, "3072 bits"));
 	g_assert_true(contains(view, "256 bits"));
