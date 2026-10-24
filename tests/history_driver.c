@@ -3,7 +3,10 @@
 #include <sign/ui_preferences.h>
 #include <stdio.h>
 #include <string.h>
-int main(int argc, char** argv) {
+#ifdef G_OS_WIN32
+#include <glib/gwin32.h>
+#endif
+static int run(int argc, char** argv) {
 	if (argc < 2) {
 		return 2;
 	}
@@ -42,4 +45,18 @@ int main(int argc, char** argv) {
 		g_clear_error(&error);
 	}
 	return ok ? 0 : 1;
+}
+
+int main(int argc, char** argv) {
+#ifdef G_OS_WIN32
+	/* Match the production CLI: GLib paths are UTF-8, not the CRT code page. */
+	char** utf8_argv = g_win32_get_command_line();
+	argc = (int)g_strv_length(utf8_argv);
+	argv = utf8_argv;
+#endif
+	int status = run(argc, argv);
+#ifdef G_OS_WIN32
+	g_strfreev(utf8_argv);
+#endif
+	return status;
 }
