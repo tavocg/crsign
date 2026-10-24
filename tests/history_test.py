@@ -63,7 +63,8 @@ with tempfile.TemporaryDirectory(prefix='crsign-history-') as directory:
     run('record', output)
     initial = json.loads(path.read_text())
     assert initial['version'] == 1 and len(initial['documents']) == 1
-    assert initial['documents'][0]['path'] == str(output)
+    stored=Path(initial['documents'][0]['path'])
+    assert stored.samefile(output), (str(stored),str(output))
     run('favorite', output, 'true')
     run('record', output)
     history = json.loads(path.read_text())
@@ -78,7 +79,7 @@ with tempfile.TemporaryDirectory(prefix='crsign-history-') as directory:
     history = json.loads(path.read_text())
     assert len(history['documents']) == 41
     assert len({item['path'] for item in history['documents']}) == 41
-    assert next(item for item in history['documents'] if item['path']==str(output))['favorite']
+    assert next(item for item in history['documents'] if Path(item['path']).resolve()==output.resolve())['favorite']
     run('favorite', root/'unknown.pdf','true',ok=False)
     before = path.read_bytes()
     for bad in (b'{',b'{"version":2,"documents":[]}',b'{"version":1,"documents":[{"path":"relative","favorite":false,"signed_at":1}]}',b' '* (16*1024*1024+1)):
