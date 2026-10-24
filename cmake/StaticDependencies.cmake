@@ -38,13 +38,15 @@ sign_find_static_library(SIGN_SSL_STATIC_LIBRARY NAMES ssl libssl
     HINTS "${OPENSSL_ROOT_DIR}/lib" ${SIGN_CRYPTO_LIBRARY_DIRS})
 find_path(SIGN_CRYPTO_INCLUDE_DIR openssl/opensslv.h
     HINTS "${OPENSSL_ROOT_DIR}/include" ${SIGN_CRYPTO_INCLUDE_DIRS} REQUIRED)
+# FindOpenSSL is called again by libssig. Persist its inputs before its
+# mark_as_advanced calls can create empty cache entries on a first configure.
 set(OPENSSL_USE_STATIC_LIBS TRUE)
-set(OPENSSL_CRYPTO_LIBRARY "${SIGN_CRYPTO_STATIC_LIBRARY}")
-set(OPENSSL_SSL_LIBRARY "${SIGN_SSL_STATIC_LIBRARY}")
-set(OPENSSL_INCLUDE_DIR "${SIGN_CRYPTO_INCLUDE_DIR}")
+set(OPENSSL_CRYPTO_LIBRARY "${SIGN_CRYPTO_STATIC_LIBRARY}" CACHE FILEPATH "Static OpenSSL crypto archive" FORCE)
+set(OPENSSL_SSL_LIBRARY "${SIGN_SSL_STATIC_LIBRARY}" CACHE FILEPATH "Static OpenSSL SSL archive" FORCE)
+set(OPENSSL_INCLUDE_DIR "${SIGN_CRYPTO_INCLUDE_DIR}" CACHE PATH "Matching OpenSSL headers" FORCE)
 if(MINGW)
-    set(LIB_EAY "${SIGN_CRYPTO_STATIC_LIBRARY}")
-    set(SSL_EAY "${SIGN_SSL_STATIC_LIBRARY}")
+    set(LIB_EAY "${SIGN_CRYPTO_STATIC_LIBRARY}" CACHE FILEPATH "Static MinGW crypto archive" FORCE)
+    set(SSL_EAY "${SIGN_SSL_STATIC_LIBRARY}" CACHE FILEPATH "Static MinGW SSL archive" FORCE)
 endif()
 if(WIN32 OR APPLE)
     find_package(OpenSSL 3.5 REQUIRED COMPONENTS Crypto)
