@@ -1,5 +1,14 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+# Each suite isolates signatures from the user's real document history.
+function(sign_test_data_directory)
+    get_property(local_tests DIRECTORY PROPERTY TESTS)
+    foreach(test IN LISTS local_tests)
+        set_property(TEST "${test}" APPEND PROPERTY
+            ENVIRONMENT "XDG_DATA_HOME=${PROJECT_BINARY_DIR}/tests/data")
+    endforeach()
+endfunction()
+
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 find_program(OPENSSL_EXECUTABLE openssl REQUIRED)
 
@@ -196,3 +205,13 @@ target_link_libraries(preferences_test PRIVATE Argp::Argp libssig::ssig OpenSSL:
 target_compile_definitions(preferences_test PRIVATE SIGN_VERSION="${PROJECT_VERSION}")
 target_compile_options(preferences_test PRIVATE -Wall -Wextra -Wpedantic -Werror)
 add_test(NAME preferences COMMAND preferences_test)
+
+
+add_executable(history_driver history_driver.c ../sign/history.c ../sign/user_data.c ../sign/ui_preferences.c)
+target_include_directories(history_driver PRIVATE "${PROJECT_SOURCE_DIR}")
+target_link_libraries(history_driver PRIVATE PkgConfig::GIO PkgConfig::JANSSON)
+target_compile_options(history_driver PRIVATE -Wall -Wextra -Wpedantic -Werror)
+add_test(NAME document_history COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/history_test.py" $<TARGET_FILE:history_driver>)
+set_tests_properties(document_history PROPERTIES TIMEOUT 30)
+
+sign_test_data_directory()
