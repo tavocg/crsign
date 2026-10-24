@@ -211,6 +211,43 @@ static void timestamp_details(
 	    timestamp->trust_checked ? yes_no(timestamp->trusted) : _("Not checked")
 	);
 }
+static char* localized_time(const char* value) {
+	GDateTime* utc = value && *value ? g_date_time_new_from_iso8601(value, NULL)
+	                                 : NULL;
+	GDateTime* local = utc ? g_date_time_to_local(utc) : NULL;
+	char*      text = local ? g_date_time_format(local, "%x %X")
+	                        : g_strdup(_("Not available"));
+	if (local) {
+		g_date_time_unref(local);
+	}
+	if (utc) {
+		g_date_time_unref(utc);
+	}
+	return text;
+}
+static char* subtitle(validation_item* item) {
+	const char*                  latest = NULL;
+	const libssig_verify_result* result = item->result.count
+	                                          ? &item->result.documents[0]
+	                                                 .verification
+	                                          : NULL;
+	if (!result || !result->count) {
+		return g_strdup(outcome(item));
+	}
+	for (size_t i = 0; i < result->count; ++i) {
+		const libssig_verify_signer* signer = &result->signers[i];
+		const char* time = signer->timestamp.valid && signer->timestamp.trusted
+		                       ? signer->timestamp.time
+		                       : signer->signing_time;
+		if (*time && (!latest || strcmp(time, latest) > 0)) {
+			latest = time;
+		}
+	}
+	char* date = localized_time(latest);
+	char* text = g_strdup_printf(_("%s · Signed: %s"), outcome(item), date);
+	g_free(date);
+	return text;
+}
 static void render(validation_item* item) {
 	GtkWidget* child;
 	while ((child = gtk_widget_get_first_child(item->details))) {
@@ -234,7 +271,9 @@ static void render(validation_item* item) {
 	gtk_widget_remove_css_class(item->icon, "success");
 	gtk_widget_remove_css_class(item->icon, "warning");
 	gtk_widget_add_css_class(item->icon, item->ok ? "success" : "warning");
-	adw_expander_row_set_subtitle(item->row, outcome(item));
+	char* status = subtitle(item);
+	adw_expander_row_set_subtitle(item->row, status);
+	g_free(status);
 	bool needs_content = item->result.count &&
 	                     item->result.documents[0].verification_status ==
 	                         LIBSSIG_ERROR_CONTENT_REQUIRED;
@@ -291,6 +330,9 @@ static void render(validation_item* item) {
 		    _("Signature level validated"),
 		    yes_no(signer->level_validated)
 		);
+		char* signing_date = localized_time(signer->signing_time);
+		detail(item, _("Declared signing time"), signing_date);
+		g_free(signing_date);
 		certificate_details(item, signer);
 		if (signer->trust_error) {
 			detail(

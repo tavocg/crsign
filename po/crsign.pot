@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: CRSign 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/tavocg/crsign/issues\n"
-"POT-Creation-Date: 2026-10-24 12:41-0600\n"
+"POT-Creation-Date: 2026-10-24 13:06-0600\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -167,11 +167,11 @@ msgstr ""
 msgid "Signature level"
 msgstr ""
 
-#: sign/gui/settings.c:652 sign/gui/validation.c:260
+#: sign/gui/settings.c:652 sign/gui/validation.c:299
 msgid "Format"
 msgstr ""
 
-#: sign/gui/settings.c:657 sign/gui/validation.c:271
+#: sign/gui/settings.c:657 sign/gui/validation.c:310
 msgid "Detached signature"
 msgstr ""
 
@@ -266,7 +266,7 @@ msgstr ""
 msgid "Valid: %u · Failed: %u · Pending: %u"
 msgstr ""
 
-#: sign/gui/validation.c:114
+#: sign/gui/validation.c:114 sign/gui/validation.c:219
 msgid "Not available"
 msgstr ""
 
@@ -342,108 +342,117 @@ msgstr ""
 msgid "Timestamp certificate trusted"
 msgstr ""
 
-#: sign/gui/validation.c:211 sign/gui/validation.c:269 sign/gui/error.c:95
+#: sign/gui/validation.c:211 sign/gui/validation.c:308 sign/gui/error.c:95
 msgid "Not checked"
 msgstr ""
 
-#: sign/gui/validation.c:220
+#: sign/gui/validation.c:247
+#, c-format
+msgid "%s · Signed: %s"
+msgstr ""
+
+#: sign/gui/validation.c:257
 msgid "File"
 msgstr ""
 
-#: sign/gui/validation.c:224
+#: sign/gui/validation.c:261
 msgid "Original content"
 msgstr ""
 
-#: sign/gui/validation.c:246
+#: sign/gui/validation.c:285
 msgid "Details"
 msgstr ""
 
-#: sign/gui/validation.c:263 sign/gui/devices.c:151
+#: sign/gui/validation.c:302 sign/gui/devices.c:151
 msgid "Unknown"
 msgstr ""
 
-#: sign/gui/validation.c:265
+#: sign/gui/validation.c:304
 msgid "Signature valid"
 msgstr ""
 
-#: sign/gui/validation.c:268
+#: sign/gui/validation.c:307
 msgid "Certificate chain trusted"
 msgstr ""
 
-#: sign/gui/validation.c:274
+#: sign/gui/validation.c:313
 #, c-format
 msgid "Signer %zu"
 msgstr ""
 
-#: sign/gui/validation.c:283
+#: sign/gui/validation.c:322
 msgid "Detected signature level"
 msgstr ""
 
-#: sign/gui/validation.c:286
+#: sign/gui/validation.c:325
 msgid "No baseline level detected"
 msgstr ""
 
-#: sign/gui/validation.c:291
+#: sign/gui/validation.c:330
 msgid "Signature level validated"
 msgstr ""
 
-#: sign/gui/validation.c:298
+#: sign/gui/validation.c:334
+msgid "Declared signing time"
+msgstr ""
+
+#: sign/gui/validation.c:340
 msgid "Certificate trust error"
 msgstr ""
 
-#: sign/gui/validation.c:304
+#: sign/gui/validation.c:346
 msgid "Revocation checked"
 msgstr ""
 
-#: sign/gui/validation.c:307
+#: sign/gui/validation.c:349
 msgid "Signing timestamp"
 msgstr ""
 
-#: sign/gui/validation.c:308
+#: sign/gui/validation.c:350
 msgid "Archive timestamp"
 msgstr ""
 
-#: sign/gui/validation.c:321
+#: sign/gui/validation.c:363
 msgid "Only local files can be validated"
 msgstr ""
 
-#: sign/gui/validation.c:412
+#: sign/gui/validation.c:454
 msgid "Waiting for another operation"
 msgstr ""
 
-#: sign/gui/validation.c:438
+#: sign/gui/validation.c:480
 msgid "Validating…"
 msgstr ""
 
-#: sign/gui/validation.c:467 sign/gui/validation.c:512
+#: sign/gui/validation.c:509 sign/gui/validation.c:554
 msgid "Queued"
 msgstr ""
 
-#: sign/gui/validation.c:521
+#: sign/gui/validation.c:563
 msgid "Select original content…"
 msgstr ""
 
-#: sign/gui/validation.c:591
+#: sign/gui/validation.c:633
 msgid "Only verification flows can be added to validation"
 msgstr ""
 
-#: sign/gui/validation.c:646
+#: sign/gui/validation.c:688
 msgid "Select signed files"
 msgstr ""
 
-#: sign/gui/validation.c:697
+#: sign/gui/validation.c:739
 msgid "Select original content"
 msgstr ""
 
-#: sign/gui/validation.c:818
+#: sign/gui/validation.c:860
 msgid "Drop signed files here"
 msgstr ""
 
-#: sign/gui/validation.c:822 sign/gui/signing.c:1657
+#: sign/gui/validation.c:864 sign/gui/signing.c:1657
 msgid "Click to choose one or more files"
 msgstr ""
 
-#: sign/gui/validation.c:848
+#: sign/gui/validation.c:890
 msgid "Clear results"
 msgstr ""
 
@@ -670,11 +679,11 @@ msgstr ""
 msgid "Cannot monitor devices"
 msgstr ""
 
-#: sign/gui/devices.c:734 sign/gui/home.c:403
+#: sign/gui/devices.c:734 sign/gui/home.c:438
 msgid "Could not save display preference"
 msgstr ""
 
-#: sign/gui/devices.c:735 sign/gui/home.c:404
+#: sign/gui/devices.c:735 sign/gui/home.c:439
 msgid ""
 "The display preference could not be saved. Check the application data file "
 "and its permissions."
@@ -1110,59 +1119,59 @@ msgstr ""
 msgid "Unknown date"
 msgstr ""
 
-#: sign/gui/home.c:252
+#: sign/gui/home.c:287
 msgid "Document"
 msgstr ""
 
-#: sign/gui/home.c:256
+#: sign/gui/home.c:291
 msgid "Signed"
 msgstr ""
 
-#: sign/gui/home.c:516
+#: sign/gui/home.c:560
 msgid "No matching documents"
 msgstr ""
 
-#: sign/gui/home.c:603
+#: sign/gui/home.c:667
 msgid ""
 "The document history could not be read. It may be invalid or exceed its size "
 "limit."
 msgstr ""
 
-#: sign/gui/home.c:624
+#: sign/gui/home.c:688
 msgid "Favorites"
 msgstr ""
 
-#: sign/gui/home.c:632 sign/gui/home.c:646 sign/gui/home.c:707
+#: sign/gui/home.c:696 sign/gui/home.c:710 sign/gui/home.c:779
 msgid "Show more"
 msgstr ""
 
-#: sign/gui/home.c:637
+#: sign/gui/home.c:701
 msgid "Recent"
 msgstr ""
 
-#: sign/gui/home.c:660
+#: sign/gui/home.c:724
 msgid "Search signed documents"
 msgstr ""
 
-#: sign/gui/home.c:675
+#: sign/gui/home.c:739
 msgid "Search by document name"
 msgstr ""
 
-#: sign/gui/file_actions.c:70
+#: sign/gui/file_actions.c:71
 msgid "Could not open file location"
 msgstr ""
 
-#: sign/gui/file_actions.c:71
+#: sign/gui/file_actions.c:72
 msgid ""
 "The containing folder could not be opened. Check that it still exists and "
 "that you have permission to access it."
 msgstr ""
 
-#: sign/gui/file_actions.c:141 sign/gui/file_actions.c:237
+#: sign/gui/file_actions.c:142 sign/gui/file_actions.c:251
 msgid "Open file location"
 msgstr ""
 
-#: sign/gui/file_actions.c:143 sign/gui/file_actions.c:249
+#: sign/gui/file_actions.c:144 sign/gui/file_actions.c:265
 msgid "Favorite"
 msgstr ""
 

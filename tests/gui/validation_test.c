@@ -132,6 +132,26 @@ int main(int argc, char** argv) {
 	g_assert_false(
 	    adw_preferences_row_get_use_markup(ADW_PREFERENCES_ROW(row))
 	);
+	const char* signed_at = valid->verification.signers[0].signing_time;
+	g_assert_nonnull(signed_at);
+	g_assert_cmpuint(strlen(signed_at), ==, 20);
+	GDateTime* utc = g_date_time_new_from_iso8601(signed_at, NULL);
+	g_assert_nonnull(utc);
+	GDateTime* local = g_date_time_to_local(utc);
+	char*      date = g_date_time_format(local, "%x %X");
+	char*      expected = g_strdup_printf("Válido · Firmado: %s", date);
+	g_assert_cmpstr(adw_expander_row_get_subtitle(row), ==, expected);
+	g_free(expected);
+	g_free(date);
+	g_date_time_unref(local);
+	g_date_time_unref(utc);
+	g_assert_cmpstr(
+	    adw_expander_row_get_subtitle(
+	        ADW_EXPANDER_ROW(gtk_list_box_get_row_at_index(list, 0))
+	    ),
+	    ==,
+	    "Archivo sin firma o formato no admitido"
+	);
 	adw_expander_row_set_expanded(row, TRUE);
 	snapshot(window, argv[2], "validation-results.png");
 	gtk_window_set_default_size(GTK_WINDOW(window), 400, 700);
