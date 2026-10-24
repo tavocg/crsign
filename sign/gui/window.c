@@ -425,9 +425,9 @@ static void sign_window_init(SignWindow* self) {
 	gtk_window_set_default_size(GTK_WINDOW(self), 900, 600);
 	gtk_widget_set_size_request(GTK_WIDGET(self), 320, 360);
 	self->split_view = ADW_OVERLAY_SPLIT_VIEW(adw_overlay_split_view_new());
-	adw_overlay_split_view_set_min_sidebar_width(self->split_view, 200);
-	adw_overlay_split_view_set_max_sidebar_width(self->split_view, 240);
-	adw_overlay_split_view_set_sidebar_width_fraction(self->split_view, 0.25);
+	adw_overlay_split_view_set_min_sidebar_width(self->split_view, 180);
+	adw_overlay_split_view_set_max_sidebar_width(self->split_view, 220);
+	adw_overlay_split_view_set_sidebar_width_fraction(self->split_view, 0.2);
 	/* Construct content first: initial sidebar selection updates the page
 	 * title. */
 	adw_overlay_split_view_set_content(self->split_view, create_content(self));
