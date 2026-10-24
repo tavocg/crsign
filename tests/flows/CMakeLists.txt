@@ -5,6 +5,7 @@ set(FLOW_ENGINE_SOURCES
     ../../sign/io.c ../../sign/pin.c ../../sign/terminal.c ../../sign/http.c
     ../../sign/timestamp/authority.c ../../sign/certs/certs.c "${SIGN_CERT_CATALOG}")
 add_executable(flow_driver driver.c ../token_mock.c ${FLOW_ENGINE_SOURCES})
+sign_test_signing_api(flow_driver)
 target_include_directories(flow_driver PRIVATE "${PROJECT_SOURCE_DIR}")
 target_link_libraries(flow_driver PRIVATE libssig::ssig CURL::libcurl OpenSSL::Crypto
     sign_image_deps PkgConfig::GIO PkgConfig::JANSSON PkgConfig::P11_KIT)
@@ -15,6 +16,7 @@ set_tests_properties(flows PROPERTIES TIMEOUT 45)
 
 if(EXISTS "${PROJECT_SOURCE_DIR}/tests/libssig/tests/document_sign_fixture.c")
     add_executable(flow_crypto_driver driver.c crypto_module.c ${FLOW_ENGINE_SOURCES})
+    sign_test_token_api(flow_crypto_driver)
     target_include_directories(flow_crypto_driver PRIVATE "${PROJECT_SOURCE_DIR}" "${PROJECT_SOURCE_DIR}/tests/libssig")
     target_link_libraries(flow_crypto_driver PRIVATE libssig::ssig CURL::libcurl OpenSSL::Crypto
         sign_image_deps PkgConfig::GIO PkgConfig::JANSSON PkgConfig::P11_KIT)

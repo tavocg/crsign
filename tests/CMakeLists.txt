@@ -1,5 +1,24 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+# Rename test doubles at application call sites instead of interposing exported
+# library symbols. Static archives may pull the real symbols into the same link
+# through other library APIs (for example device inventory).
+function(sign_test_token_api target)
+    foreach(symbol context_open context_open_modules context_close
+                   tokens tokens_free certificates certificates_free)
+        target_compile_definitions(${target} PRIVATE
+            "libssig_${symbol}=sign_test_${symbol}")
+    endforeach()
+endfunction()
+
+function(sign_test_signing_api target)
+    sign_test_token_api(${target})
+    foreach(symbol sign sign_pdf)
+        target_compile_definitions(${target} PRIVATE
+            "libssig_${symbol}=sign_test_${symbol}")
+    endforeach()
+endfunction()
+
 # Each suite isolates signatures from the user's real document history.
 function(sign_test_data_directory)
     get_property(local_tests DIRECTORY PROPERTY TESTS)
@@ -33,6 +52,7 @@ set_tests_properties(trust_cli PROPERTIES TIMEOUT 90)
 
 # Exercise the real CLI without a card, PIN or installed PKCS#11 module.
 add_executable(sign_mock ${SIGN_SOURCES} token_mock.c)
+sign_test_signing_api(sign_mock)
 target_include_directories(sign_mock PRIVATE "${PROJECT_SOURCE_DIR}")
 target_link_libraries(sign_mock PRIVATE Argp::Argp libssig::ssig CURL::libcurl OpenSSL::Crypto sign_config_deps PkgConfig::GIO sign_image_deps PkgConfig::JANSSON PkgConfig::P11_KIT)
 target_compile_definitions(sign_mock PRIVATE SIGN_VERSION="${PROJECT_VERSION}")
