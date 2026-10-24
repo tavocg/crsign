@@ -48,19 +48,14 @@ OpenSSL, libxml2 y libcurl del SDK en macOS.
 
 Tras instalar las dependencias y ejecutar bootstrap, antepón
 `build/native-prefix/lib/pkgconfig` a `PKG_CONFIG_PATH` para seleccionar Jansson
-y zlib del prefijo. Se requiere libssig estática:
+y zlib del prefijo. CRSign compila libssig estática desde el submódulo:
 
 ```sh
 export PKG_CONFIG_PATH="$PWD/build/native-prefix/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
 
-cmake -S tests/libssig -B build-libssig -DCMAKE_BUILD_TYPE=Release \
-  -DBUILD_TESTING=OFF -DBUILD_SHARED_LIBS=OFF -DLIBSSIG_EMBED_MAGIC_DATABASE=ON \
-  -DCMAKE_INSTALL_PREFIX="$PWD/build/native-prefix"
-cmake --build build-libssig --parallel 4
-cmake --install build-libssig
-
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DHEADLESS=OFF -DBUILD_TESTING=ON \
-  -DSIGN_TEST_LIBSSIG=OFF -DCMAKE_PREFIX_PATH="$PWD/build/native-prefix"
+  -DLIBSSIG_EMBED_MAGIC_DATABASE=ON -DSIGN_TEST_LIBSSIG=OFF \
+  -DCMAKE_PREFIX_PATH="$PWD/build/native-prefix"
 cmake --build build --parallel 4
 ctest --test-dir build --parallel 4 --output-on-failure
 ```
@@ -75,10 +70,11 @@ al ejecutable; las bibliotecas de GUI y del sistema conservan el enlace dinámic
 
 ## Crear y comprobar el archivo distribuible
 
-Desde el sistema de destino, utiliza un directorio de salida nuevo:
+Desde el sistema de destino, utiliza un directorio de salida nuevo. Con libssig
+integrada, `--libssig-build` apunta a `build`, que contiene la caché CMake común:
 
 ```sh
-python scripts/package-native.py --build build --libssig-build build-libssig \
+python scripts/package-native.py --build build --libssig-build build \
   --library-prefix build/native-prefix --dependency-prefix "$MINGW_PREFIX" \
   --destination build/dist/CRSign-windows-x86_64
 python scripts/test-native-package.py build/dist/CRSign-windows-x86_64 \

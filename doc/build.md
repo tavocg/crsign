@@ -39,7 +39,9 @@ proveedor. Se conservan [las instrucciones de compilación nativa y empaquetado
 manual](../packaging/README.md) para preparar futuros releases.
 
 ```sh
-cmake -S . -B build -DCMAKE_PREFIX_PATH=/ruta/instalacion/libssig
+git submodule update --init --recursive
+nix develop
+cmake -S . -B build
 cmake --build build
 ./build/sign --gui
 ```
@@ -49,7 +51,9 @@ Para compilar sin GTK, añade `-DHEADLESS=ON`.
 
 ## Dependencias estáticas
 
-CRSign requiere archivos estáticos de libssig, tomlc17, Jansson y zlib. argp
+CRSign compila automáticamente libssig desde el submódulo `tests/libssig` y la
+incorpora estáticamente. No hace falta compilarla ni instalarla por separado.
+También requiere archivos estáticos de tomlc17, Jansson y zlib. argp
 se obtiene de libc en Linux/glibc o de un archivo estático externo. CMake falla
 si encuentra libssig compartida o faltan los archivos requeridos; no hay una
 segunda variante dinámica de CRSign.
@@ -60,16 +64,22 @@ Ese paso compila tomlc17, Jansson y zlib desde fuentes fijadas y verificadas.
 
 ```sh
 git submodule update --init --recursive
-cmake -S tests/libssig -B build-libssig -DBUILD_TESTING=OFF -DBUILD_SHARED_LIBS=OFF
-cmake --build build-libssig --parallel
-cmake -S . -B build -Dlibssig_DIR="$PWD/build-libssig" -DBUILD_TESTING=ON
+cmake -S . -B build -DBUILD_TESTING=ON
 cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 ```
 
-También puedes usar `-S ../libssig` si trabajas con el repositorio hermano.
-Para una instalación de libssig estática, usa `CMAKE_PREFIX_PATH` en lugar de
-`libssig_DIR`. Mantén disponibles los paquetes de desarrollo de sus dependencias.
+Para trabajar con una compilación externa o el repositorio hermano:
+
+```sh
+cmake -S ../libssig -B ../libssig/build-static -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=OFF
+cmake --build ../libssig/build-static --parallel
+cmake -S . -B build -Dlibssig_DIR="$PWD/../libssig/build-static"
+```
+
+`libssig_DIR` debe apuntar al directorio que contiene `libssigConfig.cmake`.
+Para volver a la copia fijada, configura con `cmake -S . -B build -Ulibssig_DIR`.
+Mantén disponibles los paquetes de desarrollo de las dependencias en ambos casos.
 
 GTK/GLib, OpenSSL, curl, QPDF, libxml2, libmagic y la infraestructura PKCS#11
 conservan el enlace dinámico. Algunas de ellas también necesitan zlib compartida;
