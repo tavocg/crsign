@@ -223,3 +223,10 @@ se comprueba antes de iniciar cada documento y antes de guardar una firma.
 No interrumpe una operación PKCS#11 que ya esté ejecutándose, pero descarta su
 resultado si se cancela antes de la escritura. El callback de PIN puede utilizar
 ese mismo objeto para cancelar su diálogo.
+
+Para agregar firmas, un documento puede consumir la salida de una operación
+anterior del mismo flujo; cada salida debe seguir siendo única y no sobrescribir
+un archivo de entrada original. `original` indica el contenido original de una
+firma separada. `extend: true` renueva evidencias sin solicitar token o PIN; usa
+`level`, `hash`, `tsa` y las opciones de confianza, y no admite una apariencia
+nueva. La operación `verify` sigue usando `content` para el original separado.

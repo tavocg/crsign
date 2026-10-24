@@ -219,6 +219,15 @@
             "type": "string",
             "minLength": 1,
             "pattern": "^[^\\u0000]+$"
+          },
+          "original": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Original payload for co-signing or renewing a detached signature."
+          },
+          "extend": {
+            "type": "boolean",
+            "description": "Renew existing evidence without requesting a signing identity or PIN."
           }
         },
         "allOf": [
@@ -311,7 +320,9 @@
                   "properties": {
                     "url": false
                   }
-                }
+                },
+                "original": false,
+                "extend": false
               }
             },
             "else": {

@@ -125,6 +125,18 @@ static const struct argp_option options[] = {
         "TSA intermediates, PEM/DER",
         0,
     },
+    {"original",
+     ORIGINAL,
+     "FILE",
+     0,
+     "Original content for a detached signature",
+     0},
+    {"extend",
+     EXTEND,
+     0,
+     0,
+     "Renew existing signature evidence without a token",
+     0},
     {"detached", DETACHED, 0, 0, "Sign with external content", 0},
     {
         "mime-type",
@@ -242,6 +254,12 @@ bool arg_setting(
 		break;
 	case CERT_BUNDLE:
 		option = SIGN_OPTION_CERT_BUNDLE;
+		break;
+	case ORIGINAL:
+		option = SIGN_OPTION_ORIGINAL;
+		break;
+	case EXTEND:
+		option = SIGN_OPTION_EXTEND;
 		break;
 	case DETACHED:
 		option = SIGN_OPTION_DETACHED;
@@ -393,6 +411,8 @@ static error_t parse_option(int key, char* arg, struct argp_state* state) {
 	case TSA_INTERMEDIATES:
 	case NO_BUNDLED_CERTS:
 	case CERT_BUNDLE:
+	case ORIGINAL:
+	case EXTEND:
 	case DETACHED:
 	case MIME_TYPE: {
 		cli_setting setting = {key, arg ? arg : "true"};

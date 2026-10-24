@@ -108,6 +108,11 @@ int main(int argc, char** argv) {
 	g_assert_true(valid->ok);
 	g_assert_true(valid->verification.signature_valid);
 	g_assert_true(valid->verification.trusted);
+	g_assert_cmpuint(valid->verification.count, ==, 2);
+	for (size_t i = 0; i < 2; ++i) {
+		g_assert_true(valid->verification.signers[i].signature_valid);
+		g_assert_true(valid->verification.signers[i].trusted);
+	}
 	g_assert_false(sign_validation_result(self, 2)->ok);
 	g_assert_cmpint(
 	    sign_validation_result(self, 3)->verification_status,
@@ -153,6 +158,22 @@ int main(int argc, char** argv) {
 	    "Archivo sin firma o formato no admitido"
 	);
 	adw_expander_row_set_expanded(row, TRUE);
+	AdwExpanderRow* signer = ADW_EXPANDER_ROW(
+	    named(GTK_WIDGET(row), "validation-signer")
+	);
+	g_assert_nonnull(signer);
+	gtk_widget_grab_focus(GTK_WIDGET(signer));
+	g_assert_false(adw_expander_row_get_expanded(signer));
+	GBytes* collapsed_arrow = arrow_shape(window, GTK_WIDGET(signer));
+	adw_expander_row_set_expanded(signer, TRUE);
+	GBytes* expanded_arrow = arrow_shape(window, GTK_WIDGET(signer));
+	g_assert_false(g_bytes_equal(collapsed_arrow, expanded_arrow));
+	adw_expander_row_set_expanded(signer, FALSE);
+	GBytes* closed_again = arrow_shape(window, GTK_WIDGET(signer));
+	g_assert_true(g_bytes_equal(collapsed_arrow, closed_again));
+	g_bytes_unref(collapsed_arrow);
+	g_bytes_unref(expanded_arrow);
+	g_bytes_unref(closed_again);
 	snapshot(window, argv[2], "validation-results.png");
 	gtk_window_set_default_size(GTK_WINDOW(window), 400, 700);
 	snapshot(window, argv[2], "validation-narrow.png");

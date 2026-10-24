@@ -58,7 +58,9 @@ static void signer_profile_json(const libssig_verify_signer* signer) {
 	);
 	json_print_string(history_name(signer->history));
 	fputs(",\"validation_time\":", stdout);
-	json_print_string(signer->validation_time[0] ? signer->validation_time : NULL);
+	json_print_string(
+	    signer->validation_time[0] ? signer->validation_time : NULL
+	);
 	printf(",\"revocation_checked\":%s", json_bool(signer->revocation_checked));
 }
 
@@ -172,7 +174,15 @@ static void verify_json(
 		if (i) {
 			putchar(',');
 		}
-		printf("{\"trust_error\":%ld,\"mime_type\":", signer->trust_error);
+		printf(
+		    "{\"status\":%d,\"signature_valid\":%s,\"trust_checked\":%s,"
+		    "\"trusted\":%s,\"trust_error\":%ld,\"mime_type\":",
+		    (int)signer->status,
+		    json_bool(signer->signature_valid),
+		    json_bool(signer->trust_checked),
+		    json_bool(signer->trusted),
+		    signer->trust_error
+		);
 		json_print_string(signer->mime_type);
 		if (args->content) {
 			fputs(",\"certificate_der_hex\":", stdout);

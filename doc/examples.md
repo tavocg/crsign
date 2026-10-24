@@ -133,3 +133,24 @@ include the pinned libssig/ETSI submodules. See [tests/README.md](../tests/READM
 for recursive checkout, dependencies, CTest selection and CI instructions.
 
 Public certificate bundles and trust options are described in [sign/certs/README.md](../sign/certs/README.md).
+
+## Firmas sucesivas y renovación
+
+Volver a firmar un contenedor compatible agrega otro firmante y conserva las
+firmas anteriores. La detección del formato es automática; en PDF cada nueva
+representación gráfica pertenece a una nueva firma incremental.
+
+```sh
+sign documento.pdf -o primera.pdf
+sign primera.pdf -o segunda.pdf
+sign segunda.pdf --json --extend -A https://tsa.example/ -l B-LTA -o renovado.pdf
+sign firma.p7s --original documento.bin -o otra-firma.p7s
+```
+
+`--extend` renueva evidencias sin usar un token ni pedir PIN; requiere una TSA
+para los niveles con sello de tiempo y las raíces de confianza correspondientes.
+No cambia la fecha declarada ni la expiración del certificado y no repara firmas
+inválidas. Los PDF certificados, cifrados o con XFA devuelven error.
+En perfiles de la GUI se puede activar «Renovar evidencias existentes sin
+firmar» e indicar el archivo original para firmas separadas. Validar muestra un
+desplegable por firmante, con su validez y detalles independientes.

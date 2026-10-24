@@ -62,6 +62,14 @@ bool sign_document_execute(
 	    !memcmp(input.data, "%PDF-", 5)) {
 		resolved.format = LIBSSIG_FORMAT_PADES;
 	}
+	if (ok && !resolved.format_explicit) {
+		libssig_format detected;
+		if (libssig_signed_format(input.data, input.len, &detected)) {
+			resolved.format = detected == LIBSSIG_FORMAT_CMS
+			                      ? LIBSSIG_FORMAT_CADES
+			                      : detected;
+		}
+	}
 	result->format = resolved.format;
 	if (ok && resolved.appearance.page_number &&
 	    (resolved.format != LIBSSIG_FORMAT_PADES || input.len < 5 ||

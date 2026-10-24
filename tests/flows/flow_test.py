@@ -117,7 +117,8 @@ with tempfile.TemporaryDirectory(prefix='crsign-flow-') as directory:
     # Parse the whole flow before any side effect, including path collisions.
     call(flow(basic, dict(basic, output='archivo ñ-signed.bin')), success=False)
     call(flow(dict(basic, output=source.name)), success=False)
-    call(flow(dict(basic, output='second.bin'), {'input':'second.bin'}), success=False)
+    call(flow(dict(basic, output='second.bin'), {'input':'second.bin'}))
+    call(flow({'input':'second.bin'}, dict(basic, output='second.bin')), success=False)
     assert not (root/'archivo ñ-signed.bin').exists()
     # Operation-specific parsing stays strict and verification creates no output.
     verification = dict(operation='verify', input='signed.p7m', content=source.name,

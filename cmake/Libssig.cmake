@@ -2,7 +2,7 @@
 # An explicit package path is useful when developing the sibling library.
 # Otherwise build the pinned source with CRSign, without a separate install.
 if(libssig_DIR)
-    find_package(libssig 0.1.6 CONFIG REQUIRED)
+    find_package(libssig 0.2.0 CONFIG REQUIRED)
 else()
     if(NOT EXISTS "${PROJECT_SOURCE_DIR}/tests/libssig/CMakeLists.txt")
         message(FATAL_ERROR

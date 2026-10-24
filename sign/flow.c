@@ -38,6 +38,8 @@ typedef struct {
 } field;
 static const field document_fields[] = {
     {"input", SIGN_OPTION_INPUT, PATH},
+    {"original", SIGN_OPTION_ORIGINAL, PATH},
+    {"extend", SIGN_OPTION_EXTEND, BOOLEAN},
     {"output", SIGN_OPTION_OUTPUT, PATH},
     {"token", SIGN_OPTION_TOKEN, TEXT},
     {"cert_id", SIGN_OPTION_CERT_ID, TEXT},
@@ -151,6 +153,8 @@ sign_flow* sign_flow_from_items(
 			return NULL;
 		}
 		json_text_set(doc, "output", o->output);
+		json_text_set(doc, "original", o->original);
+		json_object_set_new(doc, "extend", json_boolean(o->extend));
 		json_text_set(doc, "token", o->uri);
 		json_text_set(doc, "cert_id", o->id);
 		json_text_set(doc, "mime_type", o->mime_type);
@@ -701,16 +705,30 @@ sign_flow* sign_flow_parse_json(
 	    g_object_unref,
 	    NULL
 	);
-	/* Signing inputs are always protected. Verification may consume an
-	 * earlier output, but must not be silently replaced by a later signing. */
+	/* Protect original inputs; a later operation may consume a distinct
+	 * output produced earlier in this flow (for example, to co-sign it). */
 	for (size_t i = 0; i < flow->count; ++i) {
-		if (flow->documents[i].operation == SIGN_FLOW_SIGN) {
+		const sign_flow_item* item = &flow->documents[i];
+		if (item->operation == SIGN_FLOW_SIGN) {
+			const char* paths[] = {item->options.input, item->options.original};
+			for (size_t j = 0; j < G_N_ELEMENTS(paths); ++j) {
+				if (!paths[j]) {
+					continue;
+				}
+				GFile* file = g_file_new_for_path(paths[j]);
+				if (!g_hash_table_contains(outputs, file)) {
+					g_hash_table_add(inputs, file);
+				} else {
+					g_object_unref(file);
+				}
+			}
 			g_hash_table_add(
-			    inputs,
-			    g_file_new_for_path(flow->documents[i].options.input)
+			    outputs,
+			    g_file_new_for_path(item->options.output)
 			);
 		}
 	}
+	g_hash_table_remove_all(outputs);
 	for (size_t i = 0; ok && i < flow->count; ++i) {
 		const sign_flow_item* item = &flow->documents[i];
 		if (item->operation == SIGN_FLOW_VERIFY) {

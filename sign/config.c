@@ -34,6 +34,8 @@ static const config_field profile_fields[] = {
     {"level", 'l', TOML_STRING, false},
     {"format", 'f', TOML_STRING, false},
     {"detached", DETACHED, TOML_BOOLEAN, false},
+    {"extend", EXTEND, TOML_BOOLEAN, false},
+    {"original", ORIGINAL, TOML_STRING, true},
     {"ca", CA_FILE, TOML_STRING, true},
     {"intermediates", INTERMEDIATES, TOML_STRING, true},
     {"no_bundled_certs", NO_BUNDLED_CERTS, TOML_BOOLEAN, false},
@@ -204,6 +206,12 @@ static void reset_setting(sign_args* args, int option) {
 		break;
 	case NO_BUNDLED_CERTS:
 		settings->no_bundled_certs = false;
+		break;
+	case ORIGINAL:
+		settings->original = NULL;
+		break;
+	case EXTEND:
+		settings->extend = false;
 		break;
 	case DETACHED:
 		settings->detached = false;

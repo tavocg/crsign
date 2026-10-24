@@ -117,6 +117,7 @@ static bool pin_required(const libssig_token* token) {
 static libssig_status token_sign(
     const sign_options*        args,
     const sign_buffer*         input,
+    const sign_buffer*         original,
     const libssig_context*     ctx,
     const sign_trust*          trust,
     const libssig_token*       token,
@@ -186,6 +187,8 @@ static libssig_status token_sign(
 	    .cert = cert,
 	    .data = input->data,
 	    .data_len = input->len,
+	    .content = original->data,
+	    .content_len = original->len,
 	    .pin = pin.data,
 	    .pin_len = pin.len,
 	    .level = args->level,
@@ -262,6 +265,44 @@ bool sign_create(
     const sign_execution* execution,
     GError**              error
 ) {
+	sign_buffer original = {0};
+	char        message[512];
+	if (args->original &&
+	    !file_load(args->original, &original, message, sizeof(message))) {
+		g_set_error_literal(error, SIGN_ERROR, SIGN_ERROR_INPUT, message);
+		return false;
+	}
+	if (args->extend) {
+		libssig_verify_params validation = {0};
+		trust_verify_params(trust, &validation);
+		libssig_sign_services services = {
+		    .exchange = http_exchange,
+		    .tsa_url = args->authority,
+		    .trust = &validation
+		};
+		libssig_extend_params params = {
+		    .data = input->data,
+		    .data_len = input->len,
+		    .content = original.data,
+		    .content_len = original.len,
+		    .level = args->level,
+		    .hash = args->hash,
+		    .services = &services
+		};
+		libssig_status status = libssig_extend(&params, signature);
+		free(original.data);
+		if (status != LIBSSIG_OK) {
+			g_set_error(
+			    error,
+			    SIGN_ERROR,
+			    SIGN_ERROR_CRYPTO,
+			    "Evidence renewal failed (status=%d); select a TSA URL and "
+			    "provide the original content for detached signatures",
+			    (int)status
+			);
+		}
+		return status == LIBSSIG_OK;
+	}
 	sign_identity        identity = {0};
 	libssig_status       status = sign_identity_open(args, &identity, error);
 	const libssig_token* token = identity.token;
@@ -274,6 +315,7 @@ bool sign_create(
 			status = token_sign(
 			    &resolved,
 			    input,
+			    &original,
 			    &identity.context,
 			    trust,
 			    token,
@@ -329,5 +371,6 @@ bool sign_create(
 		);
 	}
 	sign_identity_close(&identity);
+	free(original.data);
 	return ok;
 }

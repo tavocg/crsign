@@ -9,7 +9,8 @@
 typedef struct {
 	const char *input, *output, *uri, *id, *authority;
 	const char *ca_file, *intermediates, *tsa_ca_file, *tsa_intermediates;
-	const char* mime_type;
+	const char *mime_type, *original;
+	bool        extend;
 	bool        detached, format_explicit, no_bundled_certs, overwrite;
 	libssig_string_list    modules;
 	libssig_pdf_appearance appearance;
@@ -59,7 +60,9 @@ typedef enum {
 	SIGN_OPTION_CERT_BUNDLE,
 	SIGN_OPTION_DETACHED,
 	SIGN_OPTION_MIME_TYPE,
-	SIGN_OPTION_INPUT
+	SIGN_OPTION_INPUT,
+	SIGN_OPTION_ORIGINAL,
+	SIGN_OPTION_EXTEND
 } sign_option;
 
 bool sign_options_set(

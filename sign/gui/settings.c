@@ -658,6 +658,21 @@ static void sign_settings_init(SignSettings* self) {
 	    SIGN_OPTION_DETACHED,
 	    true
 	);
+	choice(
+	    self,
+	    signing,
+	    "extend",
+	    _("Renew existing evidence without signing"),
+	    SIGN_OPTION_EXTEND,
+	    true
+	);
+	entry(
+	    self,
+	    signing,
+	    "original",
+	    _("Original content for detached signatures"),
+	    ENTRY
+	);
 	entry(self, signing, "signature_image", _("Signature image"), ENTRY);
 	AdwPreferencesGroup* tsa = group(self, _("Timestamp authority"), NULL);
 	entry(self, tsa, "tsa.url", _("URL"), ENTRY);

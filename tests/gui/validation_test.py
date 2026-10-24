@@ -17,7 +17,8 @@ with tempfile.TemporaryDirectory(prefix='crsign-gui-validation-') as directory:
     (root/'wrong.bin').write_bytes(b'wrong original content')
     flow = root/'sign.json'
     flow.write_text(json.dumps(dict(version=1, documents=[
-        dict(input='payload.bin', output='signed ñ & record.p7m', level='B-B'),
+        dict(input='payload.bin', output='first.p7m', level='B-B'),
+        dict(input='first.p7m', output='signed ñ & record.p7m', level='B-B'),
         dict(input='payload.bin', output='detached.p7s', level='B-B', detached=True)])))
     subprocess.run([signer, 'run', str(flow), str(root)], env=env, check=True,
                    capture_output=True, timeout=15)

@@ -143,6 +143,12 @@ bool sign_options_set(
 		args->appearance_file = value;
 		args->appearance_options |= SIGN_APPEARANCE_FILE;
 		break;
+	case SIGN_OPTION_ORIGINAL:
+		args->original = value;
+		break;
+	case SIGN_OPTION_EXTEND:
+		args->extend = !strcmp(value, "true");
+		break;
 	case SIGN_OPTION_INPUT:
 		args->input = value;
 		break;
@@ -255,6 +261,14 @@ bool sign_options_validate(const sign_options* args, char* error, size_t size) {
 		    error,
 		    size,
 		    "Invalid signing algorithm, hash, level or format"
+		);
+	}
+	if (args->extend &&
+	    (args->appearance.page_number || args->appearance_options)) {
+		return setting_error(
+		    error,
+		    size,
+		    "Evidence renewal cannot add a visible signature"
 		);
 	}
 	if (args->cert_bundle_count > G_N_ELEMENTS(args->cert_bundles) ||

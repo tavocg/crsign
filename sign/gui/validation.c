@@ -98,11 +98,7 @@ static void summary_update(SignValidation* self) {
 	    !sign_validation_is_busy(self) && !self->dialogs
 	);
 }
-static void detail(
-    validation_item* item,
-    const char*      title,
-    const char*      value
-) {
+static void detail(GtkWidget* details, const char* title, const char* value) {
 	GtkWidget* box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 4);
 	gtk_widget_set_margin_start(box, 12);
 	gtk_widget_set_margin_end(box, 12);
@@ -119,7 +115,7 @@ static void detail(
 	gtk_label_set_width_chars(GTK_LABEL(label), 1);
 	gtk_box_append(GTK_BOX(box), key);
 	gtk_box_append(GTK_BOX(box), label);
-	gtk_box_append(GTK_BOX(item->details), box);
+	gtk_box_append(GTK_BOX(details), box);
 }
 static const char* yes_no(bool value) {
 	return value ? _("Yes") : _("No");
@@ -152,7 +148,7 @@ static const char* outcome(validation_item* item) {
 	}
 }
 static void certificate_details(
-    validation_item*             item,
+    GtkWidget*                   details,
     const libssig_verify_signer* signer
 ) {
 	if (!signer->cert_der || !signer->cert_der_len) {
@@ -167,10 +163,10 @@ static void certificate_details(
 	char* issuer = sign_certificate_name(X509_get_issuer_name(cert));
 	char* from = sign_certificate_time(X509_get0_notBefore(cert));
 	char* until = sign_certificate_time(X509_get0_notAfter(cert));
-	detail(item, _("Certificate subject"), subject);
-	detail(item, _("Certificate issuer"), issuer);
-	detail(item, _("Valid from"), from);
-	detail(item, _("Valid until"), until);
+	detail(details, _("Certificate subject"), subject);
+	detail(details, _("Certificate issuer"), issuer);
+	detail(details, _("Valid from"), from);
+	detail(details, _("Valid until"), until);
 	unsigned char digest[EVP_MAX_MD_SIZE];
 	unsigned int  length;
 	if (X509_digest(cert, EVP_sha256(), digest, &length) == 1) {
@@ -182,7 +178,7 @@ static void certificate_details(
 			    digest[i]
 			);
 		}
-		detail(item, _("Certificate SHA-256"), fingerprint->str);
+		detail(details, _("Certificate SHA-256"), fingerprint->str);
 		g_string_free(fingerprint, TRUE);
 	}
 	g_free(subject);
@@ -192,7 +188,7 @@ static void certificate_details(
 	X509_free(cert);
 }
 static void timestamp_details(
-    validation_item*                item,
+    GtkWidget*                      details,
     const char*                     title,
     const libssig_verify_timestamp* timestamp
 ) {
@@ -200,13 +196,13 @@ static void timestamp_details(
 		return;
 	}
 	detail(
-	    item,
+	    details,
 	    title,
 	    timestamp->time[0] ? timestamp->time : _("Time not authenticated")
 	);
-	detail(item, _("Timestamp signature valid"), yes_no(timestamp->valid));
+	detail(details, _("Timestamp signature valid"), yes_no(timestamp->valid));
 	detail(
-	    item,
+	    details,
 	    _("Timestamp certificate trusted"),
 	    timestamp->trust_checked ? yes_no(timestamp->trusted) : _("Not checked")
 	);
@@ -254,11 +250,11 @@ static void render(validation_item* item) {
 		gtk_box_remove(GTK_BOX(item->details), child);
 	}
 	char* path = g_file_get_parse_name(item->file);
-	detail(item, _("File"), path);
+	detail(item->details, _("File"), path);
 	g_free(path);
 	if (item->content) {
 		path = g_file_get_parse_name(item->content);
-		detail(item, _("Original content"), path);
+		detail(item->details, _("Original content"), path);
 		g_free(path);
 	}
 	gtk_spinner_stop(GTK_SPINNER(item->spinner));
@@ -282,7 +278,7 @@ static void render(validation_item* item) {
 	    (!item->result.count || item->result.documents[0].verification_status ==
 	                                LIBSSIG_ERROR_ARGUMENT)) {
 		char* text = gui_error_message(item->error, GUI_ERROR_VALIDATION);
-		detail(item, _("Details"), text);
+		detail(item->details, _("Details"), text);
 		g_free(text);
 	}
 	if (!item->result.count) {
@@ -295,30 +291,68 @@ static void render(validation_item* item) {
 	}
 	const char* formats[] = {"CAdES", "CMS", "PAdES", "XAdES", "JAdES"};
 	detail(
-	    item,
+	    item->details,
 	    _("Format"),
 	    (unsigned int)result->format <= LIBSSIG_FORMAT_JADES
 	        ? formats[result->format]
 	        : _("Unknown")
 	);
-	detail(item, _("Signature valid"), yes_no(result->signature_valid));
 	detail(
-	    item,
+	    item->details,
+	    _("Signature valid"),
+	    yes_no(result->signature_valid)
+	);
+	detail(
+	    item->details,
 	    _("Certificate chain trusted"),
 	    result->trust_checked ? yes_no(result->trusted) : _("Not checked")
 	);
-	detail(item, _("Detached signature"), yes_no(result->detached));
+	detail(item->details, _("Detached signature"), yes_no(result->detached));
 	for (size_t i = 0; i < result->count; ++i) {
 		const libssig_verify_signer* signer = &result->signers[i];
 		char*      title = g_strdup_printf(_("Signer %zu"), i + 1);
-		GtkWidget* heading = gtk_label_new(title);
-		gtk_label_set_xalign(GTK_LABEL(heading), 0);
-		gtk_widget_add_css_class(heading, "heading");
-		gtk_widget_set_margin_start(heading, 12);
-		gtk_widget_set_margin_top(heading, 12);
-		gtk_box_append(GTK_BOX(item->details), heading);
+		GtkWidget* list = gtk_list_box_new();
+		gtk_list_box_set_selection_mode(GTK_LIST_BOX(list), GTK_SELECTION_NONE);
+		gtk_widget_add_css_class(list, "boxed-list");
+		GtkWidget* row = adw_expander_row_new();
+		gtk_widget_set_name(row, "validation-signer");
+		adw_preferences_row_set_use_markup(ADW_PREFERENCES_ROW(row), FALSE);
+		adw_preferences_row_set_title(ADW_PREFERENCES_ROW(row), title);
+		GtkWidget* details = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+		adw_expander_row_add_row(ADW_EXPANDER_ROW(row), details);
+		gtk_list_box_append(GTK_LIST_BOX(list), row);
+		gtk_box_append(GTK_BOX(item->details), list);
+		const unsigned char* cursor = signer->cert_der;
+		X509*                cert = cursor
+		                                ? d2i_X509(NULL, &cursor, (long)signer->cert_der_len)
+		                                : NULL;
+		char* name = cert ? sign_certificate_name(X509_get_subject_name(cert))
+		                  : NULL;
+		if (name) {
+			adw_preferences_row_set_title(ADW_PREFERENCES_ROW(row), name);
+		}
+		X509_free(cert);
+		g_free(name);
+		const char* time = signer->timestamp.valid && signer->timestamp.trusted
+		                       ? signer->timestamp.time
+		                       : signer->signing_time;
+		char*       date = localized_time(time);
+		char*       summary = g_strdup_printf(
+            _("%s · Signed: %s"),
+            signer->status == LIBSSIG_OK ? _("Valid") : _("Validation failed"),
+            date
+        );
+		adw_expander_row_set_subtitle(ADW_EXPANDER_ROW(row), summary);
+		g_free(summary);
+		g_free(date);
+		detail(details, _("Signature valid"), yes_no(signer->signature_valid));
 		detail(
-		    item,
+		    details,
+		    _("Certificate chain trusted"),
+		    signer->trust_checked ? yes_no(signer->trusted) : _("Not checked")
+		);
+		detail(
+		    details,
 		    _("Detected signature level"),
 		    signer->level_detected
 		        ? sign_option_choice(SIGN_OPTION_LEVEL, signer->level)
@@ -326,28 +360,28 @@ static void render(validation_item* item) {
 		);
 		g_free(title);
 		detail(
-		    item,
+		    details,
 		    _("Signature level validated"),
 		    yes_no(signer->level_validated)
 		);
 		char* signing_date = localized_time(signer->signing_time);
-		detail(item, _("Declared signing time"), signing_date);
+		detail(details, _("Declared signing time"), signing_date);
 		g_free(signing_date);
-		certificate_details(item, signer);
+		certificate_details(details, signer);
 		if (signer->trust_error) {
 			detail(
-			    item,
+			    details,
 			    _("Certificate trust error"),
 			    gui_trust_error(signer->trust_error)
 			);
 		}
 		detail(
-		    item,
+		    details,
 		    _("Revocation checked"),
 		    yes_no(signer->revocation_checked)
 		);
-		timestamp_details(item, _("Signing timestamp"), &signer->timestamp);
-		timestamp_details(item, _("Archive timestamp"), &signer->archive);
+		timestamp_details(details, _("Signing timestamp"), &signer->timestamp);
+		timestamp_details(details, _("Archive timestamp"), &signer->archive);
 	}
 }
 /* The GUI builds a JSON flow; trust paths are already resolved by config_load.

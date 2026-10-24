@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: CRSign 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/tavocg/crsign/issues\n"
-"POT-Creation-Date: 2026-10-24 16:33-0600\n"
+"POT-Creation-Date: 2026-10-24 17:50-0600\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -99,11 +99,11 @@ msgstr ""
 msgid "Value"
 msgstr ""
 
-#: sign/gui/settings.c:530 sign/gui/validation.c:125 sign/gui/devices.c:28
+#: sign/gui/settings.c:530 sign/gui/validation.c:121 sign/gui/devices.c:28
 msgid "No"
 msgstr ""
 
-#: sign/gui/settings.c:531 sign/gui/validation.c:125 sign/gui/devices.c:28
+#: sign/gui/settings.c:531 sign/gui/validation.c:121 sign/gui/devices.c:28
 msgid "Yes"
 msgstr ""
 
@@ -167,7 +167,7 @@ msgstr ""
 msgid "Signature level"
 msgstr ""
 
-#: sign/gui/settings.c:652 sign/gui/validation.c:299
+#: sign/gui/settings.c:652 sign/gui/validation.c:295
 msgid "Format"
 msgstr ""
 
@@ -175,73 +175,81 @@ msgstr ""
 msgid "Detached signature"
 msgstr ""
 
-#: sign/gui/settings.c:661
+#: sign/gui/settings.c:665
+msgid "Renew existing evidence without signing"
+msgstr ""
+
+#: sign/gui/settings.c:673
+msgid "Original content for detached signatures"
+msgstr ""
+
+#: sign/gui/settings.c:676
 msgid "Signature image"
 msgstr ""
 
-#: sign/gui/settings.c:662
+#: sign/gui/settings.c:677
 msgid "Timestamp authority"
 msgstr ""
 
-#: sign/gui/settings.c:663
+#: sign/gui/settings.c:678
 msgid "URL"
 msgstr ""
 
-#: sign/gui/settings.c:664
+#: sign/gui/settings.c:679
 msgid "TSA trust certificates"
 msgstr ""
 
-#: sign/gui/settings.c:669
+#: sign/gui/settings.c:684
 msgid "TSA intermediate certificates"
 msgstr ""
 
-#: sign/gui/settings.c:674
+#: sign/gui/settings.c:689
 msgid "Document trust"
 msgstr ""
 
-#: sign/gui/settings.c:675
+#: sign/gui/settings.c:690
 msgid "Relative paths resolve against the configuration directory."
 msgstr ""
 
-#: sign/gui/settings.c:677
+#: sign/gui/settings.c:692
 msgid "Trust certificates"
 msgstr ""
 
-#: sign/gui/settings.c:678
+#: sign/gui/settings.c:693
 msgid "Intermediate certificates"
 msgstr ""
 
-#: sign/gui/settings.c:683
+#: sign/gui/settings.c:698
 msgid "Disable bundled certificates"
 msgstr ""
 
-#: sign/gui/settings.c:691
+#: sign/gui/settings.c:706
 msgid "Certificate bundles (comma separated)"
 msgstr ""
 
-#: sign/gui/settings.c:696
+#: sign/gui/settings.c:711
 msgid "PKCS#11 modules"
 msgstr ""
 
-#: sign/gui/settings.c:697
+#: sign/gui/settings.c:712
 msgid "Auto uses modules registered with p11-kit."
 msgstr ""
 
-#: sign/gui/settings.c:699
+#: sign/gui/settings.c:714
 msgid "Module paths"
 msgstr ""
 
-#: sign/gui/settings.c:702
+#: sign/gui/settings.c:717
 msgid "PIN command"
 msgstr ""
 
-#: sign/gui/settings.c:703
+#: sign/gui/settings.c:718
 msgid ""
 "Command and arguments, with shell-style quoting. The PIN is requested only "
 "when signing."
 msgstr ""
 
-#: sign/gui/settings.c:706
+#: sign/gui/settings.c:721
 msgid "Command"
 msgstr ""
 
@@ -266,112 +274,113 @@ msgstr ""
 msgid "Valid: %u · Failed: %u · Pending: %u"
 msgstr ""
 
-#: sign/gui/validation.c:114 sign/gui/validation.c:219
+#: sign/gui/validation.c:110 sign/gui/validation.c:215
 msgid "Not available"
 msgstr ""
 
-#: sign/gui/validation.c:129
+#: sign/gui/validation.c:125 sign/gui/validation.c:342
 msgid "Valid"
 msgstr ""
 
-#: sign/gui/validation.c:132
+#: sign/gui/validation.c:128
 msgid "Could not validate"
 msgstr ""
 
-#: sign/gui/validation.c:136
+#: sign/gui/validation.c:132
 msgid "Untrusted or expired certificate"
 msgstr ""
 
-#: sign/gui/validation.c:138
+#: sign/gui/validation.c:134
 msgid "Original content required"
 msgstr ""
 
-#: sign/gui/validation.c:140
+#: sign/gui/validation.c:136
 msgid "Revoked certificate"
 msgstr ""
 
-#: sign/gui/validation.c:142
+#: sign/gui/validation.c:138
 msgid "Invalid timestamp"
 msgstr ""
 
-#: sign/gui/validation.c:144
+#: sign/gui/validation.c:140
 msgid "Incomplete validation evidence"
 msgstr ""
 
-#: sign/gui/validation.c:146
+#: sign/gui/validation.c:142
 msgid "Revocation check failed"
 msgstr ""
 
-#: sign/gui/validation.c:149
+#: sign/gui/validation.c:145
 msgid "Unsupported or unsigned file"
 msgstr ""
 
-#: sign/gui/validation.c:151
+#: sign/gui/validation.c:147 sign/gui/validation.c:342
 msgid "Validation failed"
 msgstr ""
 
-#: sign/gui/validation.c:170 sign/gui/devices.c:236
+#: sign/gui/validation.c:166 sign/gui/devices.c:236
 msgid "Certificate subject"
 msgstr ""
 
-#: sign/gui/validation.c:171 sign/gui/devices.c:237
+#: sign/gui/validation.c:167 sign/gui/devices.c:237
 msgid "Certificate issuer"
 msgstr ""
 
-#: sign/gui/validation.c:172 sign/gui/devices.c:238
+#: sign/gui/validation.c:168 sign/gui/devices.c:238
 msgid "Valid from"
 msgstr ""
 
-#: sign/gui/validation.c:173 sign/gui/devices.c:239
+#: sign/gui/validation.c:169 sign/gui/devices.c:239
 msgid "Valid until"
 msgstr ""
 
-#: sign/gui/validation.c:185 sign/gui/devices.c:251
+#: sign/gui/validation.c:181 sign/gui/devices.c:251
 msgid "Certificate SHA-256"
 msgstr ""
 
-#: sign/gui/validation.c:205
+#: sign/gui/validation.c:201
 msgid "Time not authenticated"
 msgstr ""
 
-#: sign/gui/validation.c:207
+#: sign/gui/validation.c:203
 msgid "Timestamp signature valid"
 msgstr ""
 
-#: sign/gui/validation.c:210
+#: sign/gui/validation.c:206
 msgid "Timestamp certificate trusted"
 msgstr ""
 
-#: sign/gui/validation.c:211 sign/gui/validation.c:308 sign/gui/error.c:95
+#: sign/gui/validation.c:207 sign/gui/validation.c:308
+#: sign/gui/validation.c:352 sign/gui/error.c:95
 msgid "Not checked"
 msgstr ""
 
-#: sign/gui/validation.c:247
+#: sign/gui/validation.c:243 sign/gui/validation.c:341
 #, c-format
 msgid "%s · Signed: %s"
 msgstr ""
 
-#: sign/gui/validation.c:257
+#: sign/gui/validation.c:253
 msgid "File"
 msgstr ""
 
-#: sign/gui/validation.c:261
+#: sign/gui/validation.c:257
 msgid "Original content"
 msgstr ""
 
-#: sign/gui/validation.c:285
+#: sign/gui/validation.c:281
 msgid "Details"
 msgstr ""
 
-#: sign/gui/validation.c:302 sign/gui/devices.c:152
+#: sign/gui/validation.c:298 sign/gui/devices.c:152
 msgid "Unknown"
 msgstr ""
 
-#: sign/gui/validation.c:304
+#: sign/gui/validation.c:302 sign/gui/validation.c:348
 msgid "Signature valid"
 msgstr ""
 
-#: sign/gui/validation.c:307
+#: sign/gui/validation.c:307 sign/gui/validation.c:351
 msgid "Certificate chain trusted"
 msgstr ""
 
@@ -380,79 +389,79 @@ msgstr ""
 msgid "Signer %zu"
 msgstr ""
 
-#: sign/gui/validation.c:322
+#: sign/gui/validation.c:356
 msgid "Detected signature level"
 msgstr ""
 
-#: sign/gui/validation.c:325
+#: sign/gui/validation.c:359
 msgid "No baseline level detected"
 msgstr ""
 
-#: sign/gui/validation.c:330
+#: sign/gui/validation.c:364
 msgid "Signature level validated"
 msgstr ""
 
-#: sign/gui/validation.c:334
+#: sign/gui/validation.c:368
 msgid "Declared signing time"
 msgstr ""
 
-#: sign/gui/validation.c:340
+#: sign/gui/validation.c:374
 msgid "Certificate trust error"
 msgstr ""
 
-#: sign/gui/validation.c:346
+#: sign/gui/validation.c:380
 msgid "Revocation checked"
 msgstr ""
 
-#: sign/gui/validation.c:349
+#: sign/gui/validation.c:383
 msgid "Signing timestamp"
 msgstr ""
 
-#: sign/gui/validation.c:350
+#: sign/gui/validation.c:384
 msgid "Archive timestamp"
 msgstr ""
 
-#: sign/gui/validation.c:363
+#: sign/gui/validation.c:397
 msgid "Only local files can be validated"
 msgstr ""
 
-#: sign/gui/validation.c:454
+#: sign/gui/validation.c:488
 msgid "Waiting for another operation"
 msgstr ""
 
-#: sign/gui/validation.c:480
+#: sign/gui/validation.c:514
 msgid "Validating…"
 msgstr ""
 
-#: sign/gui/validation.c:509 sign/gui/validation.c:554
+#: sign/gui/validation.c:543 sign/gui/validation.c:588
 msgid "Queued"
 msgstr ""
 
-#: sign/gui/validation.c:563
+#: sign/gui/validation.c:597
 msgid "Select original content…"
 msgstr ""
 
-#: sign/gui/validation.c:633
+#: sign/gui/validation.c:667
 msgid "Only verification flows can be added to validation"
 msgstr ""
 
-#: sign/gui/validation.c:688
+#: sign/gui/validation.c:722
 msgid "Select signed files"
 msgstr ""
 
-#: sign/gui/validation.c:739
+#: sign/gui/validation.c:773
 msgid "Select original content"
 msgstr ""
 
-#: sign/gui/validation.c:860
+#: sign/gui/validation.c:894
 msgid "Drop signed files here"
 msgstr ""
 
-#: sign/gui/validation.c:864 sign/gui/signing.c:2334
+#: sign/gui/validation.c:898 sign/gui/signing.c:2334
 msgid "Click to choose one or more files"
 msgstr ""
 
-#: sign/gui/validation.c:890
+#: sign/gui/validation.c:924
 msgid "Clear results"
 msgstr ""
 

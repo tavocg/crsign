@@ -122,6 +122,62 @@ with tempfile.TemporaryDirectory(prefix='crsign-flow-crypto-') as directory:
         run_flow([dict(operation='verify', input=name+'.p7s', ca='runtime-anchor.der')], ok=False)
         (root/'wrong.bin').write_bytes(b'wrong')
         run_flow([dict(check, content='wrong.bin')], ok=False)
+    # Re-signing detects each container and preserves every previous signer.
+    for extension, source, fmt in [('p7m', 'payload.bin', None),
+                                   ('xml', 'payload.bin', 'xades'),
+                                   ('json', 'payload.bin', 'jades'),
+                                   ('pdf', 'page.pdf', None)]:
+        items = []
+        previous = source
+        for number in range(1, 4):
+            output = f'parallel-{number}.{extension}'
+            item = dict(input=previous, output=output, level='B-B')
+            if number == 1 and fmt:
+                item['format'] = fmt
+            if extension == 'pdf':
+                item['appearance'] = dict(enabled=True, page_number=1,
+                                          x=36 + number * 50, y=48)
+            items.extend([item, dict(operation='verify', input=output,
+                                     ca='runtime-anchor.der')])
+            previous = output
+        result = run_flow(items, mode='run')
+        assert result['pin_requests'] == 3
+        assert [r['signers'] for r in result['documents'][1::2]] == [1, 2, 3]
+        if extension == 'pdf':
+            for number in (2, 3):
+                assert (root/f'parallel-{number}.pdf').read_bytes().startswith(
+                    (root/f'parallel-{number-1}.pdf').read_bytes())
+        check = subprocess.run([sign, 'verify', '--json', '--ca-file',
+                                str(root/'runtime-anchor.der'), str(root/previous)],
+                               env=env, capture_output=True, timeout=10)
+        report = json.loads(check.stdout)
+        assert check.returncode == 0 and report['count'] == 3, report
+        assert all(signer['signature_valid'] and signer['trusted'] and
+                   signer['status'] == 0 for signer in report['signers']), report
+        if extension == 'json':
+            damaged = json.loads((root/previous).read_text())
+            signature = damaged['signatures'][1]['signature']
+            damaged['signatures'][1]['signature'] = ('A' if signature[0] != 'A' else 'B') + signature[1:]
+            (root/'one-invalid.json').write_text(json.dumps(damaged))
+            check = subprocess.run([sign, 'verify', '--json', '--ca-file',
+                                    str(root/'runtime-anchor.der'), str(root/'one-invalid.json')],
+                                   env=env, capture_output=True, timeout=10)
+            report = json.loads(check.stdout)
+            assert check.returncode != 0 and report['count'] == 3, report
+            assert [s['signature_valid'] for s in report['signers']] == [True, False, True], report
+        if extension != 'pdf':
+            detached = run_flow([
+                dict(input='payload.bin', output='parallel-detached.' + extension,
+                     level='B-B', detached=True, **({'format': fmt} if fmt else {})),
+                dict(input='parallel-detached.' + extension, output='parallel-detached-two.' + extension,
+                     level='B-B', original='payload.bin'),
+                dict(operation='verify', input='parallel-detached-two.' + extension,
+                     content='payload.bin', ca='runtime-anchor.der')], mode='run')
+            assert detached['pin_requests'] == 2 and detached['documents'][2]['signers'] == 2
+            renewed = run_flow([dict(input='parallel-detached-two.' + extension,
+                                     output='renewed.' + extension, extend=True, level='B-B',
+                                     original='payload.bin', ca='runtime-anchor.der')])
+            assert renewed['pin_requests'] == 0
     # Attached signatures reject an external content file.
     run_flow([dict(checks[0], content='payload.bin')], ok=False)
     assert (root/'visible.pdf').read_bytes().startswith(pdf())
