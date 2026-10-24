@@ -46,6 +46,26 @@ static void paths(void) {
 	}
 }
 
+static void normalized_suffixes(void) {
+	const char* cases[][2] = {
+	    {"firmádo", "document-firmado.pdf"},
+	    {"firmado digitalmente", "document-firmado-digitalmente.pdf"},
+	    {"fi/rm:ado?", "document-fi-rm-ado.pdf"},
+	    {"  --  ", "document-signed.pdf"},
+	};
+	for (size_t i = 0; i < G_N_ELEMENTS(cases); ++i) {
+		char* actual = file_signed_path_with_suffix(
+		    "document.pdf",
+		    cases[i][0]
+		);
+		g_assert_cmpstr(actual, ==, cases[i][1]);
+		free(actual);
+	}
+	char* actual = file_signed_path_with_suffix("firmádo.pdf", "firmado");
+	g_assert_cmpstr(actual, ==, "firmádo-firmado.pdf");
+	free(actual);
+}
+
 static void roundtrip(void) {
 	char* path = g_build_filename(
 	    directory,
@@ -223,6 +243,7 @@ int main(int argc, char** argv) {
 	g_assert_no_error(error);
 	g_assert_nonnull(directory);
 	g_test_add_func("/io/paths", paths);
+	g_test_add_func("/io/suffixes", normalized_suffixes);
 	g_test_add_func("/io/roundtrip", roundtrip);
 	g_test_add_func("/io/empty", empty);
 	g_test_add_func("/io/errors", read_errors);

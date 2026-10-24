@@ -1,5 +1,12 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+/* The CLI links without the GUI translation domain. Keep its generated suffix
+ * stable while the GTK application follows the active language. */
+#ifndef GETTEXT_PACKAGE
+#define GETTEXT_PACKAGE "crsign"
+#define SIGN_DEFAULT_SUFFIX_ONLY 1
+#endif
 #include <gio/gio.h>
+#include <glib/gi18n-lib.h>
 #include <limits.h>
 #include <sign/io.h>
 #include <stdint.h>
@@ -168,9 +175,40 @@ bool file_write(const char* path, const unsigned char* data, size_t len) {
 	return true;
 }
 
-char* file_signed_path(const char* input) {
+/* Filesystems disagree about accents and punctuation. Transliterate the
+ * localized suffix to ASCII and collapse every unsupported run to one dash. */
+static char* normalized_suffix(const char* suffix) {
+	char*    ascii = g_str_to_ascii(suffix ? suffix : "", NULL);
+	GString* result = g_string_new(NULL);
+	bool     separator = false;
+	for (const char* p = ascii; p && *p; ++p) {
+		unsigned char c = (unsigned char)*p;
+		if (g_ascii_isalnum(c) || c == '_') {
+			if (separator && result->len) {
+				g_string_append_c(result, '-');
+			}
+			separator = false;
+			g_string_append_c(result, (char)c);
+		} else {
+			separator = result->len > 0;
+		}
+	}
+	g_free(ascii);
+	if (!result->len) {
+		g_string_append(result, "signed");
+	}
+	return g_string_free(result, FALSE);
+}
+
+char* file_signed_path_with_suffix(const char* input, const char* suffix) {
+	if (!input) {
+		return NULL;
+	}
+	char*  normalized = normalized_suffix(suffix);
+	size_t suffix_len = strlen(normalized);
 	size_t len = strlen(input);
-	if (len > SIZE_MAX - sizeof("-signed")) {
+	if (len > SIZE_MAX - suffix_len - 2) {
+		g_free(normalized);
 		return NULL;
 	}
 	/* GLib recognizes native separators and Windows drive prefixes. Preserve
@@ -183,15 +221,28 @@ char* file_signed_path(const char* input) {
 	                          : 0;
 	size_t      stem_len = len - ext_len;
 	g_free(base);
-	char* output = malloc(len + sizeof("-signed"));
+	char* output = malloc(len + suffix_len + 2);
 	if (output) {
 		memcpy(output, input, stem_len);
-		memcpy(output + stem_len, "-signed", sizeof("-signed") - 1);
+		output[stem_len] = '-';
+		memcpy(output + stem_len + 1, normalized, suffix_len);
 		memcpy(
-		    output + stem_len + sizeof("-signed") - 1,
+		    output + stem_len + 1 + suffix_len,
 		    input + stem_len,
 		    ext_len + 1
 		);
 	}
+	g_free(normalized);
 	return output;
+}
+
+char* file_signed_path(const char* input) {
+#ifdef SIGN_DEFAULT_SUFFIX_ONLY
+	return file_signed_path_with_suffix(input, N_("signed"));
+#else
+	return file_signed_path_with_suffix(
+	    input,
+	    g_dgettext(GETTEXT_PACKAGE, N_("signed"))
+	);
+#endif
 }

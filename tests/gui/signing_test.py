@@ -38,14 +38,14 @@ with tempfile.TemporaryDirectory(prefix='crsign-gui-signing-') as directory:
     env = dict(os.environ, XDG_CONFIG_HOME=str(root/'config'), XDG_DATA_HOME=str(root/'data'),
                SIGN_FLOW_TEST_ANCHOR=str(root/'anchor.der'))
     subprocess.run([sys.argv[1], str(root), sys.argv[3]], env=env, check=True, timeout=45)
-    for name in ('page-signed.pdf', 'payload-signed.bin'):
+    for name in ('page-firmado.pdf', 'payload-firmado.bin'):
         result = subprocess.run([sys.argv[2], 'verify', '--json', '--ca-file', str(root/'anchor.der'), str(root/name)],
                                 env=env, check=True, capture_output=True, timeout=10)
         report = json.loads(result.stdout)
         assert report['signature_valid'] and report['trusted'], report
-    assert b'/Subtype /Image' in (root/'page-signed.pdf').read_bytes()
+    assert b'/Subtype /Image' in (root/'page-firmado.pdf').read_bytes()
     history = json.loads((root/'data'/'crsign'/'history.json').read_text())
-    assert {Path(item['path']).name for item in history['documents']} == {'page-signed.pdf','payload-signed.bin'}
+    assert {Path(item['path']).name for item in history['documents']} == {'page-firmado.pdf','payload-firmado.bin'}
 
     env['SIGN_FLOW_TEST_NO_TOKEN']='1'
     env['SIGN_FLOW_TEST_ANCHOR']=str(root/'unused-anchor.der')

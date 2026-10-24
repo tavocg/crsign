@@ -10,7 +10,11 @@ typedef struct {
 	size_t         len;
 } sign_buffer;
 
+/* The default suffix follows the application language in GUI builds and stays
+ * "signed" in CLI-only builds. An explicit suffix is transliterated to ASCII
+ * and sanitized for portable filenames. */
 char* file_signed_path(const char* input);
+char* file_signed_path_with_suffix(const char* input, const char* suffix);
 /* Paths use the native filename encoding (UTF-8 on Windows). Buffers must be
  * initialized to zero; free successful results with free(). The extra trailing
  * NUL is not included in len. A NULL path represents an omitted optional file.

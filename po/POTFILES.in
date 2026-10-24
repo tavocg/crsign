@@ -12,3 +12,4 @@ sign/gui/error.c
 sign/gui/home.c
 sign/gui/file_actions.c
 sign/appearance.c
+sign/io.c

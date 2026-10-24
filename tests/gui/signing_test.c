@@ -16,7 +16,7 @@ static void completed(SignSigning* self, const sign_flow* flow, gpointer data) {
 	for (size_t n = 0; n < sign_flow_count(flow); ++n) {
 		const sign_flow_item* item = sign_flow_get_item(flow, n);
 		g_assert_cmpint(item->operation, ==, SIGN_FLOW_VERIFY);
-		g_assert_nonnull(strstr(item->options.input, "-signed."));
+		g_assert_nonnull(strstr(item->options.input, "-firmado."));
 		g_assert_nonnull(item->options.ca_file);
 	}
 	g_assert_true(sign_validation_add_flow(data, flow, &error));
@@ -883,10 +883,10 @@ int main(int argc, char** argv) {
 		g_assert_true(result->verification.trusted);
 	}
 	g_assert_cmpuint(pins, ==, 1);
-	char* output = g_build_filename(argv[1], "page-signed.pdf", NULL);
+	char* output = g_build_filename(argv[1], "page-firmado.pdf", NULL);
 	g_assert_true(g_file_test(output, G_FILE_TEST_IS_REGULAR));
 	g_free(output);
-	output = g_build_filename(argv[1], "payload-signed.bin", NULL);
+	output = g_build_filename(argv[1], "payload-firmado.bin", NULL);
 	g_assert_true(g_file_test(output, G_FILE_TEST_IS_REGULAR));
 	g_free(output);
 	/* Existing output must stop before asking for a second PIN. */
@@ -932,7 +932,7 @@ int main(int argc, char** argv) {
 	wait_done(cancelled);
 	g_source_remove(timer);
 	g_assert_cmpuint(pins, ==, 2);
-	output = g_build_filename(argv[1], "cancel-signed.bin", NULL);
+	output = g_build_filename(argv[1], "cancel-firmado.bin", NULL);
 	g_assert_false(g_file_test(output, G_FILE_TEST_EXISTS));
 	g_free(output);
 	g_free(cancel_file);
