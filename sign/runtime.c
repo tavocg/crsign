@@ -19,7 +19,11 @@
 #if defined(SIGN_WITH_GUI) && !defined(G_OS_WIN32)
 #include <dlfcn.h>
 /* Weak so headless test drivers can link runtime.c without GTK. */
+#ifdef __APPLE__
+extern void gtk_init(void) __attribute__((weak_import));
+#else
 extern void gtk_init(void) __attribute__((weak));
+#endif
 #endif
 
 static char* installation_prefix(void) {
