@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include <sign/gui/about.h>
 #include <sign/gui/devices.h>
+#include <sign/gui/home.h>
 #include <sign/gui/i18n.h>
 #include <sign/gui/settings.h>
 #include <sign/gui/signing.h>
@@ -27,7 +28,9 @@ struct _SignWindow {
 	AdwOverlaySplitView* split_view;
 	GtkStack*            pages;
 	GtkLabel*            title;
-	GtkWidget *          title_box, *profile_selector;
+	GtkWidget *          title_box, *profile_selector, *view_toggle, *home_row,
+	    *devices_menu;
+	SignHome* home;
 };
 
 G_DEFINE_TYPE(SignWindow, sign_window, ADW_TYPE_APPLICATION_WINDOW)
@@ -72,12 +75,24 @@ static void section_selected(
 		    SIGN_SETTINGS(gtk_stack_get_child_by_name(self->pages, "settings"))
 		);
 	}
+	if (index == 0) {
+		sign_home_reload(self->home);
+		if (!sign_home_has_documents(self->home)) {
+			gtk_list_box_select_row(
+			    list,
+			    gtk_list_box_get_row_at_index(list, 1)
+			);
+			return;
+		}
+	}
 	gtk_stack_set_visible_child_name(self->pages, sections[index].id);
 	if (!strcmp(sections[index].id, "devices")) {
 		sign_devices_refresh(
 		    SIGN_DEVICES(gtk_stack_get_child_by_name(self->pages, "devices"))
 		);
 	}
+	gtk_widget_set_visible(self->view_toggle, index == 0);
+	gtk_widget_set_visible(self->devices_menu, index == 3);
 	bool signing = !strcmp(sections[index].id, "sign");
 	gtk_widget_set_visible(GTK_WIDGET(self->title), !signing);
 	gtk_widget_set_visible(self->profile_selector, signing);
@@ -98,6 +113,10 @@ static GtkWidget* create_sidebar(SignWindow* self) {
 	GtkWidget* title = gtk_label_new(_("Menu"));
 	gtk_widget_add_css_class(title, "title");
 	adw_header_bar_set_title_widget(ADW_HEADER_BAR(header), title);
+	adw_header_bar_pack_start(
+	    ADW_HEADER_BAR(header),
+	    sign_home_search_button(self->home)
+	);
 	adw_toolbar_view_add_top_bar(ADW_TOOLBAR_VIEW(toolbar), header);
 
 	GtkWidget* scroll = gtk_scrolled_window_new();
@@ -112,6 +131,11 @@ static GtkWidget* create_sidebar(SignWindow* self) {
 	gtk_widget_add_css_class(list, "navigation-sidebar");
 	for (guint i = 0; i < G_N_ELEMENTS(sections); ++i) {
 		GtkWidget* row = gtk_list_box_row_new();
+		if (i == 0) {
+			self->home_row = row;
+			gtk_widget_set_name(row, "home-navigation");
+			gtk_widget_set_visible(row, sign_home_has_documents(self->home));
+		}
 		GtkWidget* box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
 		gtk_widget_set_margin_start(box, 12);
 		gtk_widget_set_margin_end(box, 12);
@@ -151,15 +175,36 @@ static GtkWidget* create_sidebar(SignWindow* self) {
 	g_signal_connect(list, "row-activated", G_CALLBACK(section_selected), self);
 	gtk_list_box_select_row(
 	    GTK_LIST_BOX(list),
-	    gtk_list_box_get_row_at_index(GTK_LIST_BOX(list), 0)
+	    gtk_list_box_get_row_at_index(
+	        GTK_LIST_BOX(list),
+	        sign_home_has_documents(self->home) ? 0 : 1
+	    )
 	);
 	return toolbar;
 }
 
+static void view_changed(GtkToggleButton* button, gpointer data) {
+	SignWindow* self = data;
+	bool        grid = !gtk_toggle_button_get_active(button);
+	gtk_button_set_icon_name(
+	    GTK_BUTTON(button),
+	    grid ? "view-list-symbolic" : "view-grid-symbolic"
+	);
+	gtk_widget_set_tooltip_text(
+	    GTK_WIDGET(button),
+	    grid ? _("Show list") : _("Show grid")
+	);
+	sign_home_set_grid(self->home, grid);
+}
+static void signed_documents(SignSigning* signing, gpointer data) {
+	(void)signing;
+	sign_home_reload(SIGN_HOME(data));
+}
 static GtkWidget* create_content(SignWindow* self) {
 	GtkWidget* toolbar = adw_toolbar_view_new();
 	GtkWidget* header = adw_header_bar_new();
 	self->title = GTK_LABEL(gtk_label_new(_("Home")));
+	gtk_widget_set_name(GTK_WIDGET(self->title), "section-title");
 	gtk_widget_add_css_class(GTK_WIDGET(self->title), "title");
 	self->title_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
 	gtk_box_append(GTK_BOX(self->title_box), GTK_WIDGET(self->title));
@@ -190,6 +235,20 @@ static GtkWidget* create_content(SignWindow* self) {
 	    G_BINDING_SYNC_CREATE | G_BINDING_BIDIRECTIONAL
 	);
 	adw_header_bar_pack_start(ADW_HEADER_BAR(header), toggle);
+	self->view_toggle = gtk_toggle_button_new();
+	gtk_button_set_icon_name(
+	    GTK_BUTTON(self->view_toggle),
+	    "view-list-symbolic"
+	);
+	gtk_widget_set_name(self->view_toggle, "home-view-toggle");
+	gtk_widget_set_tooltip_text(self->view_toggle, _("Show list"));
+	g_signal_connect(
+	    self->view_toggle,
+	    "toggled",
+	    G_CALLBACK(view_changed),
+	    self
+	);
+	adw_header_bar_pack_end(ADW_HEADER_BAR(header), self->view_toggle);
 	adw_toolbar_view_add_top_bar(ADW_TOOLBAR_VIEW(toolbar), header);
 
 	self->pages = GTK_STACK(gtk_stack_new());
@@ -199,8 +258,25 @@ static GtkWidget* create_content(SignWindow* self) {
 	);
 	gtk_stack_set_transition_duration(self->pages, 150);
 	for (guint i = 0; i < G_N_ELEMENTS(sections); ++i) {
+		if (!strcmp(sections[i].id, "home")) {
+			self->home = SIGN_HOME(sign_home_new());
+			gtk_stack_add_titled(
+			    self->pages,
+			    GTK_WIDGET(self->home),
+			    "home",
+			    _("Home")
+			);
+			continue;
+		}
 		if (!strcmp(sections[i].id, "sign")) {
 			GtkWidget* signing = sign_signing_new();
+			g_signal_connect_object(
+			    signing,
+			    "documents-signed",
+			    G_CALLBACK(signed_documents),
+			    self->home,
+			    0
+			);
 			self->profile_selector = sign_signing_profile_selector(
 			    SIGN_SIGNING(signing)
 			);
@@ -224,9 +300,18 @@ static GtkWidget* create_content(SignWindow* self) {
 			continue;
 		}
 		if (!strcmp(sections[i].id, "devices")) {
+			GtkWidget* devices = sign_devices_new();
+			self->devices_menu = sign_devices_header_menu(
+			    SIGN_DEVICES(devices)
+			);
+			adw_header_bar_pack_start(
+			    ADW_HEADER_BAR(header),
+			    self->devices_menu
+			);
+			gtk_widget_set_visible(self->devices_menu, FALSE);
 			gtk_stack_add_titled(
 			    self->pages,
-			    sign_devices_new(),
+			    devices,
 			    sections[i].id,
 			    _(sections[i].title)
 			);
@@ -265,6 +350,10 @@ static GtkWidget* create_content(SignWindow* self) {
 		    _(sections[i].title)
 		);
 	}
+	gtk_toggle_button_set_active(
+	    GTK_TOGGLE_BUTTON(self->view_toggle),
+	    !sign_home_is_grid(self->home)
+	);
 	adw_toolbar_view_set_content(
 	    ADW_TOOLBAR_VIEW(toolbar),
 	    GTK_WIDGET(self->pages)
@@ -272,6 +361,25 @@ static GtkWidget* create_content(SignWindow* self) {
 	return toolbar;
 }
 
+static void home_history_changed(SignHome* home, gpointer data) {
+	SignWindow* self = data;
+	bool        available = sign_home_has_documents(home);
+	bool        was_home = !g_strcmp0(
+        gtk_stack_get_visible_child_name(self->pages),
+        "home"
+    );
+	gtk_widget_set_visible(self->home_row, available);
+	gtk_widget_set_visible(GTK_WIDGET(home), available);
+	if (!available && was_home) {
+		GtkListBox* navigation = GTK_LIST_BOX(
+		    gtk_widget_get_parent(self->home_row)
+		);
+		gtk_list_box_select_row(
+		    navigation,
+		    gtk_list_box_get_row_at_index(navigation, 1)
+		);
+	}
+}
 static void sign_window_init(SignWindow* self) {
 	gtk_window_set_title(GTK_WINDOW(self), "CRSign");
 	gtk_window_set_default_size(GTK_WINDOW(self), 900, 600);
@@ -284,6 +392,14 @@ static void sign_window_init(SignWindow* self) {
 	 * title. */
 	adw_overlay_split_view_set_content(self->split_view, create_content(self));
 	adw_overlay_split_view_set_sidebar(self->split_view, create_sidebar(self));
+	g_signal_connect_object(
+	    self->home,
+	    "history-changed",
+	    G_CALLBACK(home_history_changed),
+	    self,
+	    0
+	);
+	home_history_changed(self->home, self);
 	adw_application_window_set_content(
 	    ADW_APPLICATION_WINDOW(self),
 	    GTK_WIDGET(self->split_view)

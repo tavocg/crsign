@@ -8,7 +8,68 @@ La ventana usa GTK 4 y libadwaita. Tiene seis vistas: Inicio, Firmar, Validar,
 Dispositivos, Ajustes y Acerca de. Ajustes permite editar la configuración y los perfiles;
 Acerca de muestra la identidad y los enlaces del proyecto. Validar permite
 procesar varios archivos firmados. Firmar permite preparar y ejecutar una cola de
-documentos. Inicio conserva por ahora su texto de identificación.
+documentos. Inicio muestra Favoritos y Recientes.
+
+## Inicio, historial y búsqueda
+
+Inicio muestra Favoritos y Recientes, ordenados por la fecha de firmado. Las
+secciones vacías se ocultan. Cuando no hay documentos registrados, Inicio también
+se oculta del menú y la aplicación abre Firmar. Con historial, abre Inicio.
+La sección aparece automáticamente al registrarse la primera firma satisfactoria.
+
+La vista predeterminada es una cuadrícula de miniaturas. Cada sección muestra
+los primeros 25 documentos; «Mostrar más» agrega otros 25 sin renderizar el resto
+del historial. Para PDF se genera una miniatura de la primera página en segundo
+plano; otros formatos muestran un icono de documento. El botón junto a los
+controles de la ventana alterna entre «Mostrar lista» y «Mostrar cuadrícula».
+La lista muestra las columnas Documento, Firmado y los controles del archivo.
+
+Solo desde Recientes se puede marcar o desmarcar un favorito: con la estrella
+o con el menú de clic derecho. El menú muestra una marca cuando ya es favorito.
+Favoritos y Recientes conservan las mismas entradas, sin duplicarlas en el archivo
+de datos. Los botones y menús «Abrir ubicación del archivo» usan el gestor de
+archivos del sistema. También están disponibles en cada documento de las colas
+de Firmar y Validar, y mediante clic derecho en el lector PDF.
+
+La lupa a la izquierda de «Menú» abre una búsqueda por nombre en el historial.
+La coincidencia aproximada permite omitir caracteres y no distingue mayúsculas
+ni tildes. Los resultados se ordenan por relevancia y fecha, con carga de 25 en
+25. Seleccionar un resultado no abre el documento ni inicia una firma: cada fila
+permite abrir únicamente su ubicación. Los favoritos se modifican en Recientes.
+
+## Datos de la aplicación
+
+Los datos se guardan bajo `g_get_user_data_dir()/crsign/`: en Linux, por defecto
+`~/.local/share/crsign/`, respetando `$XDG_DATA_HOME`; las otras plataformas usan
+su directorio de datos de usuario. No se guardan en `crsign.toml`.
+
+`history.json` usa `version: 1` y registra la ruta absoluta del archivo firmado,
+la fecha en microsegundos UTC desde el inicio de la época Unix y el estado de
+favorito. Lo comparten la CLI y la GUI. Una entrada se registra solo después de
+guardar correctamente una firma, incluso si un documento posterior del flow
+falla. Reutilizar una ruta actualiza su fecha y conserva el favorito. Las
+validaciones y los intentos fallidos no agregan entradas.
+
+No hay un límite fijo de documentos. La lectura y escritura del historial se
+limitan a 16 MiB para impedir que crezca accidentalmente sin control. Un archivo
+inválido o demasiado grande se conserva sin sobrescribirlo; un fallo al guardar
+el historial no invalida la firma que ya se guardó.
+
+`preferences.json` tiene su propia versión y conserva la vista de Inicio:
+
+```json
+{"version":1,"home":{"view":"grid"}}
+```
+
+`view` admite `grid` o `list`. La última selección se restaura al abrir otra
+ventana o reiniciar. La estructura permite añadir otras preferencias y conserva
+los campos desconocidos de la misma versión al modificar la vista. Las versiones
+desconocidas se rechazan para evitar sobrescribir datos de una versión futura.
+El archivo de preferencias se limita a 64 KiB.
+
+Ambos archivos usan reemplazos atómicos, permisos privados y un bloqueo entre
+procesos (`state.lock`) para combinar actualizaciones concurrentes. Abrir la
+aplicación sin modificar preferencias ni firmar no crea estos archivos.
 
 ## Firmar
 
@@ -82,14 +143,19 @@ y estado del PIN. No se solicita PIN ni se leen valores de llaves privadas.
 Algunos objetos no son visibles hasta iniciar sesión en el token.
 
 Por defecto sólo se exploran slots de hardware; los certificados de los tokens
-de software no se leen. La casilla «Incluir tokens y certificados de software»
-permite incorporarlos a la búsqueda. No modifica `crsign.toml`.
+de software no se leen. El menú de tres puntos del encabezado contiene «Solo hardware», marcado por
+defecto. Desmarcarlo incorpora los tokens y certificados de software. El cambio
+se conserva durante la sesión y no modifica `crsign.toml`.
 
 La aplicación comprueba cambios aproximadamente cada segundo mediante eventos
 no bloqueantes del módulo y los metadatos de slots y tarjetas. Al retirar,
 insertar o cambiar una tarjeta vuelve a cargar la información. Se conserva el
-botón de actualización, que además vuelve a leer la configuración global de
+botón «Actualizar», centrado debajo del resumen, que además vuelve a leer la configuración global de
 módulos y certificados. Si no se especifican módulos, se usa p11-kit.
+
+Sin lectores, el mensaje «No se encontraron lectores» aparece centrado con el
+botón «Actualizar» debajo. Con lectores, se conservan los paneles y al final se
+muestra el resumen con texto atenuado y el mismo botón de actualización.
 
 La identidad y agrupación de lectores dependen de lo que publique el módulo
 PKCS#11; no se enumeran dispositivos USB que no estén expuestos por un módulo.

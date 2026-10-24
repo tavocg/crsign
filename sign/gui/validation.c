@@ -4,6 +4,7 @@
 #include <sign/config.h>
 #include <sign/gui/certificate.h>
 #include <sign/gui/error.h>
+#include <sign/gui/file_actions.h>
 #include <sign/gui/file_drop.h>
 #include <sign/gui/i18n.h>
 #include <sign/gui/validation.h>
@@ -505,6 +506,15 @@ void sign_validation_add_files(SignValidation* self, GListModel* files) {
 		    G_CALLBACK(choose_original),
 		    self
 		);
+		sign_file_actions_attach(
+		    GTK_WIDGET(item->row),
+		    item->file,
+		    false,
+		    false,
+		    NULL,
+		    NULL
+		);
+		adw_expander_row_add_suffix(item->row, sign_file_location_button());
 		gtk_list_box_append(self->list, GTK_WIDGET(item->row));
 		g_ptr_array_add(self->items, item);
 		g_queue_push_tail(&self->queue, item);

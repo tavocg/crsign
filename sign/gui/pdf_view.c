@@ -138,11 +138,13 @@ sign_pdf_document* sign_pdf_open(
 	}
 	return NULL;
 }
-cairo_surface_t* sign_pdf_render(
+static cairo_surface_t* render(
     sign_pdf_document* document,
     unsigned int       page,
     GCancellable*      cancellable,
-    GError**           error
+    GError**           error,
+    double             max_width,
+    double             max_height
 ) {
 	if (g_cancellable_set_error_if_cancelled(cancellable, error)) {
 		return NULL;
@@ -157,7 +159,7 @@ cairo_surface_t* sign_pdf_render(
 		return NULL;
 	}
 	pdf_page p = g_array_index(document->pages, pdf_page, page - 1);
-	double   scale = fmin(1600.0 / p.width, 2400.0 / p.height);
+	double   scale = fmin(max_width / p.width, max_height / p.height);
 	int      w = MAX(1, (int)ceil(p.width * scale)),
 	    h = MAX(1, (int)ceil(p.height * scale));
 	cairo_surface_t* surface = cairo_image_surface_create(
@@ -195,6 +197,21 @@ cairo_surface_t* sign_pdf_render(
 		);
 	}
 	return NULL;
+}
+cairo_surface_t* sign_pdf_render(
+    sign_pdf_document* document,
+    unsigned int       page,
+    GCancellable*      cancel,
+    GError**           error
+) {
+	return render(document, page, cancel, error, 1600, 2400);
+}
+cairo_surface_t* sign_pdf_thumbnail(
+    sign_pdf_document* document,
+    GCancellable*      cancel,
+    GError**           error
+) {
+	return render(document, 1, cancel, error, 240, 320);
 }
 bool sign_pdf_place(
     double                  page_width,

@@ -1,0 +1,712 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+#include <sign/gui/error.h>
+#include <sign/gui/file_actions.h>
+#include <sign/gui/home.h>
+#include <sign/gui/i18n.h>
+#include <sign/gui/pdf_view.h>
+#include <sign/history.h>
+#include <sign/ui_preferences.h>
+#include <stdlib.h>
+#include <string.h>
+#define PAGE_SIZE 25
+struct _SignHome {
+	GtkBox        parent_instance;
+	sign_history* history;
+	GtkWidget *   favorites, *recents, *favorite_more, *recent_more, *notice;
+	GtkWidget *   favorite_heading, *recent_heading;
+	GtkWidget *   search_button, *search_entry, *search_rows, *search_more;
+	size_t        favorite_limit, recent_limit, search_limit;
+	bool          grid, closing;
+	guint         timer;
+	GFileMonitor* monitor;
+	GCancellable* thumbnails;
+};
+G_DEFINE_TYPE(SignHome, sign_home, GTK_TYPE_BOX)
+static guint      history_changed;
+static void       render_home(SignHome* self);
+static void       search_update(SignHome* self);
+static GtkWindow* parent_window(SignHome* self) {
+	GtkRoot* root = gtk_widget_get_root(GTK_WIDGET(self));
+	return GTK_IS_WINDOW(root) ? GTK_WINDOW(root) : NULL;
+}
+static void favorite_changed(GFile* file, bool favorite, gpointer data) {
+	SignHome* self = data;
+	char*     path = g_file_get_path(file);
+	GError*   error = NULL;
+	if (!history_favorite(path, favorite, &error)) {
+		gui_error_dialog(
+		    parent_window(self),
+		    _("Could not update favorites"),
+		    _("The document history could not be saved. Check available space, "
+		      "file permissions and the history size limit.")
+		);
+		g_clear_error(&error);
+	}
+	g_free(path);
+	sign_home_reload(self);
+}
+static char* date_text(gint64 time) {
+	GDateTime* utc = g_date_time_new_from_unix_utc(time / G_USEC_PER_SEC);
+	GDateTime* local = utc ? g_date_time_to_local(utc) : NULL;
+	char*      text = local ? g_date_time_format(local, "%Y-%m-%d %H:%M")
+	                        : g_strdup(_("Unknown date"));
+	if (local) {
+		g_date_time_unref(local);
+	}
+	if (utc) {
+		g_date_time_unref(utc);
+	}
+	return text;
+}
+static void clear(GtkWidget* widget) {
+	GtkWidget* child;
+	while ((child = gtk_widget_get_first_child(widget))) {
+		if (GTK_IS_FLOW_BOX(widget)) {
+			gtk_flow_box_remove(GTK_FLOW_BOX(widget), child);
+		} else if (GTK_IS_LIST_BOX(widget)) {
+			gtk_list_box_remove(GTK_LIST_BOX(widget), child);
+		} else {
+			gtk_box_remove(GTK_BOX(widget), child);
+		}
+	}
+}
+typedef struct {
+	char*            path;
+	cairo_surface_t* surface;
+} thumbnail_job;
+static void thumbnail_free(gpointer data) {
+	thumbnail_job* job = data;
+	g_free(job->path);
+	if (job->surface) {
+		cairo_surface_destroy(job->surface);
+	}
+	g_free(job);
+}
+static void thumbnail_worker(
+    GTask*        task,
+    gpointer      source,
+    gpointer      data,
+    GCancellable* cancel
+) {
+	(void)source;
+	thumbnail_job*     job = data;
+	GFile*             file = g_file_new_for_path(job->path);
+	GError*            error = NULL;
+	sign_pdf_document* pdf = sign_pdf_open(file, cancel, &error);
+	g_object_unref(file);
+	if (pdf) {
+		job->surface = sign_pdf_thumbnail(pdf, cancel, &error);
+		sign_pdf_unref(pdf);
+	}
+	g_clear_error(&error);
+	g_task_return_boolean(task, job->surface != NULL);
+}
+static void thumbnail_finished(
+    GObject*      source,
+    GAsyncResult* result,
+    gpointer      data
+) {
+	(void)data;
+	GError* error = NULL;
+	bool    ok = g_task_propagate_boolean(G_TASK(result), &error);
+	g_clear_error(&error);
+	if (!ok || !gtk_widget_get_root(GTK_WIDGET(source))) {
+		return;
+	}
+	thumbnail_job* job = g_task_get_task_data(G_TASK(result));
+	int            width = cairo_image_surface_get_width(job->surface),
+	    height = cairo_image_surface_get_height(job->surface),
+	    stride = cairo_image_surface_get_stride(job->surface);
+	cairo_surface_flush(job->surface);
+	GBytes* bytes = g_bytes_new(
+	    cairo_image_surface_get_data(job->surface),
+	    (gsize)stride * height
+	);
+#if G_BYTE_ORDER == G_LITTLE_ENDIAN
+	GdkMemoryFormat format = GDK_MEMORY_B8G8R8A8_PREMULTIPLIED;
+#else
+	GdkMemoryFormat format = GDK_MEMORY_A8R8G8B8_PREMULTIPLIED;
+#endif
+	GdkTexture*
+	    texture = gdk_memory_texture_new(width, height, format, bytes, stride);
+	g_bytes_unref(bytes);
+	gtk_image_set_from_paintable(GTK_IMAGE(source), GDK_PAINTABLE(texture));
+	g_object_unref(texture);
+}
+static GtkWidget* file_widget(
+    SignHome*                 self,
+    const sign_history_entry* entry,
+    bool                      recent,
+    bool                      grid
+) {
+	GFile*     file = g_file_new_for_path(entry->path);
+	GtkWidget* box = gtk_box_new(
+	    grid ? GTK_ORIENTATION_VERTICAL : GTK_ORIENTATION_HORIZONTAL,
+	    8
+	);
+	gtk_widget_set_margin_start(box, 12);
+	gtk_widget_set_margin_end(box, 12);
+	gtk_widget_set_margin_top(box, 12);
+	gtk_widget_set_margin_bottom(box, 12);
+	sign_file_actions_attach(
+	    box,
+	    file,
+	    recent,
+	    entry->favorite,
+	    favorite_changed,
+	    self
+	);
+	g_object_unref(file);
+	char*      name = g_filename_display_basename(entry->path);
+	GtkWidget* title = gtk_label_new(name);
+	g_free(name);
+	gtk_label_set_ellipsize(GTK_LABEL(title), PANGO_ELLIPSIZE_MIDDLE);
+	gtk_widget_set_tooltip_text(title, entry->path);
+	GtkWidget* image = gtk_image_new_from_icon_name("text-x-generic-symbolic");
+	gtk_image_set_pixel_size(GTK_IMAGE(image), grid ? 128 : 24);
+	if (grid) {
+		gtk_widget_set_size_request(image, 150, 150);
+		gtk_box_append(GTK_BOX(box), image);
+		gtk_widget_set_size_request(box, 170, -1);
+		gtk_widget_add_css_class(box, "card");
+		thumbnail_job* job = g_new0(thumbnail_job, 1);
+		job->path = g_strdup(entry->path);
+		GTask* task = g_task_new(
+		    image,
+		    self->thumbnails,
+		    thumbnail_finished,
+		    NULL
+		);
+		g_task_set_task_data(task, job, thumbnail_free);
+		g_task_run_in_thread(task, thumbnail_worker);
+		g_object_unref(task);
+	} else {
+		gtk_box_append(GTK_BOX(box), image);
+		gtk_label_set_xalign(GTK_LABEL(title), 0);
+		gtk_widget_set_hexpand(title, TRUE);
+	}
+	gtk_box_append(GTK_BOX(box), title);
+	char*      date = date_text(entry->signed_at);
+	GtkWidget* stamp = gtk_label_new(date);
+	g_free(date);
+	gtk_widget_add_css_class(stamp, "dim-label");
+	gtk_label_set_width_chars(GTK_LABEL(stamp), 16);
+	gtk_box_append(GTK_BOX(box), stamp);
+	GtkWidget* actions = grid ? gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4)
+	                          : box;
+	if (grid) {
+		gtk_widget_set_halign(actions, GTK_ALIGN_END);
+		gtk_box_append(GTK_BOX(box), actions);
+	}
+	if (recent) {
+		gtk_box_append(
+		    GTK_BOX(actions),
+		    sign_file_favorite_button(entry->favorite)
+		);
+	} else if (!grid) {
+		GtkWidget* spacer = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+		gtk_widget_set_size_request(spacer, 34, -1);
+		gtk_box_append(GTK_BOX(actions), spacer);
+	}
+	gtk_box_append(GTK_BOX(actions), sign_file_location_button());
+	return box;
+}
+static GtkWidget* section_list(SignHome* self, GtkWidget* target) {
+	clear(target);
+	if (self->grid) {
+		GtkWidget* flow = gtk_flow_box_new();
+		gtk_flow_box_set_selection_mode(GTK_FLOW_BOX(flow), GTK_SELECTION_NONE);
+		gtk_flow_box_set_min_children_per_line(GTK_FLOW_BOX(flow), 1);
+		gtk_flow_box_set_max_children_per_line(GTK_FLOW_BOX(flow), 12);
+		gtk_flow_box_set_column_spacing(GTK_FLOW_BOX(flow), 12);
+		gtk_flow_box_set_row_spacing(GTK_FLOW_BOX(flow), 12);
+		gtk_flow_box_set_homogeneous(GTK_FLOW_BOX(flow), TRUE);
+		gtk_box_append(GTK_BOX(target), flow);
+		return flow;
+	}
+	GtkWidget* columns = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+	gtk_widget_set_margin_start(columns, 44);
+	GtkWidget* label = gtk_label_new(_("Document"));
+	gtk_label_set_xalign(GTK_LABEL(label), 0);
+	gtk_widget_set_hexpand(label, TRUE);
+	gtk_box_append(GTK_BOX(columns), label);
+	label = gtk_label_new(_("Signed"));
+	gtk_label_set_width_chars(GTK_LABEL(label), 16);
+	gtk_box_append(GTK_BOX(columns), label);
+	label = gtk_label_new("");
+	gtk_widget_set_size_request(label, 88, -1);
+	gtk_box_append(GTK_BOX(columns), label);
+	gtk_widget_add_css_class(columns, "dim-label");
+	gtk_box_append(GTK_BOX(target), columns);
+	GtkWidget* list = gtk_list_box_new();
+	gtk_list_box_set_selection_mode(GTK_LIST_BOX(list), GTK_SELECTION_NONE);
+	gtk_widget_add_css_class(list, "boxed-list");
+	gtk_box_append(GTK_BOX(target), list);
+	return list;
+}
+static void render_section(SignHome* self, bool favorites, size_t start) {
+	GtkWidget* target = favorites ? self->favorites : self->recents;
+	size_t     limit = favorites ? self->favorite_limit : self->recent_limit,
+	       count = 0;
+	GtkWidget* list = start
+	                      ? g_object_get_data(G_OBJECT(target), "section-list")
+	                      : section_list(self, target);
+	g_object_set_data(G_OBJECT(target), "section-list", list);
+	for (size_t n = 0; n < history_count(self->history); ++n) {
+		const sign_history_entry* entry = history_get(self->history, n);
+		if (favorites && !entry->favorite) {
+			continue;
+		}
+		if (count++ >= limit || count <= start) {
+			continue;
+		}
+		GtkWidget* widget = file_widget(self, entry, !favorites, self->grid);
+		if (self->grid) {
+			gtk_flow_box_insert(GTK_FLOW_BOX(list), widget, -1);
+		} else {
+			gtk_list_box_append(GTK_LIST_BOX(list), widget);
+		}
+	}
+	gtk_widget_set_visible(target, count > 0);
+	gtk_widget_set_visible(
+	    favorites ? self->favorite_heading : self->recent_heading,
+	    count > 0
+	);
+	gtk_widget_set_visible(
+	    favorites ? self->favorite_more : self->recent_more,
+	    count > limit
+	);
+}
+static void render_home(SignHome* self) {
+	g_cancellable_cancel(self->thumbnails);
+	g_object_unref(self->thumbnails);
+	self->thumbnails = g_cancellable_new();
+	render_section(self, true, 0);
+	render_section(self, false, 0);
+}
+static gboolean refresh(gpointer data) {
+	SignHome* self = data;
+	self->timer = 0;
+	sign_home_reload(self);
+	return G_SOURCE_REMOVE;
+}
+static void monitor_changed(
+    GFileMonitor*     monitor,
+    GFile*            file,
+    GFile*            other,
+    GFileMonitorEvent event,
+    gpointer          data
+) {
+	(void)monitor;
+	(void)event;
+	SignHome* self = data;
+	char*     name = file ? g_file_get_basename(file) : NULL;
+	char*     renamed = other ? g_file_get_basename(other) : NULL;
+	bool      relevant = !g_strcmp0(name, "history.json") ||
+	                !g_strcmp0(renamed, "history.json");
+	g_free(name);
+	g_free(renamed);
+	if (relevant && !self->timer) {
+		self->timer = g_timeout_add(180, refresh, self);
+	}
+}
+bool sign_home_has_documents(SignHome* self) {
+	return history_count(self->history) > 0;
+}
+void sign_home_reload(SignHome* self) {
+	GError*       error = NULL;
+	sign_history* history = history_load(&error);
+	gtk_widget_set_visible(self->notice, !history);
+	if (!history) {
+		g_clear_error(&error);
+		return;
+	}
+	bool same = self->history &&
+	            history_count(history) == history_count(self->history);
+	for (size_t n = 0; same && n < history_count(history); ++n) {
+		const sign_history_entry* a = history_get(history, n);
+		const sign_history_entry* b = history_get(self->history, n);
+		same = a->signed_at == b->signed_at && a->favorite == b->favorite &&
+		       !strcmp(a->path, b->path);
+	}
+	if (same) {
+		history_free(history);
+		return;
+	}
+	bool previous = sign_home_has_documents(self);
+	history_free(self->history);
+	self->history = history;
+	render_home(self);
+	search_update(self);
+	if (previous != sign_home_has_documents(self)) {
+		g_signal_emit(self, history_changed, 0);
+	}
+	if (!self->monitor) {
+		char*  path = history_path();
+		GFile* file = g_file_new_for_path(path);
+		g_free(path);
+		GFile* directory = g_file_get_parent(file);
+		g_object_unref(file);
+		self->monitor = g_file_monitor_directory(
+		    directory,
+		    G_FILE_MONITOR_NONE,
+		    NULL,
+		    NULL
+		);
+		g_object_unref(directory);
+		if (self->monitor) {
+			g_signal_connect(
+			    self->monitor,
+			    "changed",
+			    G_CALLBACK(monitor_changed),
+			    self
+			);
+		}
+	}
+}
+bool sign_home_is_grid(SignHome* self) {
+	return self->grid;
+}
+void sign_home_set_grid(SignHome* self, bool grid) {
+	if (self->grid == grid) {
+		return;
+	}
+	self->grid = grid;
+	render_home(self);
+	GError* error = NULL;
+	if (!ui_preferences_set_grid(grid, &error)) {
+		gui_error_dialog(
+		    parent_window(self),
+		    _("Could not save display preference"),
+		    _("The display preference could not be saved. Check the "
+		      "application data file and its permissions.")
+		);
+		g_clear_error(&error);
+	}
+}
+static void more(GtkButton* button, gpointer data) {
+	SignHome* self = data;
+	bool      favorites = GTK_WIDGET(button) == self->favorite_more;
+	size_t    start = favorites ? self->favorite_limit : self->recent_limit;
+	if (favorites) {
+		self->favorite_limit += PAGE_SIZE;
+	} else {
+		self->recent_limit += PAGE_SIZE;
+	}
+	render_section(self, favorites, start);
+}
+static char* normalized(const char* text) {
+	char* folded = g_utf8_casefold(text, -1);
+	char* expanded = g_utf8_normalize(folded, -1, G_NORMALIZE_ALL);
+	g_free(folded);
+	GString* result = g_string_new(NULL);
+	for (const char* p = expanded; p && *p; p = g_utf8_next_char(p)) {
+		gunichar c = g_utf8_get_char(p);
+		if (!g_unichar_ismark(c)) {
+			g_string_append_unichar(result, c);
+		}
+	}
+	g_free(expanded);
+	return g_string_free(result, FALSE);
+}
+static int match_score(const char* name, const char* query) {
+	if (!*query) {
+		return 0;
+	}
+	const char* p = name;
+	int         score = 0, position = 0;
+	for (const char* q = query; *q; q = g_utf8_next_char(q)) {
+		gunichar target = g_utf8_get_char(q);
+		bool     found = false;
+		for (; *p; p = g_utf8_next_char(p), ++position) {
+			if (g_utf8_get_char(p) == target) {
+				score += position;
+				p = g_utf8_next_char(p);
+				++position;
+				found = true;
+				break;
+			}
+		}
+		if (!found) {
+			return -1;
+		}
+	}
+	return score;
+}
+typedef struct {
+	const sign_history_entry* entry;
+	int                       score;
+} search_match;
+static gint compare_match(gconstpointer a, gconstpointer b) {
+	const search_match* x = a;
+	const search_match* y = b;
+	if (x->score != y->score) {
+		return x->score < y->score ? -1 : 1;
+	}
+	return x->entry->signed_at > y->entry->signed_at
+	           ? -1
+	           : x->entry->signed_at < y->entry->signed_at;
+}
+static void search_update(SignHome* self) {
+	if (!self->search_rows) {
+		return;
+	}
+	clear(self->search_rows);
+	char* query = normalized(
+	    gtk_editable_get_text(GTK_EDITABLE(self->search_entry))
+	);
+	GArray* matches = g_array_new(FALSE, FALSE, sizeof(search_match));
+	for (size_t n = 0; n < history_count(self->history); ++n) {
+		const sign_history_entry* entry = history_get(self->history, n);
+		char* basename = g_filename_display_basename(entry->path);
+		char* name = normalized(basename);
+		g_free(basename);
+		int score = match_score(name, query);
+		g_free(name);
+		if (score >= 0) {
+			search_match match = {entry, score};
+			g_array_append_val(matches, match);
+		}
+	}
+	g_free(query);
+	g_array_sort(matches, compare_match);
+	for (guint n = 0; n < matches->len && n < self->search_limit; ++n) {
+		const sign_history_entry*
+		           entry = g_array_index(matches, search_match, n).entry;
+		GtkWidget* row = adw_action_row_new();
+		adw_preferences_row_set_use_markup(ADW_PREFERENCES_ROW(row), FALSE);
+		char* name = g_filename_display_basename(entry->path);
+		adw_preferences_row_set_title(ADW_PREFERENCES_ROW(row), name);
+		g_free(name);
+		adw_action_row_set_subtitle(ADW_ACTION_ROW(row), entry->path);
+		adw_action_row_set_subtitle_lines(ADW_ACTION_ROW(row), 1);
+		GFile* file = g_file_new_for_path(entry->path);
+		sign_file_actions_attach(row, file, false, false, NULL, NULL);
+		g_object_unref(file);
+		adw_action_row_add_suffix(
+		    ADW_ACTION_ROW(row),
+		    sign_file_location_button()
+		);
+		gtk_list_box_append(GTK_LIST_BOX(self->search_rows), row);
+	}
+	if (!matches->len) {
+		GtkWidget* label = gtk_label_new(_("No matching documents"));
+		gtk_widget_add_css_class(label, "dim-label");
+		gtk_list_box_append(GTK_LIST_BOX(self->search_rows), label);
+	}
+	gtk_widget_set_visible(
+	    self->search_more,
+	    matches->len > self->search_limit
+	);
+	g_array_unref(matches);
+}
+static void query_changed(GtkSearchEntry* entry, gpointer data) {
+	(void)entry;
+	SignHome* self = data;
+	self->search_limit = PAGE_SIZE;
+	search_update(self);
+}
+static void search_more(GtkButton* button, gpointer data) {
+	(void)button;
+	SignHome* self = data;
+	self->search_limit += PAGE_SIZE;
+	search_update(self);
+}
+static void search_opened(
+    GObject*    object,
+    GParamSpec* property,
+    gpointer    data
+) {
+	(void)property;
+	if (gtk_widget_get_visible(GTK_WIDGET(object))) {
+		SignHome* self = data;
+		sign_home_reload(self);
+		gtk_widget_grab_focus(self->search_entry);
+	}
+}
+GtkWidget* sign_home_search_button(SignHome* self) {
+	return self->search_button;
+}
+static void dispose(GObject* object) {
+	SignHome* self = SIGN_HOME(object);
+	self->closing = true;
+	if (self->timer) {
+		g_source_remove(self->timer);
+		self->timer = 0;
+	}
+	if (self->monitor) {
+		g_file_monitor_cancel(self->monitor);
+		g_object_unref(self->monitor);
+		self->monitor = NULL;
+	}
+	g_cancellable_cancel(self->thumbnails);
+	if (self->search_button) {
+		g_object_unref(self->search_button);
+		self->search_button = NULL;
+	}
+	G_OBJECT_CLASS(sign_home_parent_class)->dispose(object);
+}
+static void finalize(GObject* object) {
+	SignHome* self = SIGN_HOME(object);
+	history_free(self->history);
+	g_object_unref(self->thumbnails);
+	G_OBJECT_CLASS(sign_home_parent_class)->finalize(object);
+}
+static void sign_home_class_init(SignHomeClass* klass) {
+	history_changed = g_signal_new(
+	    "history-changed",
+	    G_TYPE_FROM_CLASS(klass),
+	    G_SIGNAL_RUN_LAST,
+	    0,
+	    NULL,
+	    NULL,
+	    NULL,
+	    G_TYPE_NONE,
+	    0
+	);
+	G_OBJECT_CLASS(klass)->dispose = dispose;
+	G_OBJECT_CLASS(klass)->finalize = finalize;
+}
+static void sign_home_init(SignHome* self) {
+	self->grid = true;
+	ui_preferences_grid(&self->grid, NULL);
+	self->favorite_limit = self->recent_limit = self->search_limit = PAGE_SIZE;
+	self->thumbnails = g_cancellable_new();
+	gtk_orientable_set_orientation(
+	    GTK_ORIENTABLE(self),
+	    GTK_ORIENTATION_VERTICAL
+	);
+	self->notice = gtk_label_new(
+	    _("The document history could not be read. It may be invalid or exceed "
+	      "its size limit.")
+	);
+	gtk_label_set_wrap(GTK_LABEL(self->notice), TRUE);
+	gtk_widget_add_css_class(self->notice, "error");
+	gtk_widget_set_visible(self->notice, FALSE);
+	gtk_box_append(GTK_BOX(self), self->notice);
+	GtkWidget* scroll = gtk_scrolled_window_new();
+	gtk_widget_set_vexpand(scroll, TRUE);
+	gtk_scrolled_window_set_policy(
+	    GTK_SCROLLED_WINDOW(scroll),
+	    GTK_POLICY_NEVER,
+	    GTK_POLICY_AUTOMATIC
+	);
+	gtk_box_append(GTK_BOX(self), scroll);
+	GtkWidget* content = gtk_box_new(GTK_ORIENTATION_VERTICAL, 12);
+	gtk_widget_set_margin_start(content, 18);
+	gtk_widget_set_margin_end(content, 18);
+	gtk_widget_set_margin_top(content, 18);
+	gtk_widget_set_margin_bottom(content, 18);
+	gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(scroll), content);
+	GtkWidget* heading = gtk_label_new(_("Favorites"));
+	self->favorite_heading = heading;
+	gtk_widget_set_halign(heading, GTK_ALIGN_START);
+	gtk_widget_add_css_class(heading, "title-2");
+	gtk_box_append(GTK_BOX(content), heading);
+	self->favorites = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
+	gtk_widget_set_name(self->favorites, "home-favorites");
+	gtk_box_append(GTK_BOX(content), self->favorites);
+	self->favorite_more = gtk_button_new_with_label(_("Show more"));
+	gtk_widget_set_halign(self->favorite_more, GTK_ALIGN_CENTER);
+	gtk_widget_set_name(self->favorite_more, "home-favorites-more");
+	g_signal_connect(self->favorite_more, "clicked", G_CALLBACK(more), self);
+	gtk_box_append(GTK_BOX(content), self->favorite_more);
+	heading = gtk_label_new(_("Recent"));
+	self->recent_heading = heading;
+	gtk_widget_set_halign(heading, GTK_ALIGN_START);
+	gtk_widget_add_css_class(heading, "title-2");
+	gtk_widget_set_margin_top(heading, 12);
+	gtk_box_append(GTK_BOX(content), heading);
+	self->recents = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
+	gtk_widget_set_name(self->recents, "home-recents");
+	gtk_box_append(GTK_BOX(content), self->recents);
+	self->recent_more = gtk_button_new_with_label(_("Show more"));
+	gtk_widget_set_halign(self->recent_more, GTK_ALIGN_CENTER);
+	gtk_widget_set_name(self->recent_more, "home-recents-more");
+	g_signal_connect(self->recent_more, "clicked", G_CALLBACK(more), self);
+	gtk_box_append(GTK_BOX(content), self->recent_more);
+	self->search_button = g_object_ref_sink(gtk_menu_button_new());
+	gtk_menu_button_set_icon_name(
+	    GTK_MENU_BUTTON(self->search_button),
+	    "system-search-symbolic"
+	);
+	gtk_widget_add_css_class(self->search_button, "flat");
+	gtk_widget_set_name(self->search_button, "history-search");
+	gtk_widget_set_tooltip_text(
+	    self->search_button,
+	    _("Search signed documents")
+	);
+	GtkWidget* popover = gtk_popover_new();
+	gtk_popover_set_has_arrow(GTK_POPOVER(popover), FALSE);
+	gtk_widget_set_name(popover, "history-search-popup");
+	GtkWidget* box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
+	gtk_widget_set_margin_start(box, 12);
+	gtk_widget_set_margin_end(box, 12);
+	gtk_widget_set_margin_top(box, 12);
+	gtk_widget_set_margin_bottom(box, 12);
+	gtk_widget_set_size_request(box, 320, -1);
+	self->search_entry = gtk_search_entry_new();
+	gtk_widget_set_name(self->search_entry, "history-query");
+	gtk_widget_set_tooltip_text(
+	    self->search_entry,
+	    _("Search by document name")
+	);
+	gtk_box_append(GTK_BOX(box), self->search_entry);
+	GtkWidget* results = gtk_scrolled_window_new();
+	gtk_scrolled_window_set_policy(
+	    GTK_SCROLLED_WINDOW(results),
+	    GTK_POLICY_NEVER,
+	    GTK_POLICY_AUTOMATIC
+	);
+	gtk_scrolled_window_set_min_content_height(
+	    GTK_SCROLLED_WINDOW(results),
+	    260
+	);
+	gtk_scrolled_window_set_max_content_height(
+	    GTK_SCROLLED_WINDOW(results),
+	    420
+	);
+	gtk_scrolled_window_set_propagate_natural_height(
+	    GTK_SCROLLED_WINDOW(results),
+	    TRUE
+	);
+	self->search_rows = gtk_list_box_new();
+	gtk_list_box_set_selection_mode(
+	    GTK_LIST_BOX(self->search_rows),
+	    GTK_SELECTION_NONE
+	);
+	gtk_widget_set_name(self->search_rows, "history-search-results");
+	gtk_scrolled_window_set_child(
+	    GTK_SCROLLED_WINDOW(results),
+	    self->search_rows
+	);
+	gtk_box_append(GTK_BOX(box), results);
+	self->search_more = gtk_button_new_with_label(_("Show more"));
+	g_signal_connect(
+	    self->search_more,
+	    "clicked",
+	    G_CALLBACK(search_more),
+	    self
+	);
+	gtk_box_append(GTK_BOX(box), self->search_more);
+	gtk_popover_set_child(GTK_POPOVER(popover), box);
+	gtk_menu_button_set_popover(GTK_MENU_BUTTON(self->search_button), popover);
+	g_signal_connect_object(
+	    self->search_entry,
+	    "search-changed",
+	    G_CALLBACK(query_changed),
+	    self,
+	    0
+	);
+	g_signal_connect_object(
+	    popover,
+	    "notify::visible",
+	    G_CALLBACK(search_opened),
+	    self,
+	    0
+	);
+	sign_home_reload(self);
+}
+GtkWidget* sign_home_new(void) {
+	return g_object_new(SIGN_TYPE_HOME, NULL);
+}

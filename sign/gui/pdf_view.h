@@ -26,6 +26,11 @@ cairo_surface_t* sign_pdf_render(
     GCancellable*      cancellable,
     GError**           error
 );
+cairo_surface_t* sign_pdf_thumbnail(
+    sign_pdf_document*,
+    GCancellable*,
+    GError**
+);
 /* Inputs/outputs are visible-page PDF points after rotation and UserUnit.
  * A zero selection means click/default size. Both dimensions retain aspect. */
 bool sign_pdf_place(

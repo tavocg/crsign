@@ -9,3 +9,5 @@ sign/gui/pdf_view.c
 sign/gui/signing.c
 sign/gui/pdf_reader.c
 sign/gui/error.c
+sign/gui/home.c
+sign/gui/file_actions.c

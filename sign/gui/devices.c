@@ -13,7 +13,7 @@
 
 struct _SignDevices {
 	GtkBox        parent_instance;
-	GtkWidget *   refresh, *spinner, *content;
+	GtkWidget *   refresh, *spinner, *content, *body, *header_menu;
 	GtkLabel*     status;
 	GCancellable* cancellable;
 	gint          revision, include_software;
@@ -420,6 +420,15 @@ static void render(SignDevices* self, sign_device_inventory* inventory) {
 	                              keys
 	                          )
 	                        : g_strdup(_("No readers found"));
+	gtk_widget_set_valign(
+	    self->body,
+	    readers ? GTK_ALIGN_START : GTK_ALIGN_CENTER
+	);
+	if (readers) {
+		gtk_widget_add_css_class(GTK_WIDGET(self->status), "dim-label");
+	} else {
+		gtk_widget_remove_css_class(GTK_WIDGET(self->status), "dim-label");
+	}
 	gtk_label_set_text(self->status, summary);
 	g_free(summary);
 	for (guint n = 0; n < inventory->issues->len; ++n) {
@@ -638,11 +647,11 @@ static void refresh_clicked(GtkButton* button, gpointer data) {
 	(void)button;
 	sign_devices_refresh(SIGN_DEVICES(data));
 }
-static void software_toggled(GtkCheckButton* button, gpointer data) {
+static void hardware_toggled(GtkCheckButton* button, gpointer data) {
 	SignDevices* self = data;
 	g_atomic_int_set(
 	    &self->include_software,
-	    gtk_check_button_get_active(button)
+	    !gtk_check_button_get_active(button)
 	);
 	sign_devices_refresh(self);
 }
@@ -664,6 +673,10 @@ static void devices_dispose(GObject* object) {
 		g_cancellable_cancel(self->cancellable);
 		g_object_unref(self->cancellable);
 		self->cancellable = NULL;
+	}
+	if (self->header_menu) {
+		g_object_unref(self->header_menu);
+		self->header_menu = NULL;
 	}
 	G_OBJECT_CLASS(sign_devices_parent_class)->dispose(object);
 }
@@ -707,45 +720,70 @@ static void sign_devices_init(SignDevices* self) {
 	gtk_widget_set_margin_end(GTK_WIDGET(self), 18);
 	gtk_widget_set_margin_top(GTK_WIDGET(self), 12);
 	gtk_widget_set_margin_bottom(GTK_WIDGET(self), 12);
-	GtkWidget* bar = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
+	self->header_menu = g_object_ref_sink(gtk_menu_button_new());
+	gtk_widget_set_name(self->header_menu, "devices-options");
+	gtk_menu_button_set_icon_name(
+	    GTK_MENU_BUTTON(self->header_menu),
+	    "view-more-symbolic"
+	);
+	gtk_widget_add_css_class(self->header_menu, "flat");
+	gtk_widget_set_tooltip_text(self->header_menu, _("Device options"));
+	GtkWidget* popover = gtk_popover_new();
+	GtkWidget* hardware = gtk_check_button_new_with_label(_("Hardware only"));
+	gtk_widget_set_name(hardware, "devices-hardware-only");
+	gtk_check_button_set_active(GTK_CHECK_BUTTON(hardware), TRUE);
+	gtk_widget_set_margin_start(hardware, 12);
+	gtk_widget_set_margin_end(hardware, 12);
+	gtk_widget_set_margin_top(hardware, 12);
+	gtk_widget_set_margin_bottom(hardware, 12);
+	g_signal_connect_object(
+	    hardware,
+	    "toggled",
+	    G_CALLBACK(hardware_toggled),
+	    self,
+	    0
+	);
+	gtk_popover_set_child(GTK_POPOVER(popover), hardware);
+	gtk_menu_button_set_popover(GTK_MENU_BUTTON(self->header_menu), popover);
+	GtkWidget* scroll = gtk_scrolled_window_new();
+	gtk_widget_set_vexpand(scroll, TRUE);
+	gtk_scrolled_window_set_policy(
+	    GTK_SCROLLED_WINDOW(scroll),
+	    GTK_POLICY_NEVER,
+	    GTK_POLICY_AUTOMATIC
+	);
+	self->body = gtk_box_new(GTK_ORIENTATION_VERTICAL, 12);
+	gtk_widget_set_name(self->body, "devices-body");
+	gtk_widget_set_valign(self->body, GTK_ALIGN_CENTER);
+	gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(scroll), self->body);
+	self->content = gtk_box_new(GTK_ORIENTATION_VERTICAL, 12);
+	gtk_widget_set_name(self->content, "devices-content");
+	gtk_box_append(GTK_BOX(self->body), self->content);
 	self->status = GTK_LABEL(gtk_label_new(_("Scanning devices…")));
 	gtk_widget_set_name(GTK_WIDGET(self->status), "devices-status");
-	gtk_label_set_xalign(self->status, 0);
 	gtk_label_set_wrap(self->status, TRUE);
-	gtk_widget_set_hexpand(GTK_WIDGET(self->status), TRUE);
-	gtk_box_append(GTK_BOX(bar), GTK_WIDGET(self->status));
+	gtk_label_set_justify(self->status, GTK_JUSTIFY_CENTER);
+	gtk_box_append(GTK_BOX(self->body), GTK_WIDGET(self->status));
 	self->spinner = gtk_spinner_new();
+	gtk_widget_set_halign(self->spinner, GTK_ALIGN_CENTER);
 	gtk_widget_set_visible(self->spinner, FALSE);
-	gtk_box_append(GTK_BOX(bar), self->spinner);
-	self->refresh = gtk_button_new_from_icon_name("view-refresh-symbolic");
+	gtk_box_append(GTK_BOX(self->body), self->spinner);
+	self->refresh = gtk_button_new_with_label(_("Refresh"));
 	gtk_widget_set_name(self->refresh, "devices-refresh");
-	gtk_widget_set_tooltip_text(self->refresh, _("Refresh devices"));
+	gtk_widget_set_halign(self->refresh, GTK_ALIGN_CENTER);
 	g_signal_connect(
 	    self->refresh,
 	    "clicked",
 	    G_CALLBACK(refresh_clicked),
 	    self
 	);
-	gtk_box_append(GTK_BOX(bar), self->refresh);
-	gtk_box_append(GTK_BOX(self), bar);
-	GtkWidget* software = gtk_check_button_new_with_label(
-	    _("Include software tokens and certificates")
-	);
-	gtk_widget_set_name(software, "devices-software");
-	g_signal_connect(software, "toggled", G_CALLBACK(software_toggled), self);
-	gtk_box_append(GTK_BOX(self), software);
-	GtkWidget* scroll = gtk_scrolled_window_new();
-	gtk_scrolled_window_set_policy(
-	    GTK_SCROLLED_WINDOW(scroll),
-	    GTK_POLICY_NEVER,
-	    GTK_POLICY_AUTOMATIC
-	);
-	gtk_widget_set_vexpand(scroll, TRUE);
-	self->content = gtk_box_new(GTK_ORIENTATION_VERTICAL, 12);
-	gtk_widget_set_name(self->content, "devices-content");
-	gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(scroll), self->content);
+	gtk_box_append(GTK_BOX(self->body), self->refresh);
 	gtk_box_append(GTK_BOX(self), scroll);
 }
 GtkWidget* sign_devices_new(void) {
 	return g_object_new(SIGN_TYPE_DEVICES, NULL);
+}
+
+GtkWidget* sign_devices_header_menu(SignDevices* self) {
+	return self->header_menu;
 }

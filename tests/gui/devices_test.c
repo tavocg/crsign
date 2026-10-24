@@ -141,6 +141,19 @@ int main(int argc, char** argv) {
 	);
 	wait_text(view, "2048 bits", true);
 	snapshot(window, argv[2], "devices-collapsed.png");
+	graphene_rect_t options, title;
+	g_assert_true(gtk_widget_compute_bounds(
+	    named(window, "devices-options"),
+	    window,
+	    &options
+	));
+	g_assert_true(gtk_widget_compute_bounds(
+	    named(window, "section-title"),
+	    window,
+	    &title
+	));
+	g_assert_cmpfloat(options.origin.x + options.size.width, <, title.origin.x);
+
 	reader = ADW_EXPANDER_ROW(find_widget(content, ADW_TYPE_EXPANDER_ROW));
 	adw_expander_row_set_expanded(reader, TRUE);
 	snapshot(window, argv[2], "devices-expanded.png");
@@ -162,20 +175,20 @@ int main(int argc, char** argv) {
 	}
 	g_assert_true(copied);
 
-	GtkCheckButton* software = GTK_CHECK_BUTTON(
-	    named(view, "devices-software")
+	GtkCheckButton* hardware = GTK_CHECK_BUTTON(
+	    named(window, "devices-hardware-only")
 	);
-	g_assert_false(gtk_check_button_get_active(software));
+	g_assert_true(gtk_check_button_get_active(hardware));
 	/* A superseded software scan must not reappear after switching it off. */
 	for (unsigned n = 0; n < 6; ++n) {
-		gtk_check_button_set_active(software, n % 2 == 0);
+		gtk_check_button_set_active(hardware, n % 2 != 0);
 		while (g_main_context_iteration(NULL, FALSE)) {
 		}
 	}
 	wait_text(view, "Software fixture", false);
-	gtk_check_button_set_active(software, TRUE);
+	gtk_check_button_set_active(hardware, FALSE);
 	wait_text(view, "Software fixture", true);
-	gtk_check_button_set_active(software, FALSE);
+	gtk_check_button_set_active(hardware, TRUE);
 	wait_text(view, "Software fixture", false);
 	phase(argv[1], "2");
 	wait_text(view, "card-two", true);
@@ -183,6 +196,17 @@ int main(int argc, char** argv) {
 	wait_text(view, "Certificate <&>", false);
 	phase(argv[1], "3");
 	wait_text(view, "No readers found", true);
+	g_assert_cmpint(
+	    gtk_widget_get_valign(named(view, "devices-body")),
+	    ==,
+	    GTK_ALIGN_CENTER
+	);
+	g_assert_cmpstr(
+	    gtk_button_get_label(GTK_BUTTON(named(view, "devices-refresh"))),
+	    ==,
+	    "Refresh"
+	);
+	snapshot(window, argv[2], "devices-empty.png");
 	phase(argv[1], "0");
 	wait_text(view, "card-one", true);
 	g_signal_emit_by_name(named(view, "devices-refresh"), "clicked");

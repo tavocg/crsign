@@ -17,10 +17,10 @@ if(NOT IS_ABSOLUTE "${CMAKE_INSTALL_LOCALEDIR}")
 endif()
 
 set(GUI_TEST_SOURCES
-    ../../sign/gui/window.c ../../sign/gui/about.c ../../sign/gui/validation.c
+    ../../sign/gui/home.c ../../sign/gui/file_actions.c ../../sign/gui/window.c ../../sign/gui/about.c ../../sign/gui/validation.c
     ../../sign/gui/devices.c ../../sign/gui/inventory.c ../../sign/gui/certificate.c
     ../../sign/gui/file_drop.c ../../sign/gui/error.c ../../sign/gui/pdf_reader.c ../../sign/gui/pdf_view.c ../../sign/gui/signing.c
-    ../../sign/flow.c ../../sign/execution.c ../../sign/sign.c ../../sign/modules.c
+    ../../sign/flow.c ../../sign/user_data.c ../../sign/ui_preferences.c ../../sign/history.c ../../sign/execution.c ../../sign/sign.c ../../sign/modules.c
     ../../sign/appearance.c ../../sign/pin.c ../../sign/terminal.c ../../sign/http.c
     ../../sign/timestamp/authority.c ../../sign/trust.c
     ../../sign/gui/i18n.c ../../sign/runtime.c ../../sign/gui/settings.c
@@ -28,11 +28,12 @@ set(GUI_TEST_SOURCES
     ../../sign/json.c ../../sign/io.c ../../sign/certs/certs.c "${SIGN_CERT_CATALOG}")
 add_executable(gui_navigation_test navigation_test.c ${GUI_TEST_SOURCES})
 add_executable(gui_validation_test validation_test.c ${GUI_TEST_SOURCES})
+add_executable(gui_home_test home_test.c ${GUI_TEST_SOURCES})
 add_executable(gui_drop_test drop_test.c ${GUI_TEST_SOURCES})
 set(GUI_DEVICE_TEST_SOURCES ${GUI_TEST_SOURCES})
 list(REMOVE_ITEM GUI_DEVICE_TEST_SOURCES "${SIGN_CERT_CATALOG}")
 add_executable(gui_devices_test devices_test.c ${GUI_DEVICE_TEST_SOURCES} $<TARGET_OBJECTS:bundle_catalog>)
-set(GUI_TEST_TARGETS gui_navigation_test gui_validation_test gui_drop_test gui_devices_test)
+set(GUI_TEST_TARGETS gui_home_test gui_navigation_test gui_validation_test gui_drop_test gui_devices_test)
 if(EXISTS "${PROJECT_SOURCE_DIR}/tests/libssig/tests/document_sign_fixture.c")
     add_executable(gui_signing_test signing_test.c ../flows/crypto_module.c ${GUI_TEST_SOURCES})
     list(APPEND GUI_TEST_TARGETS gui_signing_test)
@@ -70,6 +71,11 @@ if(UNIX AND NOT APPLE)
             set_tests_properties(gui_signing PROPERTIES TIMEOUT 75 RESOURCE_LOCK gtk_display)
         endif()
         set_tests_properties(gui_navigation PROPERTIES TIMEOUT 30 RESOURCE_LOCK gtk_display)
+        add_test(NAME gui_home COMMAND ${GUI_TEST_COMMAND}
+            "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/home_test.py"
+            $<TARGET_FILE:gui_home_test> "${CMAKE_CURRENT_BINARY_DIR}/snapshots")
+        set_tests_properties(gui_home PROPERTIES TIMEOUT 90 RESOURCE_LOCK gtk_display)
+
         if(TARGET device_fixture)
             add_test(NAME gui_devices COMMAND ${GUI_TEST_COMMAND}
                 "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/devices_test.py"
@@ -86,3 +92,5 @@ if(UNIX AND NOT APPLE)
         endif()
     endif()
 endif()
+
+sign_test_data_directory()

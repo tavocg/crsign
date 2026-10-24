@@ -3,6 +3,7 @@
 #include <sign/appearance.h>
 #include <sign/config.h>
 #include <sign/gui/error.h>
+#include <sign/gui/file_actions.h>
 #include <sign/gui/file_drop.h>
 #include <sign/gui/i18n.h>
 #include <sign/gui/pdf_reader.h>
@@ -42,6 +43,7 @@ struct _SignSigning {
 	bool             updating, loading, busy, closing;
 };
 G_DEFINE_TYPE(SignSigning, sign_signing, GTK_TYPE_BOX)
+static guint documents_signed;
 
 static signing_item* item_ref(signing_item* item) {
 	g_atomic_int_inc(&item->references);
@@ -498,6 +500,16 @@ void sign_signing_open_document(SignSigning* self, size_t index) {
 		return;
 	}
 	self->current = item;
+	GFile* location = g_file_new_for_path(item->path);
+	sign_file_actions_attach(
+	    GTK_WIDGET(self->reader),
+	    location,
+	    false,
+	    false,
+	    NULL,
+	    NULL
+	);
+	g_object_unref(location);
 	sign_pdf_reader_set_document(self->reader, NULL, 0, NULL);
 	if (self->surface) {
 		cairo_surface_destroy(self->surface);
@@ -651,6 +663,13 @@ void sign_signing_add_files(SignSigning* self, GListModel* files) {
 		g_object_set_data(G_OBJECT(remove), "signing-item", item);
 		g_signal_connect(remove, "clicked", G_CALLBACK(remove_item), self);
 		adw_action_row_add_suffix(ADW_ACTION_ROW(item->row), remove);
+		GFile* location = g_file_new_for_path(item->path);
+		sign_file_actions_attach(item->row, location, false, false, NULL, NULL);
+		g_object_unref(location);
+		adw_action_row_add_suffix(
+		    ADW_ACTION_ROW(item->row),
+		    sign_file_location_button()
+		);
 		gtk_list_box_append(self->list, item->row);
 		g_ptr_array_add(self->items, item);
 		++added;
@@ -1296,6 +1315,9 @@ static void run_finished(GObject* source, GAsyncResult* result, gpointer data) {
 			g_free(text);
 		}
 		controls(self);
+		if (run->result.completed) {
+			g_signal_emit(self, documents_signed, 0);
+		}
 	}
 	if (run->application) {
 		g_application_release(run->application);
@@ -1386,6 +1408,17 @@ static void signing_finalize(GObject* object) {
 	G_OBJECT_CLASS(sign_signing_parent_class)->finalize(object);
 }
 static void sign_signing_class_init(SignSigningClass* klass) {
+	documents_signed = g_signal_new(
+	    "documents-signed",
+	    G_TYPE_FROM_CLASS(klass),
+	    G_SIGNAL_RUN_LAST,
+	    0,
+	    NULL,
+	    NULL,
+	    NULL,
+	    G_TYPE_NONE,
+	    0
+	);
 	GTK_WIDGET_CLASS(klass)->root = signing_root;
 	GTK_WIDGET_CLASS(klass)->unroot = signing_unroot;
 	G_OBJECT_CLASS(klass)->dispose = signing_dispose;

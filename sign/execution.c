@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include <sign/error.h>
 #include <sign/execution.h>
+#include <sign/history.h>
 #include <sign/sign.h>
 #include <stdlib.h>
 #include <string.h>
@@ -105,6 +106,15 @@ bool sign_document_execute(
 			g_set_error_literal(error, SIGN_ERROR, SIGN_ERROR_OUTPUT, detail);
 		} else {
 			result->len = signature.len;
+			/* Recording is ancillary: the signed output is already saved. */
+			GError* history_error = NULL;
+			if (!history_record(resolved.output, &history_error)) {
+				g_debug(
+				    "Cannot update signing history: %s",
+				    history_error ? history_error->message : "unknown error"
+				);
+				g_clear_error(&history_error);
+			}
 		}
 	}
 	libssig_signature_free(&signature);

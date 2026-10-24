@@ -4,11 +4,13 @@
 #include <sign/config.h>
 #include <sign/gui/config.h>
 #include <sign/gui/devices.h>
+#include <sign/gui/home.h>
 #include <sign/gui/i18n.h>
 #include <sign/gui/settings.h>
 #include <sign/gui/signing.h>
 #include <sign/gui/validation.h>
 #include <sign/gui/window.h>
+#include <sign/history.h>
 #include <string.h>
 
 static void set_mode(GtkWidget* settings, const char* key, guint index) {
@@ -188,6 +190,11 @@ int main(int argc, char** argv) {
 	}
 	char* settings_directory = g_dir_make_tmp("crsign-navigation-XXXXXX", NULL);
 	g_setenv("XDG_CONFIG_HOME", settings_directory, TRUE);
+	char* data_directory = g_dir_make_tmp(
+	    "crsign-navigation-data-XXXXXX",
+	    NULL
+	);
+	g_setenv("XDG_DATA_HOME", data_directory, TRUE);
 	gui_i18n_init();
 	adw_init();
 	adw_style_manager_set_color_scheme(
@@ -212,6 +219,13 @@ int main(int argc, char** argv) {
 	GtkToggleButton* toggle = GTK_TOGGLE_BUTTON(named(window, "menu-toggle"));
 	g_assert_nonnull(split);
 	g_assert_nonnull(stack);
+	g_assert_cmpstr(gtk_stack_get_visible_child_name(stack), ==, "sign");
+	g_assert_false(gtk_widget_get_visible(named(window, "home-navigation")));
+	char* seed = g_build_filename(data_directory, "initial-signed.pdf", NULL);
+	g_assert_true(history_record(seed, NULL));
+	g_free(seed);
+	sign_home_reload(SIGN_HOME(gtk_stack_get_child_by_name(stack, "home")));
+	g_assert_true(gtk_widget_get_visible(named(window, "home-navigation")));
 	g_assert_nonnull(navigation);
 	g_assert_nonnull(toggle);
 	g_assert_cmpstr(
@@ -224,8 +238,7 @@ int main(int argc, char** argv) {
 	g_assert_false(gtk_widget_get_visible(GTK_WIDGET(toggle)));
 	const char* ids[] =
 	    {"home", "sign", "verify", "devices", "settings", "about"};
-	const char* titles[] =
-	    {"Inicio", "Firmar", "Validar", "Dispositivos", "Ajustes", "Acerca de"};
+
 	for (int i = 0; i < 6; ++i) {
 		gtk_list_box_select_row(
 		    navigation,
@@ -261,12 +274,9 @@ int main(int argc, char** argv) {
 			    "https://github.com/tavocg/crsign/blob/main/LICENSE"
 			);
 		} else {
-			GtkWidget* label = find_widget(page, GTK_TYPE_LABEL);
-			g_assert_cmpstr(
-			    gtk_label_get_label(GTK_LABEL(label)),
-			    ==,
-			    titles[i]
-			);
+			g_assert_true(SIGN_IS_HOME(page));
+			g_assert_nonnull(named(page, "home-recents"));
+			g_assert_nonnull(named(page, "home-favorites"));
 		}
 		g_assert_true(adw_overlay_split_view_get_show_sidebar(split));
 	}
@@ -340,8 +350,65 @@ int main(int argc, char** argv) {
 	g_assert_false(adw_overlay_split_view_get_collapsed(split));
 	g_assert_true(adw_overlay_split_view_get_show_sidebar(split));
 	g_assert_false(gtk_widget_get_visible(GTK_WIDGET(toggle)));
+	gtk_toggle_button_set_active(
+	    GTK_TOGGLE_BUTTON(named(window, "home-view-toggle")),
+	    TRUE
+	);
 	gtk_window_destroy(GTK_WINDOW(window));
 	settle();
+	char* output = g_build_filename(data_directory, "signed.pdf", NULL);
+	g_assert_true(history_record(output, NULL));
+	GtkWidget* reopened = sign_window_new(GTK_APPLICATION(app));
+	GtkStack* reopened_stack = GTK_STACK(find_widget(reopened, GTK_TYPE_STACK));
+	g_assert_cmpstr(
+	    gtk_stack_get_visible_child_name(reopened_stack),
+	    ==,
+	    "home"
+	);
+	g_assert_true(gtk_toggle_button_get_active(
+	    GTK_TOGGLE_BUTTON(named(reopened, "home-view-toggle"))
+	));
+	SignHome* home = SIGN_HOME(
+	    gtk_stack_get_child_by_name(reopened_stack, "home")
+	);
+	g_assert_false(
+	    gtk_widget_get_visible(named(GTK_WIDGET(home), "home-favorites"))
+	);
+	g_assert_true(
+	    gtk_widget_get_visible(named(GTK_WIDGET(home), "home-recents"))
+	);
+	char* emptied = history_path();
+	g_assert_cmpint(g_unlink(emptied), ==, 0);
+	g_free(emptied);
+	sign_home_reload(home);
+	g_assert_false(gtk_widget_get_visible(named(reopened, "home-navigation")));
+	g_assert_cmpstr(
+	    gtk_stack_get_visible_child_name(reopened_stack),
+	    ==,
+	    "sign"
+	);
+	gtk_window_destroy(GTK_WINDOW(reopened));
+	settle();
+	char* path = history_path();
+	g_unlink(path);
+	g_free(path);
+	char* preferences = g_build_filename(
+	    data_directory,
+	    "crsign",
+	    "preferences.json",
+	    NULL
+	);
+	g_unlink(preferences);
+	g_free(preferences);
+	char* lock = g_build_filename(data_directory, "crsign", "state.lock", NULL);
+	g_unlink(lock);
+	g_free(lock);
+	char* data_parent = g_build_filename(data_directory, "crsign", NULL);
+	g_rmdir(data_parent);
+	g_free(data_parent);
+	g_rmdir(data_directory);
+	g_free(data_directory);
+	g_free(output);
 	g_object_unref(app);
 	char* settings_path = config_path();
 	char* settings_parent = g_path_get_dirname(settings_path);

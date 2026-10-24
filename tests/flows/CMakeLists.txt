@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 set(FLOW_ENGINE_SOURCES
-    ../../sign/flow.c ../../sign/options.c ../../sign/execution.c ../../sign/sign.c
+    ../../sign/flow.c ../../sign/options.c ../../sign/user_data.c ../../sign/history.c ../../sign/execution.c ../../sign/sign.c
     ../../sign/modules.c ../../sign/appearance.c ../../sign/trust.c
     ../../sign/io.c ../../sign/pin.c ../../sign/terminal.c ../../sign/http.c
     ../../sign/timestamp/authority.c ../../sign/certs/certs.c "${SIGN_CERT_CATALOG}")
@@ -23,3 +23,5 @@ if(EXISTS "${PROJECT_SOURCE_DIR}/tests/libssig/tests/document_sign_fixture.c")
         "${CMAKE_CURRENT_SOURCE_DIR}/crypto_test.py" $<TARGET_FILE:flow_crypto_driver> $<TARGET_FILE:sign>)
     set_tests_properties(flow_signatures PROPERTIES TIMEOUT 45)
 endif()
+
+sign_test_data_directory()
