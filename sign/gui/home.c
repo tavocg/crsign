@@ -164,8 +164,17 @@ static GtkWidget* file_widget(
 	gtk_widget_set_margin_end(box, 4);
 	gtk_widget_set_margin_top(box, grid ? 4 : 0);
 	gtk_widget_set_margin_bottom(box, grid ? 4 : 0);
+	GtkWidget* item = grid ? box : gtk_list_box_row_new();
+	if (!grid) {
+		gtk_list_box_row_set_child(GTK_LIST_BOX_ROW(item), box);
+		gtk_list_box_row_set_activatable(GTK_LIST_BOX_ROW(item), TRUE);
+		gtk_actionable_set_action_name(
+		    GTK_ACTIONABLE(item),
+		    "document.location"
+		);
+	}
 	sign_file_actions_attach(
-	    box,
+	    item,
 	    file,
 	    recent,
 	    entry->favorite,
@@ -178,9 +187,11 @@ static GtkWidget* file_widget(
 	g_free(name);
 	gtk_label_set_ellipsize(GTK_LABEL(title), PANGO_ELLIPSIZE_MIDDLE);
 	gtk_widget_set_tooltip_text(title, entry->path);
-	GtkWidget* image = gtk_image_new_from_icon_name("text-x-generic-symbolic");
-	gtk_image_set_pixel_size(GTK_IMAGE(image), grid ? 128 : 24);
 	if (grid) {
+		GtkWidget* image = gtk_image_new_from_icon_name(
+		    "text-x-generic-symbolic"
+		);
+		gtk_image_set_pixel_size(GTK_IMAGE(image), 128);
 		gtk_widget_set_size_request(image, 128, 128);
 		gtk_label_set_max_width_chars(GTK_LABEL(title), 18);
 		gtk_label_set_wrap(GTK_LABEL(title), TRUE);
@@ -202,7 +213,6 @@ static GtkWidget* file_widget(
 		g_task_run_in_thread(task, thumbnail_worker);
 		g_object_unref(task);
 	} else {
-		gtk_box_append(GTK_BOX(box), image);
 		gtk_label_set_xalign(GTK_LABEL(title), 0);
 		gtk_widget_set_hexpand(title, TRUE);
 	}
@@ -232,18 +242,37 @@ static GtkWidget* file_widget(
 			);
 		} else {
 			GtkWidget* spacer = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-			gtk_widget_set_size_request(spacer, 34, -1);
+			gtk_widget_set_size_request(spacer, 34, 34);
 			gtk_box_append(GTK_BOX(box), spacer);
 		}
-		gtk_box_append(GTK_BOX(box), sign_file_location_button());
 	}
-	return box;
+	return item;
+}
+static void grid_file_activated(
+    GtkFlowBox*      flow,
+    GtkFlowBoxChild* child,
+    gpointer         data
+) {
+	(void)flow;
+	(void)data;
+	gtk_widget_activate_action(
+	    gtk_flow_box_child_get_child(child),
+	    "document.location",
+	    NULL
+	);
 }
 static GtkWidget* section_list(SignHome* self, GtkWidget* target) {
 	clear(target);
 	if (self->grid) {
 		GtkWidget* flow = gtk_flow_box_new();
 		gtk_flow_box_set_selection_mode(GTK_FLOW_BOX(flow), GTK_SELECTION_NONE);
+		gtk_flow_box_set_activate_on_single_click(GTK_FLOW_BOX(flow), TRUE);
+		g_signal_connect(
+		    flow,
+		    "child-activated",
+		    G_CALLBACK(grid_file_activated),
+		    NULL
+		);
 		gtk_flow_box_set_min_children_per_line(GTK_FLOW_BOX(flow), 1);
 		gtk_flow_box_set_max_children_per_line(GTK_FLOW_BOX(flow), 12);
 		gtk_flow_box_set_column_spacing(GTK_FLOW_BOX(flow), 4);
@@ -253,7 +282,8 @@ static GtkWidget* section_list(SignHome* self, GtkWidget* target) {
 		return flow;
 	}
 	GtkWidget* columns = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
-	gtk_widget_set_margin_start(columns, 40);
+	gtk_widget_set_margin_start(columns, 8);
+	gtk_widget_set_margin_end(columns, 8);
 	GtkWidget* label = gtk_label_new(_("Document"));
 	gtk_label_set_xalign(GTK_LABEL(label), 0);
 	gtk_widget_set_hexpand(label, TRUE);
@@ -262,7 +292,7 @@ static GtkWidget* section_list(SignHome* self, GtkWidget* target) {
 	gtk_label_set_width_chars(GTK_LABEL(label), 20);
 	gtk_box_append(GTK_BOX(columns), label);
 	label = gtk_label_new("");
-	gtk_widget_set_size_request(label, 88, -1);
+	gtk_widget_set_size_request(label, 34, -1);
 	gtk_box_append(GTK_BOX(columns), label);
 	gtk_widget_add_css_class(columns, "dim-label");
 	gtk_box_append(GTK_BOX(target), columns);
@@ -475,6 +505,7 @@ static gint compare_match(gconstpointer a, gconstpointer b) {
 	           ? -1
 	           : x->entry->signed_at < y->entry->signed_at;
 }
+static void search_result_activated(GtkListBoxRow* row, gpointer data);
 static void search_update(SignHome* self) {
 	if (!self->search_rows) {
 		return;
@@ -511,22 +542,50 @@ static void search_update(SignHome* self) {
 		GFile* file = g_file_new_for_path(entry->path);
 		sign_file_actions_attach(row, file, false, false, NULL, NULL);
 		g_object_unref(file);
-		adw_action_row_add_suffix(
-		    ADW_ACTION_ROW(row),
-		    sign_file_location_button()
+		gtk_list_box_row_set_activatable(GTK_LIST_BOX_ROW(row), TRUE);
+		gtk_actionable_set_action_name(
+		    GTK_ACTIONABLE(row),
+		    "document.location"
+		);
+		g_signal_connect_object(
+		    row,
+		    "activate",
+		    G_CALLBACK(search_result_activated),
+		    self,
+		    G_CONNECT_AFTER
 		);
 		gtk_list_box_append(GTK_LIST_BOX(self->search_rows), row);
 	}
 	if (!matches->len) {
 		GtkWidget* label = gtk_label_new(_("No matching documents"));
 		gtk_widget_add_css_class(label, "dim-label");
-		gtk_list_box_append(GTK_LIST_BOX(self->search_rows), label);
+		GtkWidget* row = gtk_list_box_row_new();
+		gtk_list_box_row_set_activatable(GTK_LIST_BOX_ROW(row), FALSE);
+		gtk_list_box_row_set_child(GTK_LIST_BOX_ROW(row), label);
+		gtk_list_box_append(GTK_LIST_BOX(self->search_rows), row);
 	}
 	gtk_widget_set_visible(
 	    self->search_more,
 	    matches->len > self->search_limit
 	);
 	g_array_unref(matches);
+}
+static void search_result_activated(GtkListBoxRow* row, gpointer data) {
+	(void)row;
+	SignHome* self = data;
+	gtk_menu_button_popdown(GTK_MENU_BUTTON(self->search_button));
+}
+static void search_enter(GtkSearchEntry* entry, gpointer data) {
+	(void)entry;
+	SignHome* self = data;
+	search_update(self);
+	GtkListBoxRow* row = gtk_list_box_get_row_at_index(
+	    GTK_LIST_BOX(self->search_rows),
+	    0
+	);
+	if (row && gtk_list_box_row_get_activatable(row)) {
+		gtk_widget_activate(GTK_WIDGET(row));
+	}
 }
 static void query_changed(GtkSearchEntry* entry, gpointer data) {
 	(void)entry;
@@ -688,11 +747,11 @@ static void sign_home_init(SignHome* self) {
 	);
 	gtk_scrolled_window_set_min_content_height(
 	    GTK_SCROLLED_WINDOW(results),
-	    260
+	    64
 	);
 	gtk_scrolled_window_set_max_content_height(
 	    GTK_SCROLLED_WINDOW(results),
-	    420
+	    360
 	);
 	gtk_scrolled_window_set_propagate_natural_height(
 	    GTK_SCROLLED_WINDOW(results),
@@ -704,6 +763,14 @@ static void sign_home_init(SignHome* self) {
 	    GTK_SELECTION_NONE
 	);
 	gtk_widget_set_name(self->search_rows, "history-search-results");
+	gtk_widget_add_css_class(self->search_rows, "home-file-list");
+	g_signal_connect_object(
+	    self->search_entry,
+	    "activate",
+	    G_CALLBACK(search_enter),
+	    self,
+	    0
+	);
 	gtk_scrolled_window_set_child(
 	    GTK_SCROLLED_WINDOW(results),
 	    self->search_rows

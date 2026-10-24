@@ -35,13 +35,14 @@ with tempfile.TemporaryDirectory(prefix='crsign-native-drop-') as directory:
     for file in files:
         file.write_bytes(original)
     # GdkDragAction: COPY and COPY|MOVE. Negotiate COPY and retain originals.
-    for actions in (1, 3):
-        received = root/f'received-{actions}'
-        finished = root/f'finished-{actions}'
+    for mode, actions in (("source", 1), ("source", 3), ("file-source", 1)):
+        count = "1" if mode == "file-source" else "2"
+        received = root/f'received-{mode}-{actions}'
+        finished = root/f'finished-{mode}-{actions}'
         processes = []
         try:
-            processes.append(subprocess.Popen([binary, 'target', str(received)], env=env))
-            processes.append(subprocess.Popen([binary, 'source', str(finished),
+            processes.append(subprocess.Popen([binary, 'target', str(received), count], env=env))
+            processes.append(subprocess.Popen([binary, mode, str(finished),
                                                 str(actions), *map(str, files)], env=env))
             target = window('CRSign Drop Target')
             source = window('CRSign Drop Source')
@@ -57,7 +58,7 @@ with tempfile.TemporaryDirectory(prefix='crsign-native-drop-') as directory:
             mouse('mouseup', 1)
             for process in processes:
                 assert process.wait(timeout=15) == 0
-            assert received.read_text() == '2'
+            assert received.read_text() == count
             assert finished.read_text() == 'keep', (actions, finished.read_text())
             assert all(file.read_bytes() == original for file in files)
         finally:

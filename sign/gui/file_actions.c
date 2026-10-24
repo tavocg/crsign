@@ -10,6 +10,7 @@ typedef struct {
 	gpointer              data;
 	GtkWidget*            popover;
 	GSimpleAction*        favorite_action;
+	GtkDragSource*        drag_source;
 } file_actions;
 typedef struct {
 	GtkWindow* parent;
@@ -201,6 +202,12 @@ void sign_file_actions_attach(
 		    G_ACTION_GROUP(group)
 		);
 		g_object_unref(group);
+		binding->drag_source = gtk_drag_source_new();
+		gtk_drag_source_set_actions(binding->drag_source, GDK_ACTION_COPY);
+		gtk_widget_add_controller(
+		    widget,
+		    GTK_EVENT_CONTROLLER(binding->drag_source)
+		);
 		GtkGesture* click = gtk_gesture_click_new();
 		gtk_gesture_single_set_button(
 		    GTK_GESTURE_SINGLE(click),
@@ -220,6 +227,13 @@ void sign_file_actions_attach(
 		g_object_unref(binding->file);
 	}
 	binding->file = g_object_ref(file);
+	GValue value = G_VALUE_INIT;
+	g_value_init(&value, GDK_TYPE_FILE_LIST);
+	g_value_take_boxed(&value, gdk_file_list_new_from_array(&file, 1));
+	GdkContentProvider* content = gdk_content_provider_new_for_value(&value);
+	gtk_drag_source_set_content(binding->drag_source, content);
+	g_object_unref(content);
+	g_value_unset(&value);
 	binding->allow_favorite = allow_favorite;
 	binding->favorite = callback;
 	binding->data = data;
@@ -246,6 +260,8 @@ GtkWidget* sign_file_favorite_button(bool active) {
 	);
 	gtk_widget_add_css_class(button, "flat");
 	gtk_widget_set_name(button, "document-favorite");
+	gtk_widget_add_css_class(button, "document-favorite");
+	gtk_widget_set_size_request(button, 34, 34);
 	gtk_widget_set_tooltip_text(button, _("Favorite"));
 	gtk_widget_set_valign(button, GTK_ALIGN_CENTER);
 	gtk_actionable_set_action_name(GTK_ACTIONABLE(button), "document.favorite");

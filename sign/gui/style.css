@@ -40,5 +40,15 @@ list.home-file-list {
   background: transparent;
 }
 list.home-file-list > row {
+  border-radius: 8px;
   padding: 0 4px;
+}
+
+button.document-favorite:checked,
+button.document-favorite:checked:hover,
+button.document-favorite:checked:active {
+  background: none;
+  box-shadow: none;
+  border-color: transparent;
+  color: @window_fg_color;
 }

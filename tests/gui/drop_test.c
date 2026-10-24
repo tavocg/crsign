@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+#include <sign/gui/file_actions.h>
 #include <sign/gui/validation.h>
 #include <stdlib.h>
 
@@ -7,11 +8,15 @@ static SignValidation* view;
 static const char*     report;
 static const char*     paths[2];
 static guint           polls;
+static unsigned int    expected_count = 2;
 
 static gboolean poll_result(gpointer data) {
 	(void)data;
-	if (sign_validation_count(view) == 2 && !sign_validation_is_busy(view)) {
-		g_assert_true(g_file_set_contents(report, "2", -1, NULL));
+	if (sign_validation_count(view) == expected_count &&
+	    !sign_validation_is_busy(view)) {
+		char* count = g_strdup_printf("%u", expected_count);
+		g_assert_true(g_file_set_contents(report, count, -1, NULL));
+		g_free(count);
 		g_main_loop_quit(loop);
 		return G_SOURCE_REMOVE;
 	}
@@ -46,34 +51,57 @@ int main(int argc, char** argv) {
 	report = argv[2];
 	GtkWidget* window = gtk_window_new();
 	gtk_window_set_default_size(GTK_WINDOW(window), 400, 400);
-	if (g_str_equal(argv[1], "source")) {
+	if (g_str_equal(argv[1], "source") || g_str_equal(argv[1], "file-source")) {
 		g_assert_cmpint(argc, ==, 6);
 		paths[0] = argv[4];
 		paths[1] = argv[5];
-		GString* uris = g_string_new(NULL);
-		for (size_t n = 0; n < G_N_ELEMENTS(paths); ++n) {
-			char* uri = g_filename_to_uri(paths[n], NULL, NULL);
-			g_assert_nonnull(uri);
-			g_string_append_printf(uris, "%s\r\n", uri);
-			g_free(uri);
+		GtkWidget*     area = gtk_label_new("Drag these file references");
+		GtkDragSource* source = NULL;
+		if (g_str_equal(argv[1], "file-source")) {
+			GFile* file = g_file_new_for_path(paths[0]);
+			sign_file_actions_attach(area, file, false, false, NULL, NULL);
+			g_object_unref(file);
+			GListModel* controllers = gtk_widget_observe_controllers(area);
+			for (guint i = 0; i < g_list_model_get_n_items(controllers); ++i) {
+				GtkEventController* controller = g_list_model_get_item(
+				    controllers,
+				    i
+				);
+				if (GTK_IS_DRAG_SOURCE(controller)) {
+					source = GTK_DRAG_SOURCE(controller);
+				}
+				g_object_unref(controller);
+			}
+			g_object_unref(controllers);
+			g_assert_nonnull(source);
+		} else {
+			GString* uris = g_string_new(NULL);
+			for (size_t n = 0; n < G_N_ELEMENTS(paths); ++n) {
+				char* uri = g_filename_to_uri(paths[n], NULL, NULL);
+				g_assert_nonnull(uri);
+				g_string_append_printf(uris, "%s\r\n", uri);
+				g_free(uri);
+			}
+			GBytes*             bytes = g_string_free_to_bytes(uris);
+			GdkContentProvider* provider = gdk_content_provider_new_for_bytes(
+			    "text/uri-list",
+			    bytes
+			);
+			source = gtk_drag_source_new();
+			gtk_drag_source_set_actions(source, (GdkDragAction)atoi(argv[3]));
+			gtk_drag_source_set_content(source, provider);
+			gtk_widget_add_controller(area, GTK_EVENT_CONTROLLER(source));
+			g_object_unref(provider);
+			g_bytes_unref(bytes);
 		}
-		GBytes*             bytes = g_string_free_to_bytes(uris);
-		GdkContentProvider* provider = gdk_content_provider_new_for_bytes(
-		    "text/uri-list",
-		    bytes
-		);
-		GtkDragSource* source = gtk_drag_source_new();
-		gtk_drag_source_set_actions(source, (GdkDragAction)atoi(argv[3]));
-		gtk_drag_source_set_content(source, provider);
 		g_signal_connect(source, "drag-end", G_CALLBACK(drag_end), NULL);
-		GtkWidget* area = gtk_label_new("Drag these file references");
-		gtk_widget_add_controller(area, GTK_EVENT_CONTROLLER(source));
 		gtk_window_set_child(GTK_WINDOW(window), area);
 		gtk_window_set_title(GTK_WINDOW(window), "CRSign Drop Source");
-		g_object_unref(provider);
-		g_bytes_unref(bytes);
 	} else {
 		g_assert_cmpstr(argv[1], ==, "target");
+		if (argc == 4) {
+			expected_count = (unsigned int)atoi(argv[3]);
+		}
 		view = SIGN_VALIDATION(sign_validation_new());
 		gtk_window_set_child(GTK_WINDOW(window), GTK_WIDGET(view));
 		gtk_window_set_title(GTK_WINDOW(window), "CRSign Drop Target");

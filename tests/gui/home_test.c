@@ -30,6 +30,38 @@ static bool contains(GtkWidget* widget, const char* text) {
 	}
 	return false;
 }
+static void check_drag(GtkWidget* item, const char* path) {
+	GListModel* controllers = gtk_widget_observe_controllers(item);
+	bool        found = false;
+	for (guint i = 0; i < g_list_model_get_n_items(controllers); ++i) {
+		GtkEventController* controller = g_list_model_get_item(controllers, i);
+		if (GTK_IS_DRAG_SOURCE(controller)) {
+			GtkDragSource* source = GTK_DRAG_SOURCE(controller);
+			g_assert_cmpint(
+			    gtk_drag_source_get_actions(source),
+			    ==,
+			    GDK_ACTION_COPY
+			);
+			GValue value = G_VALUE_INIT;
+			g_value_init(&value, GDK_TYPE_FILE_LIST);
+			g_assert_true(gdk_content_provider_get_value(
+			    gtk_drag_source_get_content(source),
+			    &value,
+			    NULL
+			));
+			GSList* files = gdk_file_list_get_files(g_value_get_boxed(&value));
+			g_assert_cmpuint(g_slist_length(files), ==, 1);
+			GFile* expected = g_file_new_for_path(path);
+			g_assert_true(g_file_equal(files->data, expected));
+			g_object_unref(expected);
+			g_value_unset(&value);
+			found = true;
+		}
+		g_object_unref(controller);
+	}
+	g_object_unref(controllers);
+	g_assert_true(found);
+}
 static GtkWidget* context_open(GtkWidget* window, GtkWidget* item) {
 	char* tool = g_find_program_in_path("xdotool");
 	if (!tool) {
@@ -200,7 +232,7 @@ int main(int argc, char** argv) {
 	    argv[1]
 	);
 	file_manager manager = {g_file_new_for_path(expected), 0};
-	g_free(expected);
+	check_drag(first, expected);
 	const GDBusInterfaceVTable vtable = {.method_call = show_items};
 	guint                      registration = g_dbus_connection_register_object(
         bus,
@@ -227,10 +259,12 @@ int main(int argc, char** argv) {
 		g_usleep(1000);
 	}
 	g_assert_cmpuint(manager.calls, ==, 1);
-	g_dbus_connection_unregister_object(bus, registration);
-	g_dbus_node_info_unref(info);
-	g_object_unref(manager.expected);
-	g_object_unref(bus);
+	g_assert_true(gtk_widget_activate(gtk_widget_get_parent(first)));
+	deadline = g_get_monotonic_time() + 5 * G_TIME_SPAN_SECOND;
+	while (manager.calls < 2 && g_get_monotonic_time() < deadline) {
+		settle();
+	}
+	g_assert_cmpuint(manager.calls, ==, 2);
 
 	snapshot(window, argv[2], "home-thumbnails.png");
 	g_signal_emit_by_name(
@@ -325,7 +359,28 @@ int main(int argc, char** argv) {
 	GtkWidget* row = GTK_WIDGET(
 	    gtk_list_box_get_row_at_index(GTK_LIST_BOX(list), 0)
 	);
-	g_assert_nonnull(named(row, "document-location"));
+	GtkWidget* favorites_list = find_widget(
+	    named(GTK_WIDGET(self), "home-favorites"),
+	    GTK_TYPE_LIST_BOX
+	);
+	GtkWidget* favorite_row = GTK_WIDGET(
+	    gtk_list_box_get_row_at_index(GTK_LIST_BOX(favorites_list), 0)
+	);
+	g_assert_cmpint(
+	    gtk_widget_get_height(row),
+	    ==,
+	    gtk_widget_get_height(favorite_row)
+	);
+	g_assert_cmpstr(
+	    gtk_button_get_icon_name(GTK_BUTTON(named(row, "document-favorite"))),
+	    ==,
+	    "starred-symbolic"
+	);
+	check_drag(row, expected);
+	g_assert_null(named(row, "document-location"));
+	g_assert_true(GTK_IS_LABEL(gtk_widget_get_first_child(
+	    gtk_list_box_row_get_child(GTK_LIST_BOX_ROW(row))
+	)));
 	g_assert_nonnull(named(row, "document-favorite"));
 	GtkWidget* stamp = named(row, "document-signed-date");
 	g_assert_nonnull(stamp);
@@ -334,6 +389,16 @@ int main(int argc, char** argv) {
 	);
 	g_assert_nonnull(gtk_widget_get_tooltip_text(stamp));
 	snapshot(window, argv[2], "home-list.png");
+	g_assert_true(gtk_widget_activate(row));
+	deadline = g_get_monotonic_time() + 5 * G_TIME_SPAN_SECOND;
+	while (manager.calls < 3 && g_get_monotonic_time() < deadline) {
+		settle();
+	}
+	g_assert_cmpuint(manager.calls, ==, 3);
+	/* The favorite control must not also activate the surrounding file row. */
+	g_signal_emit_by_name(named(row, "document-favorite"), "clicked");
+	settle();
+	g_assert_cmpuint(manager.calls, ==, 3);
 	gtk_menu_button_popup(GTK_MENU_BUTTON(sign_home_search_button(self)));
 	settle();
 	GtkWidget* popover = GTK_WIDGET(gtk_menu_button_get_popover(
@@ -348,15 +413,45 @@ int main(int argc, char** argv) {
 	GtkWidget* results = named(popover, "history-search-results");
 	g_assert_true(contains(results, "Documento firmado número 56.pdf"));
 	g_assert_cmpuint(count(results), ==, 1);
-	g_assert_nonnull(named(results, "document-location"));
+	g_assert_null(named(results, "document-location"));
 	g_assert_null(named(results, "document-favorite"));
-	snapshot(window, argv[2], "home-search.png");
-	gtk_menu_button_popdown(GTK_MENU_BUTTON(sign_home_search_button(self)));
+	snapshot(popover, argv[2], "home-search.png");
+	GtkWidget* result = GTK_WIDGET(
+	    gtk_list_box_get_row_at_index(GTK_LIST_BOX(results), 0)
+	);
+	g_assert_cmpstr(
+	    gtk_actionable_get_action_name(GTK_ACTIONABLE(result)),
+	    ==,
+	    "document.location"
+	);
+	g_assert_true(gtk_widget_activate(result));
+	deadline = g_get_monotonic_time() + 5 * G_TIME_SPAN_SECOND;
+	while (manager.calls < 4 && g_get_monotonic_time() < deadline) {
+		settle();
+	}
+	g_assert_cmpuint(manager.calls, ==, 4);
+	g_assert_false(gtk_widget_get_visible(popover));
+	gtk_menu_button_popup(GTK_MENU_BUTTON(sign_home_search_button(self)));
+	settle();
+	g_signal_emit_by_name(named(popover, "history-query"), "activate");
+	deadline = g_get_monotonic_time() + 5 * G_TIME_SPAN_SECOND;
+	while (manager.calls < 5 && g_get_monotonic_time() < deadline) {
+		settle();
+	}
+	g_assert_cmpuint(manager.calls, ==, 5);
+	g_assert_false(gtk_widget_get_visible(popover));
+
 	sign_home_set_grid(self, true);
 	gtk_window_set_default_size(GTK_WINDOW(window), 420, 760);
 	settle();
 	g_assert_cmpint(gtk_widget_get_width(window), <=, 420);
 	snapshot(window, argv[2], "home-narrow.png");
+	g_dbus_connection_unregister_object(bus, registration);
+	g_dbus_node_info_unref(info);
+	g_object_unref(manager.expected);
+	g_free(expected);
+	g_object_unref(bus);
+
 	gtk_window_destroy(GTK_WINDOW(window));
 	settle();
 	g_object_unref(app);
