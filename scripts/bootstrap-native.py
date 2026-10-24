@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Build the small pinned static dependencies for native packages.
+"""Build only tomlc17 and optional argp when native packages are unavailable.
 
 Network access is explicit here; application/library CMake configure stays offline.
 Cached archives are always verified, including when --offline is used.
@@ -15,14 +15,6 @@ import tarfile
 import urllib.request
 
 SOURCES = {
-    'libxml2': ('2.15.4', 'https://codeload.github.com/GNOME/libxml2/tar.gz/refs/tags/v2.15.4',
-                'bb01bd9ac9a7403f9706816fd6d3e7888041d32b0211075feb20e755d2a9f29d'),
-    'qpdf': ('12.3.2', 'https://codeload.github.com/qpdf/qpdf/tar.gz/refs/tags/v12.3.2',
-             '11ac1800f0d7334863fa1fce6a8b87b105897610bb6a25b9b883ba3f9f1aa4d7'),
-    'jansson': ('2.15.0', 'https://codeload.github.com/akheron/jansson/tar.gz/refs/tags/v2.15.0',
-                '73ac12bbc62ff536e40c7a3e15ed007993c5ca4d23897de23f1906f891b5a4bb'),
-    'zlib': ('1.3.2', 'https://codeload.github.com/madler/zlib/tar.gz/refs/tags/v1.3.2',
-             'b99a0b86c0ba9360ec7e78c4f1e43b1cbdf1e6936c8fa0f6835c0cd694a495a1'),
     'tomlc17': ('R20260501', 'https://codeload.github.com/cktan/tomlc17/tar.gz/refs/tags/R20260501',
                 '85a61daa8ca69c8036ce37529645769bf58ee4c8b0734283228c854cecf55cda'),
     'argp': ('1.2.0', 'https://codeload.github.com/tom42/argp-standalone/tar.gz/refs/tags/v1.2.0',
@@ -72,9 +64,7 @@ def main():
     args = parser.parse_args()
     cache, prefix = args.cache.resolve(), args.prefix.resolve()
     cache.mkdir(parents=True, exist_ok=True)
-    names = ['tomlc17', 'jansson', 'zlib', 'libxml2', 'qpdf']
-    if args.with_argp:
-        names.append('argp')
+    names = ['tomlc17', 'argp'] if args.with_argp else ['tomlc17']
     inputs = {name: fetch(name, cache, args.offline) for name in names}
     project = cache / 'project'
     project.mkdir(exist_ok=True)
@@ -85,28 +75,6 @@ add_library(tomlc17 STATIC "{toml}/src/tomlc17.c")
 set_target_properties(tomlc17 PROPERTIES C_STANDARD 17 POSITION_INDEPENDENT_CODE ON)
 install(TARGETS tomlc17 ARCHIVE DESTINATION lib)
 install(FILES "{toml}/src/tomlc17.h" DESTINATION include)
-'''
-    jansson = inputs['jansson'][0].as_posix()
-    zlib = inputs['zlib'][0].as_posix()
-    xml = inputs['libxml2'][0].as_posix()
-    cmake += f'''set(CMAKE_POLICY_VERSION_MINIMUM 3.10)
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-set(JANSSON_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-set(JANSSON_BUILD_DOCS OFF CACHE BOOL "" FORCE)
-set(JANSSON_EXAMPLES OFF CACHE BOOL "" FORCE)
-set(JANSSON_WITHOUT_TESTS ON CACHE BOOL "" FORCE)
-add_subdirectory("{jansson}" jansson)
-set(ZLIB_BUILD_SHARED OFF CACHE BOOL "" FORCE)
-set(ZLIB_BUILD_STATIC ON CACHE BOOL "" FORCE)
-set(ZLIB_BUILD_TESTING OFF CACHE BOOL "" FORCE)
-set(CMAKE_INSTALL_LIBDIR lib CACHE PATH "" FORCE)
-add_subdirectory("{zlib}" zlib)
-set_target_properties(zlibstatic PROPERTIES OUTPUT_NAME z)
-set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-set(LIBXML2_WITH_PROGRAMS OFF CACHE BOOL "" FORCE)
-set(LIBXML2_WITH_TESTS OFF CACHE BOOL "" FORCE)
-set(LIBXML2_WITH_PYTHON OFF CACHE BOOL "" FORCE)
-add_subdirectory("{xml}" libxml2)
 '''
     if args.with_argp:
         argp = inputs['argp'][0].as_posix()
@@ -121,24 +89,6 @@ install(FILES "{argp}/include/argp-standalone/argp.h" DESTINATION include)
                     '-DCMAKE_BUILD_TYPE=Release', f'-DCMAKE_INSTALL_PREFIX={prefix}'], check=True)
     subprocess.run(['cmake', '--build', str(cache / 'build'), '--config', 'Release', '--parallel', '4'], check=True)
     subprocess.run(['cmake', '--install', str(cache / 'build'), '--config', 'Release'], check=True)
-    # QPDF configures after the small archives are installed, so its dependency
-    # probes and installed pkg-config metadata refer to the same static prefix.
-    qpdf_build = cache / 'qpdf-build'
-    subprocess.run(['cmake', '-S', str(inputs['qpdf'][0]), '-B', str(qpdf_build),
-                    '-DCMAKE_BUILD_TYPE=Release', f'-DCMAKE_INSTALL_PREFIX={prefix}',
-                    f'-DCMAKE_PREFIX_PATH={prefix}', '-DCMAKE_INSTALL_LIBDIR=lib',
-                    '-DBUILD_SHARED_LIBS=OFF', '-DBUILD_STATIC_LIBS=ON',
-                    '-DBUILD_DOC=OFF', '-DINSTALL_MANUAL=OFF', '-DINSTALL_EXAMPLES=OFF',
-                    '-DUSE_IMPLICIT_CRYPTO=OFF', '-DREQUIRE_CRYPTO_OPENSSL=ON'], check=True)
-    subprocess.run(['cmake', '--build', str(qpdf_build), '--config', 'Release',
-                    '--target', 'libqpdf', '--parallel', '4'], check=True)
-    subprocess.run(['cmake', '--install', str(qpdf_build), '--config', 'Release',
-                    '--component', 'dev'], check=True)
-    # QPDF's OpenSSL provider uses libcrypto, not TLS. Its upstream .pc names
-    # the broader openssl module, which otherwise adds an unused libssl import.
-    qpdf_pc = prefix / 'lib/pkgconfig/libqpdf.pc'
-    qpdf_pc.write_text(qpdf_pc.read_text(encoding='utf-8').replace(
-        'openssl >= 1.1.0', 'libcrypto >= 1.1.0'), encoding='utf-8')
     notices = prefix / 'share/crsign-deps'
     notices.mkdir(parents=True, exist_ok=True)
     for name, (source, archive) in inputs.items():

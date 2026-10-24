@@ -1,6 +1,6 @@
 # Construcción
 
-Requiere CMake, compiladores C99 y C++ (C++20 para compilar QPDF), argp, libssig >= 0.1.5, libcurl >= 7.85,
+Requiere CMake, un compilador C99, argp, libssig >= 0.1.5, libcurl >= 7.85,
 pkg-config, GLib >= 2.40/GIO, Jansson >= 2.11, p11-kit, librsvg >= 2.52, GdkPixbuf, Cairo/PangoCairo y tomlc17 (API con `toml_get`, por ejemplo 20260501).
 La interfaz gráfica también requiere GTK >= 4.10, libadwaita >= 1.4, Poppler GLib >= 0.82, QPDF (API C) y GNU gettext
 (herramientas `msgfmt`, `msgmerge` y `xgettext`, además de libintl cuando no forma parte de libc). GLib/GIO y tomlc17 se usan igualmente
@@ -31,8 +31,8 @@ se rechazan; no se truncan. El búfer se borra antes de liberarlo tras el intent
 Los tokens con teclado propio no solicitan un PIN en la CLI.
 
 La CI compila y prueba la aplicación completa con GTK (`HEADLESS=OFF`) en Linux,
-Windows UCRT64 y macOS con una sola configuración: libssig y las dependencias
-pequeñas se incorporan estáticamente. Los workflows no generan ni suben paquetes
+Windows UCRT64 y macOS con una sola configuración: libssig estática y
+dependencias del sistema. Los workflows no generan ni suben paquetes
 distribuibles.
 El firmado con un token físico se comprueba por separado con el controlador del
 proveedor. Se conservan [las instrucciones de compilación nativa y empaquetado
@@ -49,56 +49,49 @@ cmake --build build
 Por defecto se compila con GTK (`HEADLESS=OFF`) y sin pruebas (`BUILD_TESTING=OFF`).
 Para compilar sin GTK, añade `-DHEADLESS=ON`.
 
-## Dependencias estáticas
+## Modelo de dependencias
 
-CRSign compila automáticamente libssig desde el submódulo `tests/libssig` y la
-incorpora estáticamente. No hace falta compilarla ni instalarla por separado.
-También requiere archivos estáticos de tomlc17, Jansson, zlib, libxml2, QPDF,
-libcrypto (OpenSSL), libmagic y JPEG. argp se obtiene de libc en Linux/glibc o de un archivo estático externo. CMake falla
-si encuentra libssig compartida o faltan los archivos requeridos; no hay una
-segunda variante dinámica de CRSign.
+CRSign compila e incorpora libssig estáticamente desde `tests/libssig`; no necesita
+una instalación separada. Las demás bibliotecas se descubren con CMake y
+pkg-config, usando las versiones y el tipo de enlace de sus paquetes. No se
+recompilan ni se fuerzan archivos estáticos de OpenSSL, Jansson, zlib, libxml2,
+QPDF, JPEG o libmagic. La aplicación solo necesita un compilador C.
 
-`nix develop` proporciona los archivos estáticos requeridos. En Windows/macOS,
-OpenSSL, libmagic y jpeg-turbo de los gestores nativos incluyen los archivos
-estáticos; se seleccionan también sus dependencias privadas de enlace. Ejecuta
-`scripts/bootstrap-native.py` como indica [la guía nativa](../packaging/README.md).
-Ese paso compila tomlc17, Jansson, zlib, libxml2 y QPDF desde fuentes fijadas y
-verificadas. QPDF se configura después de instalar las dependencias pequeñas.
-El código de CRSign continúa siendo C; el enlazador C++ incorpora las
-dependencias necesarias de QPDF sin aplicar opciones de C++ a los archivos C.
+`nix develop` proporciona las dependencias en Linux. En Windows/macOS, los
+workflows instalan los paquetes de MSYS2/Homebrew; `scripts/bootstrap-native.py`
+solo prepara tomlc17 y, cuando hace falta, argp. Esas dos bibliotecas pequeñas
+pueden quedar estáticas porque el preparador produce archivos `.a`.
+
+Para trabajar con una libssig externa estática, configura `libssig_DIR` con el
+directorio que contiene `libssigConfig.cmake`. Para volver a la copia fijada:
 
 ```sh
-git submodule update --init --recursive
-cmake -S . -B build -DBUILD_TESTING=ON
-cmake --build build --parallel
-ctest --test-dir build --output-on-failure
+cmake -S . -B build -Ulibssig_DIR
 ```
 
-Para trabajar con una compilación externa o el repositorio hermano:
+La base MIME de libmagic se incorpora por defecto para evitar depender de un
+`magic.mgc` externo. Puede desactivarse con `-DLIBSSIG_EMBED_MAGIC_DATABASE=OFF`;
+los paquetes portables necesitan mantenerla activada. `MAGIC` conserva su función
+de override explícito y `LIBSSIG_MAGIC_DATABASE` permite seleccionar una base
+compatible al compilar.
 
-```sh
-cmake -S ../libssig -B ../libssig/build-static -DBUILD_SHARED_LIBS=OFF -DBUILD_TESTING=OFF
-cmake --build ../libssig/build-static --parallel
-cmake -S . -B build -Dlibssig_DIR="$PWD/../libssig/build-static"
-```
+Para migrar desde la configuración anterior que forzaba todas las bibliotecas
+estáticas, usa un directorio de compilación nuevo, también para `native-prefix`.
+Así se evitan las rutas y los archivos guardados por aquella configuración.
 
-`libssig_DIR` debe apuntar al directorio que contiene `libssigConfig.cmake`.
-Para volver a la copia fijada, configura con `cmake -S . -B build -Ulibssig_DIR`.
-Mantén disponibles los paquetes de desarrollo de las dependencias en ambos casos.
+## Actualizar dependencias
 
-La libssig integrada incorpora además la base `magic.mgc` que corresponde a
-libmagic. No necesita ese archivo durante la ejecución; `MAGIC` conserva su
-función de override explícito, incluidos los errores de una ruta inválida.
-`LIBSSIG_MAGIC_DATABASE` permite seleccionar otra base compatible al compilar.
+En Linux, `nix flake update` actualiza `flake.lock`; revisa el cambio y ejecuta
+el CI antes de incorporarlo. En macOS usa `brew update`/`brew upgrade`; en Windows,
+`pacman -Syu` dentro de UCRT64. Conserva las bibliotecas de un mismo entorno.
 
-GTK/GLib, curl, la infraestructura PKCS#11 y el runtime C++ conservan el enlace
-dinámico. Algunas de ellas pueden cargar OpenSSL, JPEG, libxml2 o zlib compartidas;
-incorporarlas en CRSign elimina sus importaciones directas, no las dependencias
-transitivas de otras bibliotecas. Los módulos PKCS#11 del proveedor siguen
-cargándose en ejecución.
-
-Las actualizaciones de las bibliotecas incorporadas, incluida libcrypto,
-requieren recompilar y distribuir CRSign de nuevo.
+Dependabot queda configurado para proponer semanalmente actualizaciones de
+GitHub Actions y del submódulo libssig cuando la configuración llegue a la rama
+predeterminada. Los cambios requieren revisión y CI; no se fusionan solos.
+Solo tomlc17 y argp mantienen descargas propias: sus versiones y hashes están
+en `scripts/bootstrap-native.py`. Para actualizarlas, cambia ambos tras verificar
+la fuente y ejecuta las pruebas nativas. No hay una copia propia del resto de
+las bibliotecas que mantener.
 
 ## Pruebas
 

@@ -20,68 +20,60 @@ del sistema. macOS usa la arquitectura del runner y objetivo de despliegue 14.0;
 las bibliotecas de Homebrew pueden elevar el mínimo efectivo del paquete.
 No se genera un binario universal a partir de bibliotecas de una sola arquitectura.
 
-El workflow contiene la lista exacta de paquetes de cada gestor. Windows usa
-`curl-winssl` (Schannel); macOS usa libcurl del SDK/sistema para HTTPS con la
-confianza TLS nativa. La validación de documentos y TSA sigue a cargo de libssig.
+El workflow contiene la lista exacta de paquetes de cada gestor. libssig se
+incorpora estáticamente; las otras bibliotecas se toman de Homebrew/MSYS2.
+Windows usa `curl-winssl` (Schannel); macOS usa libcurl del SDK/sistema para
+conservar la confianza TLS nativa. Las actualizaciones de los paquetes no
+requieren cambiar fuentes o hashes de OpenSSL, JSON, XML o PDF en CRSign.
 
-`bootstrap-native.py` compila estáticamente tomlc17 **R20260501**, Jansson
-**2.15.0**, zlib **1.3.2**, libxml2 **2.15.4**, QPDF **12.3.2** y, con
-`--with-argp`, la
-variante de argp-standalone **1.2.0** compatible con MinGW. macOS usa
-argp-standalone de Homebrew. Los archivos descargados tienen SHA-256 fijado y
-se comprueban también al reutilizar la caché. La descarga ocurre exclusivamente
-en este paso explícito, nunca durante la configuración CMake de la aplicación.
+`bootstrap-native.py` solo compila tomlc17 **R20260501** y, con `--with-argp`,
+argp-standalone **1.2.0** para MinGW. macOS usa argp de Homebrew. Estos dos
+fallbacks producen archivos estáticos; no son una segunda variante de CRSign.
+Las descargas tienen SHA-256 fijado y se verifican también al reutilizar la caché.
+CMake no descarga dependencias durante la configuración.
 
 ```sh
 python3 scripts/bootstrap-native.py --prefix "$PWD/build/native-prefix"
 # Windows, desde UCRT64:
 python scripts/bootstrap-native.py --prefix "$PWD/build/native-prefix" --with-argp
-# Para reutilizar únicamente archivos ya verificados en build/native-deps:
+# Reutilizar exclusivamente archivos verificados:
 python scripts/bootstrap-native.py --prefix "$PWD/build/native-prefix" --with-argp --offline
 ```
 
-Se necesitan Python >= 3.10, CMake >= 3.18 y Git para este proceso. Los gestores
-nativos aportan el compilador, pkg-config, GTK/GLib, libadwaita, gettext, OpenSSL >= 3.5, p11-kit,
-libmagic, JPEG y Poppler GLib. OpenSSL, libmagic y JPEG se consumen como
-archivos estáticos de esos paquetes; no se compilan otra vez en bootstrap. Se requiere un compilador C++20 para QPDF.
-Consulta el workflow para las rutas de OpenSSL, JPEG y libcurl del SDK en macOS.
-La preparación nativa instala primero las dependencias C y después compila
-únicamente el archivo estático de QPDF y sus encabezados. Su proveedor
-criptográfico usa OpenSSL, sin añadir GnuTLS ni una dependencia de libssl.
+Se necesitan Python >= 3.10, CMake y Git, además de los paquetes del workflow.
+Usa un prefijo nuevo al migrar desde el preparador anterior, que también
+compilaba Jansson, zlib, libxml2 y QPDF.
 
 ## Compilar e instalar en un prefijo temporal
 
-Tras instalar las dependencias y ejecutar bootstrap, antepón
-`build/native-prefix/lib/pkgconfig` a `PKG_CONFIG_PATH` para seleccionar Jansson
-zlib, libxml2 y QPDF del prefijo. CRSign compila libssig estática desde el submódulo:
+Tras instalar los paquetes y ejecutar bootstrap:
 
 ```sh
-export PKG_CONFIG_PATH="$PWD/build/native-prefix/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
-
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DHEADLESS=OFF -DBUILD_TESTING=ON \
-  -DSIGN_TEST_LIBSSIG=OFF \
-  -DCMAKE_PREFIX_PATH="$PWD/build/native-prefix"
+  -DSIGN_TEST_LIBSSIG=OFF -DCMAKE_PREFIX_PATH="$PWD/build/native-prefix"
 cmake --build build --parallel 4
 ctest --test-dir build --parallel 4 --output-on-failure
 ```
 
-En UCRT64 puedes añadir `-G Ninja`. En macOS añade las rutas de los kegs y el SDK
-indicadas en `native-build.yml`. `LIBSSIG_MAGIC_DATABASE` permite indicar el
-archivo `magic.mgc` que corresponde a la versión de libmagic enlazada. La base
-se comprime y se incorpora en libssig; no se busca en el equipo de compilación
-al ejecutar el paquete. `MAGIC` sigue siendo un override explícito, incluidos
-sus errores. La incorporación de la base se activa automáticamente para la
-libssig integrada. libssig, tomlc17, Jansson, zlib, libxml2, QPDF, libcrypto,
-libmagic, JPEG y argp externo quedan incorporados al ejecutable; las bibliotecas
-de GUI y del sistema conservan el enlace dinámico.
+En UCRT64 puedes añadir `-G Ninja`. En macOS conserva las rutas de los kegs,
+el SDK y el objetivo de despliegue indicados en `native-build.yml`.
+La base MIME se incorpora por defecto en libssig; `LIBSSIG_MAGIC_DATABASE`
+permite indicar la base que corresponde a la versión de libmagic enlazada.
+`MAGIC` sigue siendo un override explícito, incluidos sus errores.
 
 ## Crear y comprobar el archivo distribuible
 
+El paquete Windows es portable: el ZIP contiene `bin/sign.exe`, sus DLL y los
+recursos necesarios. Se extrae y se ejecuta sin instalar esas bibliotecas por
+separado. El controlador PKCS#11 del proveedor sigue siendo externo.
+En macOS, el script genera una carpeta reubicable y un `.tar.gz`; todavía no
+crea un bundle `.app` ni realiza notarización.
+
 Desde el sistema de destino, utiliza un directorio de salida nuevo. Con libssig
-integrada, `--libssig-build` apunta a `build`, que contiene la caché CMake común:
+integrada, la caché de libssig está en `build` y no necesita un argumento separado:
 
 ```sh
-python scripts/package-native.py --build build --libssig-build build \
+python scripts/package-native.py --build build \
   --library-prefix build/native-prefix --dependency-prefix "$MINGW_PREFIX" \
   --destination build/dist/CRSign-windows-x86_64
 python scripts/test-native-package.py build/dist/CRSign-windows-x86_64 \
@@ -89,7 +81,7 @@ python scripts/test-native-package.py build/dist/CRSign-windows-x86_64 \
 ```
 
 En macOS pasa `--dependency-prefix` para `brew --prefix` y para los kegs de
-libmagic, JPEG y OpenSSL, como hace el workflow; indica la ruta al ejecutable
+libmagic, libxml2 y OpenSSL, como hace el workflow; indica la ruta al ejecutable
 OpenSSL de Homebrew al comprobar el paquete. Omite `--gui` en la variante CLI.
 
 El empaquetador recorre las dependencias PE/Mach-O, incluye las bibliotecas

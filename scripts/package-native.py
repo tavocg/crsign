@@ -213,7 +213,7 @@ def sources_archive(source, target):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--build', type=Path, required=True)
-    parser.add_argument('--libssig-build', type=Path, required=True)
+    parser.add_argument('--libssig-build', type=Path, help='External libssig build; defaults to --build')
     parser.add_argument('--library-prefix', type=Path, required=True)
     parser.add_argument('--dependency-prefix', type=Path, action='append', default=[])
     parser.add_argument('--destination', type=Path, required=True)
@@ -223,7 +223,7 @@ def main():
     if not shutil.which('git'):
         parser.error('Git is required to include the tracked project and libssig sources')
     cache = (args.build / 'CMakeCache.txt').read_text(encoding='utf-8')
-    library_cache = (args.libssig_build / 'CMakeCache.txt').read_text(encoding='utf-8')
+    library_cache = ((args.libssig_build or args.build) / 'CMakeCache.txt').read_text(encoding='utf-8')
     if 'LIBSSIG_EMBED_MAGIC_DATABASE:BOOL=ON' not in library_cache:
         parser.error('Build libssig with LIBSSIG_EMBED_MAGIC_DATABASE=ON first')
     root = args.destination.resolve()

@@ -9,9 +9,7 @@ else()
             "Missing pinned libssig source. Run git submodule update --init --recursive "
             "or set libssig_DIR to an existing static libssig package.")
     endif()
-    # A bundled libmagic archive should not require a runtime magic.mgc file.
-    # Keep the cache truthful for the native packaging checks as well.
-    set(LIBSSIG_EMBED_MAGIC_DATABASE ON CACHE BOOL "Embed libmagic's matching database" FORCE)
+    option(LIBSSIG_EMBED_MAGIC_DATABASE "Embed libmagic's matching MIME database" ON)
     # Keep dependency options local; CRSign owns testing and installation.
     function(sign_add_bundled_libssig)
         set(BUILD_SHARED_LIBS OFF)

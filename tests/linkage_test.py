@@ -17,9 +17,8 @@ else:
     imports = re.findall(r'\(NEEDED\).*?\[(.*?)\]', output)
 
 assert imports, f'No dynamic imports found in {binary}: {output}'
-# The GUI and system dependencies stay dynamic. They may themselves depend on
-# shared zlib; this checks what CRSign directly imports rather than their closure.
+# Only libssig is required to be static. Other libraries follow their packages.
 for dependency in imports:
     name = Path(dependency).name.lower()
-    assert not re.match(r'(lib)?(ssig|tomlc17|jansson|argp|zlib|z|xml2|qpdf|crypto|ssl|magic|jpeg)([-.\d]|$)', name), dependency
-print('Static application dependencies verified; direct imports:', ', '.join(imports))
+    assert not re.match(r'(lib)?(ssig)([-.\d]|$)', name), dependency
+print('Static libssig verified; other direct imports:', ', '.join(imports))

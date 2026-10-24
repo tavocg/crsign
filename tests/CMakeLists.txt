@@ -35,7 +35,7 @@ add_test(NAME static_linkage COMMAND "${Python3_EXECUTABLE}"
 
 # The bundled library embeds the database. External packages may intentionally
 # use libmagic's filesystem database, so this contract applies to bundled builds.
-if(TARGET ssig)
+if(TARGET ssig AND LIBSSIG_EMBED_MAGIC_DATABASE)
     add_executable(magic_driver magic_driver.c)
     target_link_libraries(magic_driver PRIVATE libssig::ssig)
     target_compile_options(magic_driver PRIVATE -Wall -Wextra -Wpedantic -Werror)

@@ -11,17 +11,16 @@ nix develop --command cmake --build build --parallel
 nix develop --command ctest --test-dir build --parallel 4 --output-on-failure
 ```
 
-CRSign builds the pinned libssig source automatically; no separate library
-build or installation is needed. Set `libssig_DIR` only to explicitly select an
-external static package. CRSign uses static libssig, tomlc17, Jansson, zlib,
-libxml2, QPDF, libcrypto, libmagic and JPEG; external argp is static as well.
-QPDF brings its private link dependencies and the C++ runtime, while CRSign source
-files remain C. The Nix shell supplies the static archives. Native builds prepare
-the pinned dependencies with `scripts/bootstrap-native.py`. CI has one GTK build per platform,
-without a shared/static matrix. `static_linkage` inspects the executable's actual
-direct imports to catch accidental dynamic linkage of these libraries.
-`embedded_magic` checks that user MIME rules do not replace the embedded database,
-while an explicit `MAGIC` override still works and a missing override fails.
+CRSign builds pinned libssig statically; no separate library installation is
+needed. Other dependencies use their normal system packages. The Nix shell has
+no static-library overrides. Native bootstrap only builds tomlc17 and optional
+argp when the platform does not provide them.
+
+CI has one GTK build per platform, without a shared/static matrix.
+`static_linkage` checks only that the executable does not import libssig as a
+shared library. `embedded_magic` checks the bundled MIME database and explicit
+`MAGIC` overrides when embedding is enabled. It is skipped for external libssig
+packages or when embedding is disabled.
 
 All registration lives in `tests/CMakeLists.txt`. The `tests/libssig` submodule
 pins the same implementation and reusable tests. It contains the nested official
