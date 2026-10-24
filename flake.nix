@@ -19,6 +19,9 @@
       devShells = forAllSystems (system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
+          staticJansson = pkgs.jansson.overrideAttrs (old: {
+            cmakeFlags = (old.cmakeFlags or []) ++ [ "-DJANSSON_BUILD_SHARED_LIBS=OFF" ];
+          });
         in
         {
           default = pkgs.mkShell {
@@ -33,14 +36,13 @@
             ];
             nativeBuildInputs = with pkgs; [ pkg-config gettext ];
             buildInputs = with pkgs; [
-              gtk4 libadwaita poppler glib librsvg gdk-pixbuf cairo tomlc17 curl openssl p11-kit file qpdf zlib jansson libxml2
+              gtk4 libadwaita poppler glib librsvg gdk-pixbuf cairo tomlc17 curl openssl p11-kit file qpdf zlib zlib.static staticJansson libxml2
               # FindPkgConfig also queries GTK private dependencies for static linking.
               libsysprof-capture pcre2 util-linux libselinux libsepol
               fribidi libthai libdatrie libxdmcp libxau dav1d appstream
             ];
 
             shellHook = ''
-              export CMAKE_PREFIX_PATH="$HOME/Projects/libssig/build''${CMAKE_PREFIX_PATH:+:$CMAKE_PREFIX_PATH}"
               # Unwrapped GTK binaries also need the schema paths collected by
               # Nix's GLib setup hook, including on runners without a desktop.
               if [[ -n "''${GSETTINGS_SCHEMAS_PATH:-}" ]]; then

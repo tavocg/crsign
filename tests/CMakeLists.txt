@@ -30,6 +30,8 @@ endfunction()
 
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 find_program(OPENSSL_EXECUTABLE openssl REQUIRED)
+add_test(NAME static_linkage COMMAND "${Python3_EXECUTABLE}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/linkage_test.py" $<TARGET_FILE:sign>)
 
 add_executable(timestamp_driver
     timestamp_driver.c

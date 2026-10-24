@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Build the two small pinned dependencies missing from some native repositories.
+"""Build the small pinned static dependencies for native packages.
 
 Network access is explicit here; application/library CMake configure stays offline.
 Cached archives are always verified, including when --offline is used.
@@ -15,6 +15,10 @@ import tarfile
 import urllib.request
 
 SOURCES = {
+    'jansson': ('2.15.0', 'https://codeload.github.com/akheron/jansson/tar.gz/refs/tags/v2.15.0',
+                '73ac12bbc62ff536e40c7a3e15ed007993c5ca4d23897de23f1906f891b5a4bb'),
+    'zlib': ('1.3.2', 'https://codeload.github.com/madler/zlib/tar.gz/refs/tags/v1.3.2',
+             'b99a0b86c0ba9360ec7e78c4f1e43b1cbdf1e6936c8fa0f6835c0cd694a495a1'),
     'tomlc17': ('R20260501', 'https://codeload.github.com/cktan/tomlc17/tar.gz/refs/tags/R20260501',
                 '85a61daa8ca69c8036ce37529645769bf58ee4c8b0734283228c854cecf55cda'),
     'argp': ('1.2.0', 'https://codeload.github.com/tom42/argp-standalone/tar.gz/refs/tags/v1.2.0',
@@ -64,7 +68,9 @@ def main():
     args = parser.parse_args()
     cache, prefix = args.cache.resolve(), args.prefix.resolve()
     cache.mkdir(parents=True, exist_ok=True)
-    names = ['tomlc17', 'argp'] if args.with_argp else ['tomlc17']
+    names = ['tomlc17', 'jansson', 'zlib']
+    if args.with_argp:
+        names.append('argp')
     inputs = {name: fetch(name, cache, args.offline) for name in names}
     project = cache / 'project'
     project.mkdir(exist_ok=True)
@@ -75,6 +81,22 @@ add_library(tomlc17 STATIC "{toml}/src/tomlc17.c")
 set_target_properties(tomlc17 PROPERTIES C_STANDARD 17 POSITION_INDEPENDENT_CODE ON)
 install(TARGETS tomlc17 ARCHIVE DESTINATION lib)
 install(FILES "{toml}/src/tomlc17.h" DESTINATION include)
+'''
+    jansson = inputs['jansson'][0].as_posix()
+    zlib = inputs['zlib'][0].as_posix()
+    cmake += f'''set(CMAKE_POLICY_VERSION_MINIMUM 3.10)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(JANSSON_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+set(JANSSON_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+set(JANSSON_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(JANSSON_WITHOUT_TESTS ON CACHE BOOL "" FORCE)
+add_subdirectory("{jansson}" jansson)
+set(ZLIB_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+set(ZLIB_BUILD_STATIC ON CACHE BOOL "" FORCE)
+set(ZLIB_BUILD_TESTING OFF CACHE BOOL "" FORCE)
+set(CMAKE_INSTALL_LIBDIR lib CACHE PATH "" FORCE)
+add_subdirectory("{zlib}" zlib)
+set_target_properties(zlibstatic PROPERTIES OUTPUT_NAME z)
 '''
     if args.with_argp:
         argp = inputs['argp'][0].as_posix()
