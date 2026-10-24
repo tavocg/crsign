@@ -34,3 +34,11 @@ button.signature-remove:hover { background: #e8e8e8; }
 #devices-content row.expander:not(:checked) > box > list > row.header image.expander-row-arrow:dir(rtl) {
   -gtk-icon-transform: rotate(-0.5turn);
 }
+
+/* Home documents follow the compact, unboxed file-manager list layout. */
+list.home-file-list {
+  background: transparent;
+}
+list.home-file-list > row {
+  padding: 0 4px;
+}

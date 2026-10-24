@@ -109,6 +109,14 @@ int main(int argc, char** argv) {
 	g_assert_cmpint(argc, ==, 3);
 	gui_i18n_init();
 	adw_init();
+	GtkCssProvider* style = gtk_css_provider_new();
+	gtk_css_provider_load_from_resource(style, "/org/crsign/Sign/style.css");
+	gtk_style_context_add_provider_for_display(
+	    gdk_display_get_default(),
+	    GTK_STYLE_PROVIDER(style),
+	    GTK_STYLE_PROVIDER_PRIORITY_APPLICATION
+	);
+	g_object_unref(style);
 	g_mkdir_with_parents(argv[2], 0700);
 	for (unsigned int n = 0; n < 57; ++n) {
 		char* path = g_strdup_printf(

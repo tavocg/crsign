@@ -158,12 +158,12 @@ static GtkWidget* file_widget(
 	GFile*     file = g_file_new_for_path(entry->path);
 	GtkWidget* box = gtk_box_new(
 	    grid ? GTK_ORIENTATION_VERTICAL : GTK_ORIENTATION_HORIZONTAL,
-	    8
+	    grid ? 4 : 8
 	);
-	gtk_widget_set_margin_start(box, 12);
-	gtk_widget_set_margin_end(box, 12);
-	gtk_widget_set_margin_top(box, 12);
-	gtk_widget_set_margin_bottom(box, 12);
+	gtk_widget_set_margin_start(box, 4);
+	gtk_widget_set_margin_end(box, 4);
+	gtk_widget_set_margin_top(box, grid ? 4 : 0);
+	gtk_widget_set_margin_bottom(box, grid ? 4 : 0);
 	sign_file_actions_attach(
 	    box,
 	    file,
@@ -181,9 +181,14 @@ static GtkWidget* file_widget(
 	GtkWidget* image = gtk_image_new_from_icon_name("text-x-generic-symbolic");
 	gtk_image_set_pixel_size(GTK_IMAGE(image), grid ? 128 : 24);
 	if (grid) {
-		gtk_widget_set_size_request(image, 150, 150);
+		gtk_widget_set_size_request(image, 128, 128);
+		gtk_label_set_max_width_chars(GTK_LABEL(title), 18);
+		gtk_label_set_wrap(GTK_LABEL(title), TRUE);
+		gtk_label_set_wrap_mode(GTK_LABEL(title), PANGO_WRAP_WORD_CHAR);
+		gtk_label_set_lines(GTK_LABEL(title), 2);
+		gtk_label_set_justify(GTK_LABEL(title), GTK_JUSTIFY_CENTER);
 		gtk_box_append(GTK_BOX(box), image);
-		gtk_widget_set_size_request(box, 170, -1);
+		gtk_widget_set_size_request(box, 146, -1);
 		gtk_widget_add_css_class(box, "home-file-tile");
 		thumbnail_job* job = g_new0(thumbnail_job, 1);
 		job->path = g_strdup(entry->path);
@@ -241,14 +246,14 @@ static GtkWidget* section_list(SignHome* self, GtkWidget* target) {
 		gtk_flow_box_set_selection_mode(GTK_FLOW_BOX(flow), GTK_SELECTION_NONE);
 		gtk_flow_box_set_min_children_per_line(GTK_FLOW_BOX(flow), 1);
 		gtk_flow_box_set_max_children_per_line(GTK_FLOW_BOX(flow), 12);
-		gtk_flow_box_set_column_spacing(GTK_FLOW_BOX(flow), 12);
-		gtk_flow_box_set_row_spacing(GTK_FLOW_BOX(flow), 12);
+		gtk_flow_box_set_column_spacing(GTK_FLOW_BOX(flow), 4);
+		gtk_flow_box_set_row_spacing(GTK_FLOW_BOX(flow), 4);
 		gtk_flow_box_set_homogeneous(GTK_FLOW_BOX(flow), TRUE);
 		gtk_box_append(GTK_BOX(target), flow);
 		return flow;
 	}
 	GtkWidget* columns = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
-	gtk_widget_set_margin_start(columns, 44);
+	gtk_widget_set_margin_start(columns, 40);
 	GtkWidget* label = gtk_label_new(_("Document"));
 	gtk_label_set_xalign(GTK_LABEL(label), 0);
 	gtk_widget_set_hexpand(label, TRUE);
@@ -263,7 +268,7 @@ static GtkWidget* section_list(SignHome* self, GtkWidget* target) {
 	gtk_box_append(GTK_BOX(target), columns);
 	GtkWidget* list = gtk_list_box_new();
 	gtk_list_box_set_selection_mode(GTK_LIST_BOX(list), GTK_SELECTION_NONE);
-	gtk_widget_add_css_class(list, "boxed-list");
+	gtk_widget_add_css_class(list, "home-file-list");
 	gtk_box_append(GTK_BOX(target), list);
 	return list;
 }
