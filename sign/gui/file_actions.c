@@ -114,13 +114,6 @@ static void favorite(
 		binding->favorite(binding->file, active, binding->data);
 	}
 }
-static void popover_closed(GtkPopover* popover, gpointer data) {
-	file_actions* binding = data;
-	if (binding->popover == GTK_WIDGET(popover)) {
-		binding->popover = NULL;
-	}
-	gtk_widget_unparent(GTK_WIDGET(popover));
-}
 static void clear_popover(file_actions* binding) {
 	if (!binding->popover) {
 		return;
@@ -155,7 +148,9 @@ static void pressed(
 	gtk_widget_set_parent(popover, binding->widget);
 	GdkRectangle rectangle = {(int)x, (int)y, 1, 1};
 	gtk_popover_set_pointing_to(GTK_POPOVER(popover), &rectangle);
-	g_signal_connect(popover, "closed", G_CALLBACK(popover_closed), binding);
+	/* Menu activation closes the popover before dispatching its action.
+	 * Keep it parented until the next opening or unrealize so action lookup
+	 * can still reach the document action group. */
 	gtk_gesture_set_state(GTK_GESTURE(gesture), GTK_EVENT_SEQUENCE_CLAIMED);
 	gtk_popover_popup(GTK_POPOVER(popover));
 }

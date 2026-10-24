@@ -46,10 +46,26 @@ static void favorite_changed(GFile* file, bool favorite, gpointer data) {
 	sign_home_reload(self);
 }
 static char* date_text(gint64 time) {
-	GDateTime* utc = g_date_time_new_from_unix_utc(time / G_USEC_PER_SEC);
-	GDateTime* local = utc ? g_date_time_to_local(utc) : NULL;
-	char*      text = local ? g_date_time_format(local, "%Y-%m-%d %H:%M")
-	                        : g_strdup(_("Unknown date"));
+	GDateTime*  utc = g_date_time_new_from_unix_utc(time / G_USEC_PER_SEC);
+	GDateTime*  local = utc ? g_date_time_to_local(utc) : NULL;
+	GDateTime*  now = g_date_time_new_now_local();
+	GDateTime*  yesterday = g_date_time_add_days(now, -1);
+	const char* format = _("%e %b %Y");
+	if (local) {
+		int day = g_date_time_get_day_of_year(local);
+		int year = g_date_time_get_year(local);
+		if (year == g_date_time_get_year(now) &&
+		    day == g_date_time_get_day_of_year(now)) {
+			format = _("Today · %H:%M");
+		} else if (year == g_date_time_get_year(yesterday) &&
+		           day == g_date_time_get_day_of_year(yesterday)) {
+			format = _("Yesterday · %H:%M");
+		}
+	}
+	char* text = local ? g_date_time_format(local, format)
+	                   : g_strdup(_("Unknown date"));
+	g_date_time_unref(yesterday);
+	g_date_time_unref(now);
 	if (local) {
 		g_date_time_unref(local);
 	}
@@ -168,7 +184,7 @@ static GtkWidget* file_widget(
 		gtk_widget_set_size_request(image, 150, 150);
 		gtk_box_append(GTK_BOX(box), image);
 		gtk_widget_set_size_request(box, 170, -1);
-		gtk_widget_add_css_class(box, "card");
+		gtk_widget_add_css_class(box, "home-file-tile");
 		thumbnail_job* job = g_new0(thumbnail_job, 1);
 		job->path = g_strdup(entry->path);
 		GTask* task = g_task_new(
@@ -186,29 +202,36 @@ static GtkWidget* file_widget(
 		gtk_widget_set_hexpand(title, TRUE);
 	}
 	gtk_box_append(GTK_BOX(box), title);
-	char*      date = date_text(entry->signed_at);
-	GtkWidget* stamp = gtk_label_new(date);
-	g_free(date);
-	gtk_widget_add_css_class(stamp, "dim-label");
-	gtk_label_set_width_chars(GTK_LABEL(stamp), 16);
-	gtk_box_append(GTK_BOX(box), stamp);
-	GtkWidget* actions = grid ? gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4)
-	                          : box;
-	if (grid) {
-		gtk_widget_set_halign(actions, GTK_ALIGN_END);
-		gtk_box_append(GTK_BOX(box), actions);
-	}
-	if (recent) {
-		gtk_box_append(
-		    GTK_BOX(actions),
-		    sign_file_favorite_button(entry->favorite)
+	if (!grid) {
+		char*      date = date_text(entry->signed_at);
+		GtkWidget* stamp = gtk_label_new(date);
+		g_free(date);
+		gtk_widget_set_name(stamp, "document-signed-date");
+		gtk_widget_add_css_class(stamp, "dim-label");
+		gtk_widget_add_css_class(stamp, "caption");
+		gtk_label_set_width_chars(GTK_LABEL(stamp), 20);
+		GDateTime* local = g_date_time_new_from_unix_local(
+		    entry->signed_at / G_USEC_PER_SEC
 		);
-	} else if (!grid) {
-		GtkWidget* spacer = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-		gtk_widget_set_size_request(spacer, 34, -1);
-		gtk_box_append(GTK_BOX(actions), spacer);
+		char* full = local ? g_date_time_format(local, "%c") : NULL;
+		gtk_widget_set_tooltip_text(stamp, full);
+		g_free(full);
+		if (local) {
+			g_date_time_unref(local);
+		}
+		gtk_box_append(GTK_BOX(box), stamp);
+		if (recent) {
+			gtk_box_append(
+			    GTK_BOX(box),
+			    sign_file_favorite_button(entry->favorite)
+			);
+		} else {
+			GtkWidget* spacer = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+			gtk_widget_set_size_request(spacer, 34, -1);
+			gtk_box_append(GTK_BOX(box), spacer);
+		}
+		gtk_box_append(GTK_BOX(box), sign_file_location_button());
 	}
-	gtk_box_append(GTK_BOX(actions), sign_file_location_button());
 	return box;
 }
 static GtkWidget* section_list(SignHome* self, GtkWidget* target) {
@@ -231,7 +254,7 @@ static GtkWidget* section_list(SignHome* self, GtkWidget* target) {
 	gtk_widget_set_hexpand(label, TRUE);
 	gtk_box_append(GTK_BOX(columns), label);
 	label = gtk_label_new(_("Signed"));
-	gtk_label_set_width_chars(GTK_LABEL(label), 16);
+	gtk_label_set_width_chars(GTK_LABEL(label), 20);
 	gtk_box_append(GTK_BOX(columns), label);
 	label = gtk_label_new("");
 	gtk_widget_set_size_request(label, 88, -1);

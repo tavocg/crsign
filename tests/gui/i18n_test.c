@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include <gio/gio.h>
+#include <sign/appearance.h>
 #include <sign/error.h>
 #include <sign/gui/error.h>
 #include <sign/gui/i18n.h>
@@ -54,5 +55,20 @@ int main(int argc, char** argv) {
 		g_assert_cmpstr(_("About"), ==, "About");
 		g_assert_cmpstr(_("Menu"), ==, "Menu");
 	}
+	char* svg = appearance_text_svg("Ana & <CR>");
+	g_assert_nonnull(svg);
+	g_assert_nonnull(strstr(svg, "Ana &amp; &lt;CR&gt;"));
+	if (!strcmp(argv[1], "es")) {
+		g_assert_nonnull(strstr(svg, "Firmado digitalmente"));
+		g_assert_nonnull(
+		    strstr(svg, "Representación gráfica. Verifique la validez.")
+		);
+	} else {
+		g_assert_nonnull(strstr(svg, "Digitally signed"));
+		g_assert_nonnull(
+		    strstr(svg, "Graphical representation. Verify validity.")
+		);
+	}
+	g_free(svg);
 	return 0;
 }

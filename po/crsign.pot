@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: CRSign 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/tavocg/crsign/issues\n"
-"POT-Creation-Date: 2026-10-23 22:50-0600\n"
+"POT-Creation-Date: 2026-10-24 12:41-0600\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -670,11 +670,11 @@ msgstr ""
 msgid "Cannot monitor devices"
 msgstr ""
 
-#: sign/gui/devices.c:734 sign/gui/home.c:380
+#: sign/gui/devices.c:734 sign/gui/home.c:403
 msgid "Could not save display preference"
 msgstr ""
 
-#: sign/gui/devices.c:735 sign/gui/home.c:381
+#: sign/gui/devices.c:735 sign/gui/home.c:404
 msgid ""
 "The display preference could not be saved. Check the application data file "
 "and its permissions."
@@ -1094,45 +1094,57 @@ msgid ""
 "permissions and the history size limit."
 msgstr ""
 
-#: sign/gui/home.c:52
+#: sign/gui/home.c:53
+msgid "%e %b %Y"
+msgstr ""
+
+#: sign/gui/home.c:59
+msgid "Today · %H:%M"
+msgstr ""
+
+#: sign/gui/home.c:62
+msgid "Yesterday · %H:%M"
+msgstr ""
+
+#: sign/gui/home.c:66
 msgid "Unknown date"
 msgstr ""
 
-#: sign/gui/home.c:229
+#: sign/gui/home.c:252
 msgid "Document"
 msgstr ""
 
-#: sign/gui/home.c:233
+#: sign/gui/home.c:256
 msgid "Signed"
 msgstr ""
 
-#: sign/gui/home.c:493
+#: sign/gui/home.c:516
 msgid "No matching documents"
 msgstr ""
 
-#: sign/gui/home.c:580
+#: sign/gui/home.c:603
 msgid ""
 "The document history could not be read. It may be invalid or exceed its size "
 "limit."
 msgstr ""
 
-#: sign/gui/home.c:601
+#: sign/gui/home.c:624
 msgid "Favorites"
 msgstr ""
 
-#: sign/gui/home.c:609 sign/gui/home.c:623 sign/gui/home.c:684
+#: sign/gui/home.c:632 sign/gui/home.c:646 sign/gui/home.c:707
 msgid "Show more"
 msgstr ""
 
-#: sign/gui/home.c:614
+#: sign/gui/home.c:637
 msgid "Recent"
 msgstr ""
 
-#: sign/gui/home.c:637
+#: sign/gui/home.c:660
 msgid "Search signed documents"
 msgstr ""
 
-#: sign/gui/home.c:652
+#: sign/gui/home.c:675
 msgid "Search by document name"
 msgstr ""
 
@@ -1146,10 +1158,18 @@ msgid ""
 "that you have permission to access it."
 msgstr ""
 
-#: sign/gui/file_actions.c:148 sign/gui/file_actions.c:242
+#: sign/gui/file_actions.c:141 sign/gui/file_actions.c:237
 msgid "Open file location"
 msgstr ""
 
-#: sign/gui/file_actions.c:150 sign/gui/file_actions.c:254
+#: sign/gui/file_actions.c:143 sign/gui/file_actions.c:249
 msgid "Favorite"
+msgstr ""
+
+#: sign/appearance.c:86
+msgid "Digitally signed"
+msgstr ""
+
+#: sign/appearance.c:88
+msgid "Graphical representation. Verify validity."
 msgstr ""

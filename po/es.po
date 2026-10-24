@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: CRSign 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/tavocg/crsign/issues\n"
-"POT-Creation-Date: 2026-10-23 22:50-0600\n"
+"POT-Creation-Date: 2026-10-24 12:41-0600\n"
 "PO-Revision-Date: 2026-10-23 00:00-0600\n"
 "Last-Translator: Gustavo Calvo <tavo@tavo.cr>\n"
 "Language-Team: Spanish\n"
@@ -143,7 +143,8 @@ msgstr "Valores de firmado"
 
 #: sign/gui/settings.c:630
 msgid "Global inherits the global value. Auto uses the engine default."
-msgstr "Global hereda el valor global. Auto usa el valor predeterminado del motor."
+msgstr ""
+"Global hereda el valor global. Auto usa el valor predeterminado del motor."
 
 #: sign/gui/settings.c:633 sign/gui/devices.c:323
 msgid "Token URI"
@@ -670,11 +671,11 @@ msgstr "No se pueden cargar los módulos PKCS#11"
 msgid "Cannot monitor devices"
 msgstr "No se pueden detectar cambios en los dispositivos"
 
-#: sign/gui/devices.c:734 sign/gui/home.c:380
+#: sign/gui/devices.c:734 sign/gui/home.c:403
 msgid "Could not save display preference"
 msgstr "No se pudo guardar la preferencia de visualización"
 
-#: sign/gui/devices.c:735 sign/gui/home.c:381
+#: sign/gui/devices.c:735 sign/gui/home.c:404
 msgid ""
 "The display preference could not be saved. Check the application data file "
 "and its permissions."
@@ -1148,23 +1149,35 @@ msgstr ""
 "No se pudo guardar el historial de documentos. Revisa el espacio disponible, "
 "los permisos del archivo y el límite de tamaño del historial."
 
-#: sign/gui/home.c:52
+#: sign/gui/home.c:53
+msgid "%e %b %Y"
+msgstr "%e %b %Y"
+
+#: sign/gui/home.c:59
+msgid "Today · %H:%M"
+msgstr "Hoy · %H:%M"
+
+#: sign/gui/home.c:62
+msgid "Yesterday · %H:%M"
+msgstr "Ayer · %H:%M"
+
+#: sign/gui/home.c:66
 msgid "Unknown date"
 msgstr "Fecha desconocida"
 
-#: sign/gui/home.c:229
+#: sign/gui/home.c:252
 msgid "Document"
 msgstr "Documento"
 
-#: sign/gui/home.c:233
+#: sign/gui/home.c:256
 msgid "Signed"
 msgstr "Firmado"
 
-#: sign/gui/home.c:493
+#: sign/gui/home.c:516
 msgid "No matching documents"
 msgstr "No se encontraron documentos"
 
-#: sign/gui/home.c:580
+#: sign/gui/home.c:603
 msgid ""
 "The document history could not be read. It may be invalid or exceed its size "
 "limit."
@@ -1172,23 +1185,23 @@ msgstr ""
 "No se pudo leer el historial de documentos. Puede contener datos no válidos "
 "o superar el límite de tamaño."
 
-#: sign/gui/home.c:601
+#: sign/gui/home.c:624
 msgid "Favorites"
 msgstr "Favoritos"
 
-#: sign/gui/home.c:609 sign/gui/home.c:623 sign/gui/home.c:684
+#: sign/gui/home.c:632 sign/gui/home.c:646 sign/gui/home.c:707
 msgid "Show more"
 msgstr "Mostrar más"
 
-#: sign/gui/home.c:614
+#: sign/gui/home.c:637
 msgid "Recent"
 msgstr "Recientes"
 
-#: sign/gui/home.c:637
+#: sign/gui/home.c:660
 msgid "Search signed documents"
 msgstr "Buscar documentos firmados"
 
-#: sign/gui/home.c:652
+#: sign/gui/home.c:675
 msgid "Search by document name"
 msgstr "Buscar por nombre del documento"
 
@@ -1204,13 +1217,21 @@ msgstr ""
 "No se pudo abrir la carpeta del archivo. Comprueba que exista y que tengas "
 "permiso para acceder a ella."
 
-#: sign/gui/file_actions.c:148 sign/gui/file_actions.c:242
+#: sign/gui/file_actions.c:141 sign/gui/file_actions.c:237
 msgid "Open file location"
 msgstr "Abrir ubicación del archivo"
 
-#: sign/gui/file_actions.c:150 sign/gui/file_actions.c:254
+#: sign/gui/file_actions.c:143 sign/gui/file_actions.c:249
 msgid "Favorite"
 msgstr "Favorito"
+
+#: sign/appearance.c:86
+msgid "Digitally signed"
+msgstr "Firmado digitalmente"
+
+#: sign/appearance.c:88
+msgid "Graphical representation. Verify validity."
+msgstr "Representación gráfica. Verifique la validez."
 
 #~ msgid "Global settings"
 #~ msgstr "Ajustes globales"

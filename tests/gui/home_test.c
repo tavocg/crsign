@@ -35,7 +35,7 @@ static GtkWidget* context_open(GtkWidget* window, GtkWidget* item) {
 	if (!tool) {
 		return NULL;
 	}
-	gtk_widget_grab_focus(named(item, "document-location"));
+	gtk_widget_grab_focus(gtk_widget_get_parent(item));
 	settle();
 	graphene_rect_t bounds;
 	g_assert_true(gtk_widget_compute_bounds(item, window, &bounds));
@@ -159,8 +159,10 @@ int main(int argc, char** argv) {
 		g_usleep(1000);
 	}
 	g_assert_true(GDK_IS_TEXTURE(gtk_image_get_paintable(image)));
-	g_assert_nonnull(named(first, "document-location"));
-	g_assert_nonnull(named(first, "document-favorite"));
+	g_assert_null(named(first, "document-location"));
+	g_assert_null(named(first, "document-favorite"));
+	g_assert_null(named(first, "document-signed-date"));
+	g_assert_false(gtk_widget_has_css_class(first, "card"));
 	/* Intercept the native reveal request on the private test bus. */
 	GDBusConnection* bus = g_bus_get_sync(G_BUS_TYPE_SESSION, NULL, NULL);
 	g_assert_nonnull(bus);
@@ -202,7 +204,14 @@ int main(int argc, char** argv) {
         NULL
     );
 	g_assert_cmpuint(registration, >, 0);
-	g_signal_emit_by_name(named(first, "document-location"), "clicked");
+	GtkWidget* location_menu = context_open(window, first);
+	g_assert_nonnull(location_menu);
+	GtkWidget* location_item = find_widget(
+	    location_menu,
+	    g_type_from_name("GtkModelButton")
+	);
+	g_assert_nonnull(location_item);
+	g_assert_true(gtk_widget_activate(location_item));
 	deadline = g_get_monotonic_time() + 10 * G_TIME_SPAN_SECOND;
 	while (!manager.calls && g_get_monotonic_time() < deadline) {
 		while (g_main_context_iteration(NULL, FALSE)) {
@@ -249,7 +258,7 @@ int main(int argc, char** argv) {
 	    GTK_FLOW_BOX(flow(GTK_WIDGET(self), "home-recents")),
 	    0
 	));
-	g_signal_emit_by_name(named(first, "document-favorite"), "clicked");
+	g_assert_true(gtk_widget_activate_action(first, "document.favorite", NULL));
 	sign_history* clicked = history_load(NULL);
 	g_assert_true(history_get(clicked, 0)->favorite);
 	history_free(clicked);
@@ -257,12 +266,7 @@ int main(int argc, char** argv) {
 	    GTK_FLOW_BOX(flow(GTK_WIDGET(self), "home-recents")),
 	    0
 	));
-	g_assert_cmpstr(
-	    gtk_button_get_icon_name(GTK_BUTTON(named(first, "document-favorite"))),
-	    ==,
-	    "starred-symbolic"
-	);
-	g_signal_emit_by_name(named(first, "document-favorite"), "clicked");
+	g_assert_true(gtk_widget_activate_action(first, "document.favorite", NULL));
 	first = gtk_flow_box_child_get_child(gtk_flow_box_get_child_at_index(
 	    GTK_FLOW_BOX(flow(GTK_WIDGET(self), "home-recents")),
 	    0
@@ -282,9 +286,14 @@ int main(int argc, char** argv) {
 		    2
 		);
 		snapshot(menu, argv[2], "home-document-menu.png");
-		g_assert_true(
-		    gtk_widget_activate_action(menu, "document.favorite", NULL)
+		GtkWidget* location_item = find_widget(
+		    menu,
+		    g_type_from_name("GtkModelButton")
 		);
+		GtkWidget* favorite_item = gtk_widget_get_next_sibling(location_item);
+		g_assert_nonnull(favorite_item);
+		g_assert_true(gtk_widget_activate(favorite_item));
+		settle();
 	} else {
 		g_assert_true(
 		    gtk_widget_activate_action(first, "document.favorite", NULL)
@@ -301,6 +310,21 @@ int main(int argc, char** argv) {
 	);
 	g_assert_true(contains(GTK_WIDGET(self), "Documento"));
 	g_assert_true(contains(GTK_WIDGET(self), "Firmado"));
+	GtkWidget* list = find_widget(
+	    named(GTK_WIDGET(self), "home-recents"),
+	    GTK_TYPE_LIST_BOX
+	);
+	GtkWidget* row = GTK_WIDGET(
+	    gtk_list_box_get_row_at_index(GTK_LIST_BOX(list), 0)
+	);
+	g_assert_nonnull(named(row, "document-location"));
+	g_assert_nonnull(named(row, "document-favorite"));
+	GtkWidget* stamp = named(row, "document-signed-date");
+	g_assert_nonnull(stamp);
+	g_assert_true(
+	    g_str_has_prefix(gtk_label_get_text(GTK_LABEL(stamp)), "Hoy · ")
+	);
+	g_assert_nonnull(gtk_widget_get_tooltip_text(stamp));
 	snapshot(window, argv[2], "home-list.png");
 	gtk_menu_button_popup(GTK_MENU_BUTTON(sign_home_search_button(self)));
 	settle();

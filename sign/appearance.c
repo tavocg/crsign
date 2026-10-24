@@ -12,6 +12,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define _(message) g_dgettext("crsign", message)
+
 /* No base URI is supplied: user SVGs cannot load neighbouring files. */
 char* appearance_default_svg(const libssig_certificate* cert) {
 	if (!cert || !cert->der || !cert->der_len || cert->der_len > LONG_MAX) {
@@ -81,6 +83,11 @@ char* appearance_text_svg(const char* name) {
 	    g_get_real_time() / G_USEC_PER_SEC
 	);
 	char* date = g_date_time_format(now, "%Y-%m-%dT%H:%M:%S%:z");
+	char* signed_text = g_markup_escape_text(_("Digitally signed"), -1);
+	char* notice = g_markup_escape_text(
+	    _("Graphical representation. Verify validity."),
+	    -1
+	);
 	/* Measure with the same font engine used by librsvg to fit long names. */
 	char* svg = g_strdup_printf(
 	    "<svg xmlns='http://www.w3.org/2000/svg' width='600' height='200' "
@@ -89,14 +96,17 @@ char* appearance_text_svg(const char* name) {
 	    "stroke='#24516c' stroke-width='4'/>"
 	    "<g font-family='sans-serif' fill='#183747'>"
 	    "<text x='24' y='43' font-size='%s' font-weight='bold'>%s</text>"
-	    "<text x='24' y='83' font-size='25'>Firmado digitalmente</text>"
+	    "<text x='24' y='83' font-size='25'>%s</text>"
 	    "<text x='24' y='124' font-size='23'>%s</text>"
-	    "<text x='24' y='172' font-size='17'>Representación gráfica. Verifique "
-	    "la validez.</text></g></svg>",
+	    "<text x='24' y='172' font-size='17'>%s</text></g></svg>",
 	    font_size,
 	    escaped,
-	    date
+	    signed_text,
+	    date,
+	    notice
 	);
+	g_free(signed_text);
+	g_free(notice);
 	g_free(date);
 	g_date_time_unref(now);
 	g_free(escaped);
