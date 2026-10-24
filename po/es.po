@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: CRSign 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/tavocg/crsign/issues\n"
-"POT-Creation-Date: 2026-10-24 14:57-0600\n"
+"POT-Creation-Date: 2026-10-24 15:21-0600\n"
 "PO-Revision-Date: 2026-10-23 00:00-0600\n"
 "Last-Translator: Gustavo Calvo <tavo@tavo.cr>\n"
 "Language-Team: Spanish\n"
@@ -19,7 +19,7 @@ msgstr ""
 msgid "Home"
 msgstr "Inicio"
 
-#: sign/gui/window.c:20 sign/gui/signing.c:348 sign/gui/signing.c:2421
+#: sign/gui/window.c:20 sign/gui/signing.c:353 sign/gui/signing.c:2437
 msgid "Sign"
 msgstr "Firmar"
 
@@ -51,7 +51,7 @@ msgstr "Mostrar lista"
 msgid "Show grid"
 msgstr "Mostrar cuadrícula"
 
-#: sign/gui/window.c:213 sign/gui/signing.c:1710
+#: sign/gui/window.c:213 sign/gui/signing.c:1726
 msgid "Could not validate signed documents"
 msgstr "No se pudieron validar los documentos firmados"
 
@@ -60,7 +60,7 @@ msgid "Toggle menu"
 msgstr "Mostrar u ocultar el menú"
 
 #: sign/gui/settings.c:37 sign/gui/settings.c:469 sign/gui/settings.c:527
-#: sign/gui/signing.c:1199
+#: sign/gui/signing.c:1215
 msgid "Global"
 msgstr "Global"
 
@@ -449,7 +449,7 @@ msgstr "Elegir contenido original"
 msgid "Drop signed files here"
 msgstr "Arrastra aquí los archivos firmados"
 
-#: sign/gui/validation.c:864 sign/gui/signing.c:2361
+#: sign/gui/validation.c:864 sign/gui/signing.c:2377
 msgid "Click to choose one or more files"
 msgstr "Haz clic para elegir uno o varios archivos"
 
@@ -458,7 +458,7 @@ msgid "Clear results"
 msgstr "Limpiar resultados"
 
 #: sign/gui/devices.c:39 sign/gui/devices.c:53 sign/gui/devices.c:195
-#: sign/gui/signing.c:183 sign/gui/signing.c:901 sign/gui/signing.c:2062
+#: sign/gui/signing.c:188 sign/gui/signing.c:917 sign/gui/signing.c:2078
 msgid "Unavailable"
 msgstr "No disponible"
 
@@ -681,11 +681,11 @@ msgstr "No se pueden cargar los módulos PKCS#11"
 msgid "Cannot monitor devices"
 msgstr "No se pueden detectar cambios en los dispositivos"
 
-#: sign/gui/devices.c:745 sign/gui/home.c:432
+#: sign/gui/devices.c:745 sign/gui/home.c:728
 msgid "Could not save display preference"
 msgstr "No se pudo guardar la preferencia de visualización"
 
-#: sign/gui/devices.c:746 sign/gui/home.c:433
+#: sign/gui/devices.c:746 sign/gui/home.c:729
 msgid ""
 "The display preference could not be saved. Check the application data file "
 "and its permissions."
@@ -734,265 +734,265 @@ msgstr "Número de página no válido"
 msgid "Cannot render this PDF page"
 msgstr "No se puede mostrar esta página del PDF"
 
-#: sign/gui/pdf_view.c:261 sign/gui/signing.c:573
+#: sign/gui/pdf_view.c:261 sign/gui/signing.c:578
 msgid "The signature image cannot fit at this position"
 msgstr "La imagen de firma no cabe en esta posición"
 
-#: sign/gui/signing.c:102
+#: sign/gui/signing.c:107
 msgid "No graphical signature"
 msgstr "Sin representación gráfica de la firma"
 
-#: sign/gui/signing.c:105
+#: sign/gui/signing.c:110
 msgid "The output path is unavailable"
 msgstr "La ruta de salida no está disponible"
 
-#: sign/gui/signing.c:108
+#: sign/gui/signing.c:113
 msgid "The output file already exists"
 msgstr "El archivo de salida ya existe"
 
-#: sign/gui/signing.c:111
+#: sign/gui/signing.c:116
 msgid "Another document uses the same output path"
 msgstr "Otro documento usa la misma ruta de salida"
 
-#: sign/gui/signing.c:114
+#: sign/gui/signing.c:119
 msgid "The output path matches an input file"
 msgstr "La ruta de salida coincide con un archivo de entrada"
 
-#: sign/gui/signing.c:144
+#: sign/gui/signing.c:149
 msgid "Some files have no graphical signature"
 msgstr "Hay archivos sin representación gráfica de la firma"
 
-#: sign/gui/signing.c:147
+#: sign/gui/signing.c:152
 msgid "Some output files already exist"
 msgstr "Algunos archivos de salida ya existen"
 
-#: sign/gui/signing.c:150
+#: sign/gui/signing.c:155
 msgid "Some documents share an output path"
 msgstr "Algunos documentos comparten una ruta de salida"
 
-#: sign/gui/signing.c:153
+#: sign/gui/signing.c:158
 msgid "Some output paths match an input file"
 msgstr "Algunas rutas de salida coinciden con un archivo de entrada"
 
-#: sign/gui/signing.c:156
+#: sign/gui/signing.c:161
 msgid "Some output paths are unavailable"
 msgstr "Algunas rutas de salida no están disponibles"
 
-#: sign/gui/signing.c:200 sign/gui/signing.c:902
+#: sign/gui/signing.c:205 sign/gui/signing.c:918
 #, c-format
 msgid "Output: %s"
 msgstr "Salida: %s"
 
-#: sign/gui/signing.c:201
+#: sign/gui/signing.c:206
 msgid "Multiple output locations"
 msgstr "Varias ubicaciones de salida"
 
-#: sign/gui/signing.c:270
+#: sign/gui/signing.c:275
 #, c-format
 msgid "Total: %u"
 msgstr "Total: %u"
 
-#: sign/gui/signing.c:343 sign/gui/signing.c:1429
+#: sign/gui/signing.c:348 sign/gui/signing.c:1445
 msgid "Continue"
 msgstr "Continuar"
 
-#: sign/gui/signing.c:344 sign/gui/signing.c:2578
+#: sign/gui/signing.c:349 sign/gui/signing.c:2594
 msgid "Continue without graphical signature"
 msgstr "Continuar sin firma gráfica"
 
-#: sign/gui/signing.c:348
+#: sign/gui/signing.c:353
 msgid "Signing…"
 msgstr "Firmando…"
 
-#: sign/gui/signing.c:399
+#: sign/gui/signing.c:404
 msgid "Wait for the PDF preview to finish loading"
 msgstr "Espera a que termine de cargar la previsualización del PDF"
 
-#: sign/gui/signing.c:510 sign/gui/signing.c:1270
+#: sign/gui/signing.c:515 sign/gui/signing.c:1286
 msgid ""
 "The signing profile could not be loaded. Check the configuration in Settings."
 msgstr ""
 "No se pudo cargar el perfil de firmado. Revisa la configuración en Ajustes."
 
-#: sign/gui/signing.c:532
+#: sign/gui/signing.c:537
 msgid "Certificate holder"
 msgstr "Titular del certificado"
 
-#: sign/gui/signing.c:584
+#: sign/gui/signing.c:589
 msgid "Cannot preview this signature image"
 msgstr "No se puede previsualizar esta imagen de firma"
 
-#: sign/gui/signing.c:618 sign/gui/signing.c:733
+#: sign/gui/signing.c:623 sign/gui/signing.c:749
 msgid "Graphical signatures are available for PDF files"
 msgstr "Las firmas gráficas están disponibles para archivos PDF"
 
-#: sign/gui/signing.c:653
+#: sign/gui/signing.c:658
 #, c-format
 msgid "of %u"
 msgstr "de %u"
 
-#: sign/gui/signing.c:938
+#: sign/gui/signing.c:954
 msgid "Only local files can be signed"
 msgstr "Solo se pueden firmar archivos locales"
 
-#: sign/gui/signing.c:956
+#: sign/gui/signing.c:972
 msgid "The document queue is full"
 msgstr "La cola de documentos está llena"
 
-#: sign/gui/signing.c:962
+#: sign/gui/signing.c:978
 msgid "Cannot prepare the output path"
 msgstr "No se puede preparar la ruta de salida"
 
-#: sign/gui/signing.c:992
+#: sign/gui/signing.c:1008
 msgid "Change the output file"
 msgstr "Cambiar el archivo de salida"
 
-#: sign/gui/signing.c:1010
+#: sign/gui/signing.c:1026
 msgid "Remove document"
 msgstr "Eliminar documento"
 
-#: sign/gui/signing.c:1067
+#: sign/gui/signing.c:1083
 msgid "Choose documents to sign"
 msgstr "Seleccionar documentos para firmar"
 
-#: sign/gui/signing.c:1094
+#: sign/gui/signing.c:1110
 msgid "Only local images are supported"
 msgstr "Solo se admiten imágenes locales"
 
-#: sign/gui/signing.c:1116 sign/gui/signing.c:2496
+#: sign/gui/signing.c:1132 sign/gui/signing.c:2512
 msgid "Choose signature image"
 msgstr "Seleccionar imagen de firma"
 
-#: sign/gui/signing.c:1118
+#: sign/gui/signing.c:1134
 msgid "Signature images"
 msgstr "Imágenes de firma"
 
-#: sign/gui/signing.c:1404
+#: sign/gui/signing.c:1420
 msgid "Token PIN"
 msgstr "PIN del token"
 
-#: sign/gui/signing.c:1411
+#: sign/gui/signing.c:1427
 msgid "Enter the PIN to sign"
 msgstr "Introduce el PIN para firmar"
 
-#: sign/gui/signing.c:1424
+#: sign/gui/signing.c:1440
 msgid "PIN"
 msgstr "PIN"
 
-#: sign/gui/signing.c:1428 sign/gui/signing.c:2098
+#: sign/gui/signing.c:1444 sign/gui/signing.c:2114
 msgid "Cancel"
 msgstr "Cancelar"
 
-#: sign/gui/signing.c:1557
+#: sign/gui/signing.c:1573
 msgid "PIN entry was cancelled or unavailable"
 msgstr "Se canceló la solicitud del PIN o no está disponible"
 
-#: sign/gui/signing.c:1606
+#: sign/gui/signing.c:1622
 #, c-format
 msgid "Output already exists: %s"
 msgstr "El archivo de salida ya existe: %s"
 
-#: sign/gui/signing.c:1633 sign/gui/signing.c:1670
+#: sign/gui/signing.c:1649 sign/gui/signing.c:1686
 msgid "Signing failed"
 msgstr "No se pudo firmar"
 
-#: sign/gui/signing.c:1670
+#: sign/gui/signing.c:1686
 msgid "Not started"
 msgstr "Sin iniciar"
 
-#: sign/gui/signing.c:1683
+#: sign/gui/signing.c:1699
 msgid "Could not sign documents"
 msgstr "No se pudieron firmar los documentos"
 
-#: sign/gui/signing.c:1815
+#: sign/gui/signing.c:1831
 msgid "Choose the output file"
 msgstr "Elegir el archivo de salida"
 
-#: sign/gui/signing.c:1925
+#: sign/gui/signing.c:1941
 msgid "Choose the output folder"
 msgstr "Elegir la carpeta de salida"
 
-#: sign/gui/signing.c:2028
+#: sign/gui/signing.c:2044
 msgid "output unavailable"
 msgstr "salida no disponible"
 
-#: sign/gui/signing.c:2031
+#: sign/gui/signing.c:2047
 msgid "already exists"
 msgstr "ya existe"
 
-#: sign/gui/signing.c:2034
+#: sign/gui/signing.c:2050
 msgid "duplicated path"
 msgstr "ruta duplicada"
 
-#: sign/gui/signing.c:2037
+#: sign/gui/signing.c:2053
 msgid "matches an input file"
 msgstr "coincide con un archivo de entrada"
 
-#: sign/gui/signing.c:2051
+#: sign/gui/signing.c:2067
 msgid "These output files need attention before signing:"
 msgstr "Estos archivos de salida requieren atención antes de firmar:"
 
-#: sign/gui/signing.c:2075
+#: sign/gui/signing.c:2091
 msgid "Output files already exist"
 msgstr "Los archivos de salida ya existen"
 
-#: sign/gui/signing.c:2101
+#: sign/gui/signing.c:2117
 msgid "Choose a new location for each file"
 msgstr "Elegir una ubicación nueva para cada archivo"
 
-#: sign/gui/signing.c:2105
+#: sign/gui/signing.c:2121
 msgid "Choose another folder for all files"
 msgstr "Elegir otra carpeta para todos los archivos"
 
-#: sign/gui/signing.c:2108
+#: sign/gui/signing.c:2124
 msgid "Overwrite"
 msgstr "Sobrescribir"
 
-#: sign/gui/signing.c:2115
+#: sign/gui/signing.c:2131
 msgid "Duplicated or input paths cannot be overwritten"
 msgstr "Las rutas duplicadas o de entrada no se pueden sobrescribir"
 
-#: sign/gui/signing.c:2307
+#: sign/gui/signing.c:2323
 msgid "Signing profile"
 msgstr "Perfil de firmado"
 
-#: sign/gui/signing.c:2357
+#: sign/gui/signing.c:2373
 msgid "Drop files here to sign"
 msgstr "Arrastra aquí los archivos para firmar"
 
-#: sign/gui/signing.c:2386
+#: sign/gui/signing.c:2402
 msgid "Clear all"
 msgstr "Limpiar todo"
 
-#: sign/gui/signing.c:2451
+#: sign/gui/signing.c:2467
 msgid "Output file options"
 msgstr "Opciones del archivo de salida"
 
-#: sign/gui/signing.c:2459
+#: sign/gui/signing.c:2475
 msgid "Choose an output folder for all files"
 msgstr "Elegir una carpeta de salida para todos los archivos"
 
-#: sign/gui/signing.c:2464
+#: sign/gui/signing.c:2480
 msgid "Choose the output name for each file"
 msgstr "Elegir el nombre de salida para cada archivo"
 
-#: sign/gui/signing.c:2487
+#: sign/gui/signing.c:2503
 msgid "Document queue"
 msgstr "Cola de documentos"
 
-#: sign/gui/signing.c:2509
+#: sign/gui/signing.c:2525
 msgid "Signature image options"
 msgstr "Opciones de imagen de firma"
 
-#: sign/gui/signing.c:2513
+#: sign/gui/signing.c:2529
 msgid "Use profile signature image"
 msgstr "Usar la imagen de firma del perfil"
 
-#: sign/gui/signing.c:2521
+#: sign/gui/signing.c:2537
 msgid "Add signing information"
 msgstr "Añadir información de firma"
 
-#: sign/gui/signing.c:2564
+#: sign/gui/signing.c:2580
 msgid "Page"
 msgstr "Página"
 
@@ -1256,11 +1256,11 @@ msgstr ""
 msgid "Close"
 msgstr "Cerrar"
 
-#: sign/gui/home.c:39
+#: sign/gui/home.c:48
 msgid "Could not update favorites"
 msgstr "No se pudieron actualizar los favoritos"
 
-#: sign/gui/home.c:40
+#: sign/gui/home.c:49
 msgid ""
 "The document history could not be saved. Check available space, file "
 "permissions and the history size limit."
@@ -1268,35 +1268,35 @@ msgstr ""
 "No se pudo guardar el historial de documentos. Revisa el espacio disponible, "
 "los permisos del archivo y el límite de tamaño del historial."
 
-#: sign/gui/home.c:53
+#: sign/gui/home.c:62
 msgid "%e %b %Y"
 msgstr "%e %b %Y"
 
-#: sign/gui/home.c:59
+#: sign/gui/home.c:68
 msgid "Today · %H:%M"
 msgstr "Hoy · %H:%M"
 
-#: sign/gui/home.c:62
+#: sign/gui/home.c:71
 msgid "Yesterday · %H:%M"
 msgstr "Ayer · %H:%M"
 
-#: sign/gui/home.c:66
+#: sign/gui/home.c:75
 msgid "Unknown date"
 msgstr "Fecha desconocida"
 
-#: sign/gui/home.c:281
+#: sign/gui/home.c:576
 msgid "Document"
 msgstr "Documento"
 
-#: sign/gui/home.c:285
+#: sign/gui/home.c:580
 msgid "Signed"
 msgstr "Firmado"
 
-#: sign/gui/home.c:555
+#: sign/gui/home.c:851
 msgid "No matching documents"
 msgstr "No se encontraron documentos"
 
-#: sign/gui/home.c:662
+#: sign/gui/home.c:960
 msgid ""
 "The document history could not be read. It may be invalid or exceed its size "
 "limit."
@@ -1304,23 +1304,23 @@ msgstr ""
 "No se pudo leer el historial de documentos. Puede contener datos no válidos "
 "o superar el límite de tamaño."
 
-#: sign/gui/home.c:683
+#: sign/gui/home.c:981
 msgid "Favorites"
 msgstr "Favoritos"
 
-#: sign/gui/home.c:691 sign/gui/home.c:705 sign/gui/home.c:774
+#: sign/gui/home.c:989 sign/gui/home.c:1003 sign/gui/home.c:1072
 msgid "Show more"
 msgstr "Mostrar más"
 
-#: sign/gui/home.c:696
+#: sign/gui/home.c:994
 msgid "Recent"
 msgstr "Recientes"
 
-#: sign/gui/home.c:719
+#: sign/gui/home.c:1017
 msgid "Search signed documents"
 msgstr "Buscar documentos firmados"
 
-#: sign/gui/home.c:734
+#: sign/gui/home.c:1032
 msgid "Search by document name"
 msgstr "Buscar por nombre del documento"
 

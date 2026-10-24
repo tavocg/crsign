@@ -36,6 +36,12 @@ button.signature-remove:hover { background: #e8e8e8; }
 }
 
 /* Home documents follow the compact, unboxed file-manager list layout. */
+.home-file-tile.selected,
+list.home-file-list > row.selected {
+  background: alpha(@accent_bg_color, 0.35);
+  border-radius: 6px;
+}
+
 list.home-file-list {
   background: transparent;
 }

@@ -62,6 +62,38 @@ static void check_drag(GtkWidget* item, const char* path) {
 	g_object_unref(controllers);
 	g_assert_true(found);
 }
+static GtkDragSource* drag_source(GtkWidget* item) {
+	GListModel*    controllers = gtk_widget_observe_controllers(item);
+	GtkDragSource* result = NULL;
+	for (guint i = 0; i < g_list_model_get_n_items(controllers); ++i) {
+		GtkEventController* controller = g_list_model_get_item(controllers, i);
+		if (GTK_IS_DRAG_SOURCE(controller)) {
+			result = GTK_DRAG_SOURCE(controller);
+		}
+		g_object_unref(controller);
+	}
+	g_object_unref(controllers);
+	return result;
+}
+static char* test_window_id(char* tool) {
+	char* id = NULL;
+	int   status = 0;
+	char* args[] = {tool, "search", "--name", "^CRSign Home Test$", NULL};
+	g_assert_true(g_spawn_sync(
+	    NULL,
+	    args,
+	    NULL,
+	    G_SPAWN_DEFAULT,
+	    NULL,
+	    NULL,
+	    &id,
+	    NULL,
+	    &status,
+	    NULL
+	));
+	g_strstrip(id);
+	return id;
+}
 static GtkWidget* context_open(GtkWidget* window, GtkWidget* item) {
 	char* tool = g_find_program_in_path("xdotool");
 	if (!tool) {
@@ -456,6 +488,87 @@ int main(int argc, char** argv) {
 	gtk_window_set_default_size(GTK_WINDOW(window), 420, 760);
 	settle();
 	g_assert_cmpint(gtk_widget_get_width(window), <=, 420);
+	char* tool = g_find_program_in_path("xdotool");
+	if (tool) {
+		GtkWidget* scroll = find_widget(
+		    GTK_WIDGET(self),
+		    GTK_TYPE_SCROLLED_WINDOW
+		);
+		GtkAdjustment* adjustment = gtk_scrolled_window_get_vadjustment(
+		    GTK_SCROLLED_WINDOW(scroll)
+		);
+		gtk_adjustment_set_value(
+		    adjustment,
+		    gtk_adjustment_get_upper(adjustment) -
+		        gtk_adjustment_get_page_size(adjustment)
+		);
+		settle();
+		GtkWidget* recent = flow(GTK_WIDGET(self), "home-recents");
+		guint      children = count(recent);
+		g_assert_cmpuint(children, >=, 3);
+		GtkFlowBoxChild* last_child = gtk_flow_box_get_child_at_index(
+		    GTK_FLOW_BOX(recent),
+		    children - 1
+		);
+		GtkFlowBoxChild* previous_child = gtk_flow_box_get_child_at_index(
+		    GTK_FLOW_BOX(recent),
+		    children - 3
+		);
+		GtkWidget* last = gtk_flow_box_child_get_child(
+		    GTK_FLOW_BOX_CHILD(last_child)
+		);
+		GtkWidget* previous = gtk_flow_box_child_get_child(
+		    GTK_FLOW_BOX_CHILD(previous_child)
+		);
+		graphene_rect_t last_bounds, previous_bounds;
+		g_assert_true(gtk_widget_compute_bounds(last, window, &last_bounds));
+		g_assert_true(
+		    gtk_widget_compute_bounds(previous, window, &previous_bounds)
+		);
+		int start_x = (int)(last_bounds.origin.x + last_bounds.size.width + 20);
+		int start_y = (int)(last_bounds.origin.y + last_bounds.size.height - 2);
+		int end_x = (int)(previous_bounds.origin.x + 2);
+		int end_y = (int)(previous_bounds.origin.y + 10);
+		char* id = test_window_id(tool);
+		char* command = g_strdup_printf(
+		    "%s mousemove --window %s %d %d mousedown 1 "
+		    "mousemove --window %s %d %d sleep 0.2 mouseup 1",
+		    tool,
+		    id,
+		    start_x,
+		    start_y,
+		    id,
+		    end_x,
+		    end_y
+		);
+		int status = 0;
+		g_assert_true(
+		    g_spawn_command_line_sync(command, NULL, NULL, &status, NULL)
+		);
+		g_free(command);
+		g_free(id);
+		settle();
+		g_assert_true(gtk_widget_has_css_class(last, "selected"));
+		g_assert_true(gtk_widget_has_css_class(previous, "selected"));
+		GtkDragSource* source = drag_source(last);
+		g_assert_nonnull(source);
+		GdkContentProvider* provider = NULL;
+		g_signal_emit_by_name(source, "prepare", 0.0, 0.0, &provider);
+		GValue value = G_VALUE_INIT;
+		g_value_init(&value, GDK_TYPE_FILE_LIST);
+		g_assert_true(gdk_content_provider_get_value(
+		    gtk_drag_source_get_content(source),
+		    &value,
+		    NULL
+		));
+		GSList* files = gdk_file_list_get_files(g_value_get_boxed(&value));
+		g_assert_cmpuint(g_slist_length(files), ==, 2);
+		g_value_unset(&value);
+		if (provider) {
+			g_object_unref(provider);
+		}
+		g_free(tool);
+	}
 	snapshot(window, argv[2], "home-narrow.png");
 	g_dbus_connection_unregister_object(bus, registration);
 	g_dbus_node_info_unref(info);
