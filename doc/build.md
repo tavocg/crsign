@@ -31,7 +31,8 @@ se rechazan; no se truncan. El búfer se borra antes de liberarlo tras el intent
 Los tokens con teclado propio no solicitan un PIN en la CLI.
 
 La CI compila y prueba la aplicación completa con GTK (`HEADLESS=OFF`) en Linux,
-Windows UCRT64 y macOS. Los workflows no generan ni suben paquetes distribuibles.
+Windows UCRT64 y macOS, con libssig tanto compartida como estática. Los workflows
+no generan ni suben paquetes distribuibles.
 El firmado con un token físico se comprueba por separado con el controlador del
 proveedor. Se conservan [las instrucciones de compilación nativa y empaquetado
 manual](../packaging/README.md) para preparar futuros releases.
@@ -44,6 +45,32 @@ cmake --build build
 
 Por defecto se compila con GTK (`HEADLESS=OFF`) y sin pruebas (`BUILD_TESTING=OFF`).
 Para compilar sin GTK, añade `-DHEADLESS=ON`.
+
+## Enlace estático o dinámico de libssig
+
+CRSign consume el mismo target CMake `libssig::ssig` en ambos casos. La variante
+se elige al compilar libssig; pasar `BUILD_SHARED_LIBS` únicamente a CRSign no
+cambia una biblioteca ya construida. Para incorporar libssig al ejecutable:
+
+```sh
+git submodule update --init --recursive
+cmake -S tests/libssig -B build-libssig-static -DBUILD_TESTING=OFF -DBUILD_SHARED_LIBS=OFF
+cmake --build build-libssig-static --parallel
+cmake -S . -B build-static -Dlibssig_DIR="$PWD/build-libssig-static" -DBUILD_TESTING=ON
+cmake --build build-static --parallel
+ctest --test-dir build-static --output-on-failure
+```
+
+También puedes usar `-S ../libssig` si trabajas con el repositorio hermano.
+Para enlace dinámico, usa `-DBUILD_SHARED_LIBS=ON` en un directorio de libssig
+separado y apunta `libssig_DIR` a ese directorio. Las instalaciones de libssig
+se seleccionan mediante `CMAKE_PREFIX_PATH`, como en el ejemplo anterior.
+
+Este modo incorpora libssig, pero sus dependencias siguen siendo dinámicas;
+los módulos PKCS#11 del proveedor siguen cargándose en ejecución. Conserva los
+paquetes de desarrollo de las dependencias al configurar el consumidor estático.
+
+## Pruebas
 
 Para habilitar las pruebas, configura explícitamente `-DBUILD_TESTING=ON`:
 

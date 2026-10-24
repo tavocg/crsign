@@ -7,8 +7,11 @@ permissions:
 
 jobs:
   build:
-    name: Linux (GTK)
+    name: Linux (GTK, libssig shared=${{ matrix.shared }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        shared: ["ON", "OFF"]
     steps:
       - name: Checkout repository and pinned test suites
         uses: actions/checkout@v4
@@ -19,7 +22,7 @@ jobs:
         uses: cachix/install-nix-action@v31
 
       - name: Configure pinned libssig
-        run: nix develop --command cmake -S tests/libssig -B build-libssig -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
+        run: nix develop --command cmake -S tests/libssig -B build-libssig -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DBUILD_SHARED_LIBS=${{ matrix.shared }}
 
       - name: Build pinned libssig
         run: nix develop --command cmake --build build-libssig --parallel

@@ -13,6 +13,13 @@ nix develop --command cmake --build build --parallel
 nix develop --command ctest --test-dir build --parallel 4 --output-on-failure
 ```
 
+To exercise static libssig, add `-DBUILD_SHARED_LIBS=OFF` to its configure
+command, use separate library/application build directories, and point
+`libssig_DIR` at that library build. Use `ON` for the shared variant. Setting
+`BUILD_SHARED_LIBS` only on CRSign does not change an imported library. Linux,
+Windows and macOS CI run the GTK application tests with both variants; test
+registration is the same for each.
+
 All registration lives in `tests/CMakeLists.txt`. The `tests/libssig` submodule
 pins the same implementation and reusable tests. It contains the nested official
 ETSI schema submodules; no schemas, packages or repositories are downloaded by

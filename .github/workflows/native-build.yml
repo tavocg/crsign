@@ -6,8 +6,11 @@ permissions:
 
 jobs:
   macos:
-    name: macOS (GTK)
+    name: macOS (GTK, libssig shared=${{ matrix.shared }})
     runs-on: macos-latest
+    strategy:
+      matrix:
+        shared: ["ON", "OFF"]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -19,7 +22,7 @@ jobs:
       - name: Configure and install libssig
         run: |
           export PKG_CONFIG_PATH="$(brew --prefix libxml2)/lib/pkgconfig:$(brew --prefix openssl@3)/lib/pkgconfig:$(brew --prefix libmagic)/lib/pkgconfig"
-          cmake -S tests/libssig -B build-libssig -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF \
+          cmake -S tests/libssig -B build-libssig -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DBUILD_SHARED_LIBS=${{ matrix.shared }} \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 -DOPENSSL_ROOT_DIR="$(brew --prefix openssl@3)" \
             -DCMAKE_INSTALL_PREFIX="$PWD/build/native-prefix"
           cmake --build build-libssig --parallel 4
@@ -42,8 +45,11 @@ jobs:
           ctest --test-dir build/system-trust --output-on-failure
 
   windows:
-    name: Windows UCRT64 (GTK)
+    name: Windows UCRT64 (GTK, libssig shared=${{ matrix.shared }})
     runs-on: windows-latest
+    strategy:
+      matrix:
+        shared: ["ON", "OFF"]
     defaults:
       run:
         shell: msys2 {0}
@@ -72,7 +78,7 @@ jobs:
         run: python scripts/bootstrap-native.py --prefix "$PWD/build/native-prefix" --with-argp
       - name: Configure and install libssig
         run: |
-          cmake -S tests/libssig -B build-libssig -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF \
+          cmake -S tests/libssig -B build-libssig -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DBUILD_SHARED_LIBS=${{ matrix.shared }} \
             -DCMAKE_INSTALL_PREFIX="$PWD/build/native-prefix"
           cmake --build build-libssig --parallel 4
           cmake --install build-libssig
