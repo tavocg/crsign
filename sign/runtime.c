@@ -18,12 +18,6 @@
 #endif
 #if defined(SIGN_WITH_GUI) && !defined(G_OS_WIN32)
 #include <dlfcn.h>
-/* Weak so headless test drivers can link runtime.c without GTK. */
-#ifdef __APPLE__
-extern void gtk_init(void) __attribute__((weak_import));
-#else
-extern void gtk_init(void) __attribute__((weak));
-#endif
 #endif
 
 static char* installation_prefix(void) {
@@ -123,15 +117,11 @@ static bool pixbuf_cache(const char* prefix) {
  * XDG_DATA_DIRS, so find it next to the linked library before GTK starts
  * GSettings. */
 static char* gtk_schema_data_dir(void) {
-	if (!gtk_init) {
-		return NULL;
-	}
-	union {
-		void (*function)(void);
-		void* object;
-	} symbol = {.function = gtk_init};
+	/* Discover GTK only when it is already linked into this process. Test
+	 * drivers and headless tools do not need an optional GTK linker symbol. */
+	void*   symbol = dlsym(RTLD_DEFAULT, "gtk_init");
 	Dl_info info;
-	if (!dladdr(symbol.object, &info) || !info.dli_fname) {
+	if (!symbol || !dladdr(symbol, &info) || !info.dli_fname) {
 		return NULL;
 	}
 	char* library = g_path_get_dirname(info.dli_fname);
