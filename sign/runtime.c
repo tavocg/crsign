@@ -1,4 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
 #define _POSIX_C_SOURCE 200809L
 #include <gio/gio.h>
 #include <glib/gstdio.h>
@@ -9,6 +12,11 @@
 #include <glib/gwin32.h>
 #elif defined(__APPLE__)
 #include <mach-o/dyld.h>
+#endif
+#if defined(SIGN_WITH_GUI) && !defined(G_OS_WIN32)
+#include <dlfcn.h>
+/* Weak so headless test drivers can link runtime.c without GTK. */
+extern void gtk_init(void) __attribute__((weak));
 #endif
 
 static char* installation_prefix(void) {
@@ -102,7 +110,93 @@ static bool pixbuf_cache(const char* prefix) {
 }
 #endif
 
+#if defined(SIGN_WITH_GUI) && !defined(G_OS_WIN32)
+/* GTK's internal file chooser loads org.gtk.gtk4.Settings.FileChooser. A bare
+ * build or a symlinked executable may not have GTK's schema directory in
+ * XDG_DATA_DIRS, so find it next to the linked library before GTK starts
+ * GSettings. */
+static char* gtk_schema_data_dir(void) {
+	if (!gtk_init) {
+		return NULL;
+	}
+	union {
+		void (*function)(void);
+		void* object;
+	} symbol = {.function = gtk_init};
+	Dl_info info;
+	if (!dladdr(symbol.object, &info) || !info.dli_fname) {
+		return NULL;
+	}
+	char* library = g_path_get_dirname(info.dli_fname);
+	char* prefix = g_path_get_dirname(library);
+	g_free(library);
+	char* base = g_build_filename(prefix, "share", "gsettings-schemas", NULL);
+	char* result = NULL;
+	GDir* dir = g_dir_open(base, 0, NULL);
+	if (dir) {
+		const char* name;
+		while ((name = g_dir_read_name(dir))) {
+			if (!g_str_has_prefix(name, "gtk4-")) {
+				continue;
+			}
+			char* candidate = g_build_filename(base, name, NULL);
+			char* compiled = g_build_filename(
+			    candidate,
+			    "glib-2.0",
+			    "schemas",
+			    "gschemas.compiled",
+			    NULL
+			);
+			if (g_file_test(compiled, G_FILE_TEST_IS_REGULAR)) {
+				result = candidate;
+				g_free(compiled);
+				break;
+			}
+			g_free(compiled);
+			g_free(candidate);
+		}
+		g_dir_close(dir);
+	}
+	g_free(base);
+	if (!result) {
+		char* share = g_build_filename(prefix, "share", NULL);
+		char* compiled = g_build_filename(
+		    share,
+		    "glib-2.0",
+		    "schemas",
+		    "gschemas.compiled",
+		    NULL
+		);
+		if (g_file_test(compiled, G_FILE_TEST_IS_REGULAR)) {
+			result = share;
+		} else {
+			g_free(share);
+		}
+		g_free(compiled);
+	}
+	g_free(prefix);
+	return result;
+}
+static void ensure_gtk_schema_data_dir(void) {
+	char* data = gtk_schema_data_dir();
+	if (!data) {
+		return;
+	}
+	const char* configured = g_getenv("XDG_DATA_DIRS");
+	char*       existing = configured ? g_strdup(configured)
+	                                  : g_strdup("/usr/local/share/:/usr/share/");
+	char* value = g_strconcat(data, G_SEARCHPATH_SEPARATOR_S, existing, NULL);
+	g_setenv("XDG_DATA_DIRS", value, true);
+	g_free(value);
+	g_free(existing);
+	g_free(data);
+}
+#else
+static void ensure_gtk_schema_data_dir(void) {
+}
+#endif
 bool runtime_init(void) {
+	ensure_gtk_schema_data_dir();
 	char* prefix = installation_prefix();
 	if (!prefix) {
 		return true;

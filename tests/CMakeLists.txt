@@ -201,12 +201,23 @@ set_tests_properties(native_packaging PROPERTIES TIMEOUT 30)
 add_executable(runtime_driver runtime/driver.c ../sign/runtime.c)
 target_include_directories(runtime_driver PRIVATE "${PROJECT_SOURCE_DIR}")
 target_compile_definitions(runtime_driver PRIVATE SIGN_WITH_GUI)
-target_link_libraries(runtime_driver PRIVATE PkgConfig::GIO)
+target_link_libraries(runtime_driver PRIVATE PkgConfig::GIO ${CMAKE_DL_LIBS})
 target_compile_options(runtime_driver PRIVATE -Wall -Wextra -Wpedantic -Werror)
 add_test(NAME portable_runtime COMMAND "${Python3_EXECUTABLE}"
     "${CMAKE_CURRENT_SOURCE_DIR}/runtime/runtime_test.py"
     $<TARGET_FILE:runtime_driver>)
 set_tests_properties(portable_runtime PROPERTIES TIMEOUT 30)
+
+if(NOT HEADLESS AND UNIX AND NOT APPLE)
+    add_executable(runtime_gui_driver runtime/gui_driver.c ../sign/runtime.c)
+    target_include_directories(runtime_gui_driver PRIVATE "${PROJECT_SOURCE_DIR}")
+    target_link_libraries(runtime_gui_driver PRIVATE sign_gui_deps PkgConfig::GIO)
+    target_compile_options(runtime_gui_driver PRIVATE -Wall -Wextra -Wpedantic -Werror)
+    add_test(NAME portable_runtime_gui COMMAND "${Python3_EXECUTABLE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/runtime/gui_test.py"
+        $<TARGET_FILE:runtime_gui_driver>)
+    set_tests_properties(portable_runtime_gui PROPERTIES TIMEOUT 30)
+endif()
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/libssig/tests/document_sign_fixture.c")
     # Both the renderer and the library produce a cryptographically valid PDF here.
