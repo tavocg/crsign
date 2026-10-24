@@ -806,16 +806,32 @@ int main(int argc, char** argv) {
 	g_assert_cmpuint(sign_signing_count(self), ==, 2);
 	g_assert_nonnull(strstr(sign_signing_output(self, 0), "-firmado.pdf"));
 	g_assert_nonnull(strstr(sign_signing_output(self, 1), "-firmado.bin"));
-	GtkWidget* output_location = named(
-	    GTK_WIDGET(self),
-	    "sign-output-location"
+	g_assert_null(named(GTK_WIDGET(self), "sign-output-location"));
+	GtkWidget* output_options = named(GTK_WIDGET(self), "sign-output-options");
+	g_assert_nonnull(output_options);
+	GtkWidget* sign_button = named(GTK_WIDGET(self), "sign-run");
+	g_assert_nonnull(sign_button);
+	g_assert_true(
+	    gtk_widget_get_parent(output_options) ==
+	    gtk_widget_get_parent(sign_button)
 	);
-	g_assert_nonnull(output_location);
+	g_assert_true(gtk_widget_get_next_sibling(sign_button) == output_options);
+	GtkWidget* output_button = named(GTK_WIDGET(self), "sign-change-output");
+	g_assert_nonnull(output_button);
+	g_assert_cmpstr(
+	    gtk_button_get_icon_name(GTK_BUTTON(output_button)),
+	    ==,
+	    "document-edit-symbolic"
+	);
+	GtkWidget* output_row = gtk_widget_get_ancestor(
+	    output_button,
+	    ADW_TYPE_ACTION_ROW
+	);
+	g_assert_nonnull(output_row);
 	g_assert_nonnull(
-	    strstr(gtk_label_get_text(GTK_LABEL(output_location)), argv[1])
+	    g_object_get_data(G_OBJECT(output_row), "crsign-file-actions")
 	);
-	g_assert_nonnull(named(GTK_WIDGET(self), "sign-output-options"));
-	g_assert_nonnull(named(GTK_WIDGET(self), "sign-change-output"));
+	g_assert_null(named(GTK_WIDGET(self), "document-location"));
 	char* first_output = g_strdup(sign_signing_output(self, 0));
 	char* second_output = g_strdup(sign_signing_output(self, 1));
 	sign_signing_set_output(self, 1, first_output);
@@ -875,7 +891,7 @@ int main(int argc, char** argv) {
 	g_assert_cmpstr(
 	    gtk_widget_get_name(gtk_widget_get_prev_sibling(remove_document)),
 	    ==,
-	    "document-location"
+	    "sign-change-output"
 	);
 	SignValidation* validation = SIGN_VALIDATION(sign_validation_new());
 	gtk_widget_set_visible(GTK_WIDGET(validation), FALSE);

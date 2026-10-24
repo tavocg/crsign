@@ -75,6 +75,68 @@ static void location_finished(
 	g_clear_error(&error);
 	location_free(request);
 }
+typedef struct {
+	GtkWindow* parent;
+	GFile*     file;
+} open_request;
+static void open_request_free(open_request* request) {
+	if (request->parent) {
+		g_object_unref(request->parent);
+	}
+	g_object_unref(request->file);
+	g_free(request);
+}
+static void open_finished(
+    GObject*      source,
+    GAsyncResult* result,
+    gpointer      data
+) {
+	open_request* request = data;
+	GError*       error = NULL;
+	bool          ok = gtk_file_launcher_launch_finish(
+        GTK_FILE_LAUNCHER(source),
+        result,
+        &error
+    );
+	if (!ok && request->parent &&
+	    gtk_widget_get_visible(GTK_WIDGET(request->parent)) &&
+	    !g_error_matches(error, G_IO_ERROR, G_IO_ERROR_CANCELLED) &&
+	    !g_error_matches(error, GTK_DIALOG_ERROR, GTK_DIALOG_ERROR_DISMISSED)) {
+		gui_error_dialog(
+		    request->parent,
+		    _("Could not open file"),
+		    _("The file could not be opened with the default application. "
+		      "Check that it still exists and that an application is "
+		      "available for this file type.")
+		);
+	}
+	g_clear_error(&error);
+	open_request_free(request);
+}
+static void open_file(
+    GSimpleAction* action,
+    GVariant*      parameter,
+    gpointer       data
+) {
+	(void)action;
+	(void)parameter;
+	file_actions* binding = data;
+	open_request* request = g_new0(open_request, 1);
+	request->file = g_object_ref(binding->file);
+	GtkRoot* root = gtk_widget_get_root(binding->widget);
+	if (GTK_IS_WINDOW(root)) {
+		request->parent = g_object_ref(GTK_WINDOW(root));
+	}
+	GtkFileLauncher* launcher = gtk_file_launcher_new(request->file);
+	gtk_file_launcher_launch(
+	    launcher,
+	    request->parent,
+	    NULL,
+	    open_finished,
+	    request
+	);
+	g_object_unref(launcher);
+}
 static void location(
     GSimpleAction* action,
     GVariant*      parameter,
@@ -176,10 +238,24 @@ void sign_file_actions_attach(
 		binding = g_new0(file_actions, 1);
 		binding->widget = widget;
 		GSimpleActionGroup* group = g_simple_action_group_new();
-		GSimpleAction*      open = g_simple_action_new("location", NULL);
-		g_signal_connect(open, "activate", G_CALLBACK(location), binding);
-		g_action_map_add_action(G_ACTION_MAP(group), G_ACTION(open));
-		g_object_unref(open);
+		GSimpleAction* location_action = g_simple_action_new("location", NULL);
+		g_signal_connect(
+		    location_action,
+		    "activate",
+		    G_CALLBACK(location),
+		    binding
+		);
+		g_action_map_add_action(G_ACTION_MAP(group), G_ACTION(location_action));
+		g_object_unref(location_action);
+		GSimpleAction* open_action = g_simple_action_new("open", NULL);
+		g_signal_connect(
+		    open_action,
+		    "activate",
+		    G_CALLBACK(open_file),
+		    binding
+		);
+		g_action_map_add_action(G_ACTION_MAP(group), G_ACTION(open_action));
+		g_object_unref(open_action);
 		binding->favorite_action = g_simple_action_new_stateful(
 		    "favorite",
 		    NULL,

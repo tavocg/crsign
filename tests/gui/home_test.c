@@ -94,6 +94,64 @@ static char* test_window_id(char* tool) {
 	g_strstrip(id);
 	return id;
 }
+static void click_item(
+    char*       tool,
+    char*       id,
+    GtkWidget*  window,
+    GtkWidget*  item,
+    const char* modifier,
+    gboolean    twice
+) {
+	graphene_rect_t bounds;
+	g_assert_true(gtk_widget_compute_bounds(item, window, &bounds));
+	int   x = (int)(bounds.origin.x + bounds.size.width / 2);
+	int   y = (int)(bounds.origin.y + bounds.size.height / 2);
+	char* command = NULL;
+	if (twice) {
+		command = g_strdup_printf(
+		    "%s sleep 0.4 mousemove --window %s %d %d click --repeat 2 --delay "
+		    "120 1",
+		    tool,
+		    id,
+		    x,
+		    y
+		);
+	} else if (modifier) {
+		command = g_strdup_printf(
+		    "%s sleep 0.4 keydown %s mousemove --window %s %d %d click 1 keyup "
+		    "%s",
+		    tool,
+		    modifier,
+		    id,
+		    x,
+		    y,
+		    modifier
+		);
+	} else {
+		command = g_strdup_printf(
+		    "%s sleep 0.4 mousemove --window %s %d %d click 1",
+		    tool,
+		    id,
+		    x,
+		    y
+		);
+	}
+	int status = 0;
+	g_assert_true(
+	    g_spawn_command_line_sync(command, NULL, NULL, &status, NULL)
+	);
+	g_free(command);
+	settle();
+}
+static void open_activated(
+    GSimpleAction* action,
+    GVariant*      parameter,
+    gpointer       data
+) {
+	(void)action;
+	(void)parameter;
+	(*(guint*)data)++;
+}
 static GtkWidget* context_open(GtkWidget* window, GtkWidget* item) {
 	char* tool = g_find_program_in_path("xdotool");
 	if (!tool) {
@@ -291,7 +349,7 @@ int main(int argc, char** argv) {
 		g_usleep(1000);
 	}
 	g_assert_cmpuint(manager.calls, ==, 1);
-	g_assert_true(gtk_widget_activate(gtk_widget_get_parent(first)));
+	g_assert_true(gtk_widget_activate_action(first, "document.location", NULL));
 	deadline = g_get_monotonic_time() + 5 * G_TIME_SPAN_SECOND;
 	while (manager.calls < 2 && g_get_monotonic_time() < deadline) {
 		settle();
@@ -420,8 +478,13 @@ int main(int argc, char** argv) {
 	    g_str_has_prefix(gtk_label_get_text(GTK_LABEL(stamp)), "Hoy · ")
 	);
 	g_assert_nonnull(gtk_widget_get_tooltip_text(stamp));
+	g_assert_cmpstr(
+	    gtk_actionable_get_action_name(GTK_ACTIONABLE(row)),
+	    ==,
+	    "document.open"
+	);
 	snapshot(window, argv[2], "home-list.png");
-	g_assert_true(gtk_widget_activate(row));
+	g_assert_true(gtk_widget_activate_action(row, "document.location", NULL));
 	deadline = g_get_monotonic_time() + 5 * G_TIME_SPAN_SECOND;
 	while (manager.calls < 3 && g_get_monotonic_time() < deadline) {
 		settle();
@@ -465,23 +528,40 @@ int main(int argc, char** argv) {
 	g_assert_cmpstr(
 	    gtk_actionable_get_action_name(GTK_ACTIONABLE(result)),
 	    ==,
-	    "document.location"
+	    "document.open"
 	);
-	g_assert_true(gtk_widget_activate(result));
+	g_assert_true(
+	    gtk_widget_activate_action(result, "document.location", NULL)
+	);
 	deadline = g_get_monotonic_time() + 5 * G_TIME_SPAN_SECOND;
 	while (manager.calls < 4 && g_get_monotonic_time() < deadline) {
 		settle();
 	}
 	g_assert_cmpuint(manager.calls, ==, 4);
-	g_assert_false(gtk_widget_get_visible(popover));
-	gtk_menu_button_popup(GTK_MENU_BUTTON(sign_home_search_button(self)));
+	guint               search_opens = 0;
+	GSimpleActionGroup* search_actions = g_simple_action_group_new();
+	GSimpleAction*      search_open = g_simple_action_new("open", NULL);
+	g_signal_connect(
+	    search_open,
+	    "activate",
+	    G_CALLBACK(open_activated),
+	    &search_opens
+	);
+	g_action_map_add_action(
+	    G_ACTION_MAP(search_actions),
+	    G_ACTION(search_open)
+	);
+	g_object_unref(search_open);
+	gtk_widget_insert_action_group(
+	    result,
+	    "document",
+	    G_ACTION_GROUP(search_actions)
+	);
+	g_object_unref(search_actions);
+	g_assert_true(gtk_widget_activate(result));
 	settle();
-	g_signal_emit_by_name(named(popover, "history-query"), "activate");
-	deadline = g_get_monotonic_time() + 5 * G_TIME_SPAN_SECOND;
-	while (manager.calls < 5 && g_get_monotonic_time() < deadline) {
-		settle();
-	}
-	g_assert_cmpuint(manager.calls, ==, 5);
+	g_assert_cmpuint(search_opens, ==, 1);
+	g_assert_cmpuint(manager.calls, ==, 4);
 	g_assert_false(gtk_widget_get_visible(popover));
 
 	sign_home_set_grid(self, true);
@@ -504,7 +584,10 @@ int main(int argc, char** argv) {
 		);
 		settle();
 		GtkWidget* recent = flow(GTK_WIDGET(self), "home-recents");
-		guint      children = count(recent);
+		g_assert_false(
+		    gtk_flow_box_get_activate_on_single_click(GTK_FLOW_BOX(recent))
+		);
+		guint children = count(recent);
 		g_assert_cmpuint(children, >=, 3);
 		GtkFlowBoxChild* last_child = gtk_flow_box_get_child_at_index(
 		    GTK_FLOW_BOX(recent),
@@ -567,6 +650,42 @@ int main(int argc, char** argv) {
 		if (provider) {
 			g_object_unref(provider);
 		}
+		GtkWidget* second = gtk_flow_box_child_get_child(
+		    gtk_flow_box_get_child_at_index(GTK_FLOW_BOX(recent), children - 2)
+		);
+		id = test_window_id(tool);
+		click_item(tool, id, window, second, NULL, FALSE);
+		g_assert_true(gtk_widget_has_css_class(second, "selected"));
+		g_assert_false(gtk_widget_has_css_class(last, "selected"));
+		g_assert_false(gtk_widget_has_css_class(previous, "selected"));
+		click_item(tool, id, window, last, "shift", FALSE);
+		g_assert_true(gtk_widget_has_css_class(second, "selected"));
+		g_assert_true(gtk_widget_has_css_class(last, "selected"));
+		g_assert_false(gtk_widget_has_css_class(previous, "selected"));
+		click_item(tool, id, window, second, "ctrl", FALSE);
+		g_assert_false(gtk_widget_has_css_class(second, "selected"));
+		g_assert_true(gtk_widget_has_css_class(last, "selected"));
+		click_item(tool, id, window, second, "ctrl", FALSE);
+		g_assert_true(gtk_widget_has_css_class(second, "selected"));
+		g_assert_true(gtk_widget_has_css_class(last, "selected"));
+		guint               opens = 0;
+		GSimpleActionGroup* actions = g_simple_action_group_new();
+		GSimpleAction*      open = g_simple_action_new("open", NULL);
+		g_signal_connect(open, "activate", G_CALLBACK(open_activated), &opens);
+		g_action_map_add_action(G_ACTION_MAP(actions), G_ACTION(open));
+		g_object_unref(open);
+		gtk_widget_insert_action_group(
+		    last,
+		    "document",
+		    G_ACTION_GROUP(actions)
+		);
+		g_object_unref(actions);
+		click_item(tool, id, window, last, NULL, TRUE);
+		g_assert_cmpuint(opens, ==, 1);
+		g_assert_cmpuint(manager.calls, ==, 4);
+		g_assert_true(gtk_widget_has_css_class(last, "selected"));
+		g_assert_false(gtk_widget_has_css_class(second, "selected"));
+		g_free(id);
 		g_free(tool);
 	}
 	snapshot(window, argv[2], "home-narrow.png");

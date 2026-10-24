@@ -35,7 +35,7 @@ struct _SignSigning {
 	    *information;
 	SignPdfReader* reader;
 	GtkWidget *continue_button, *sign_button, *warning, *add, *back, *spinner;
-	GtkWidget *output_location, *output_options, *conflict_dialog;
+	GtkWidget *output_options, *conflict_dialog;
 	GtkLabel * notice, *filename, *page_count, *total;
 	GtkWidget* clear;
 	GtkSpinButton*   page;
@@ -73,7 +73,6 @@ static void message(SignSigning* self, const char* text) {
 static GtkWindow* parent_window(SignSigning* self);
 static bool       refresh_output_warnings(SignSigning* self);
 static void       update_warning_widgets(SignSigning* self);
-static void       update_output_summary(SignSigning* self);
 static void       start_run(SignSigning* self, bool overwrite);
 static void       change_output_clicked(GtkButton* button, gpointer data);
 static void       set_item_output(
@@ -167,49 +166,6 @@ static void update_warning_widgets(SignSigning* self) {
 	);
 	g_string_free(tooltip, TRUE);
 }
-static void update_output_summary(SignSigning* self) {
-	if (!self->output_location) {
-		return;
-	}
-	bool visible = self->items->len > 0;
-	gtk_widget_set_visible(self->output_location, visible);
-	gtk_widget_set_visible(self->output_options, visible);
-	if (!visible) {
-		gtk_label_set_text(GTK_LABEL(self->output_location), "");
-		gtk_widget_set_tooltip_text(self->output_location, NULL);
-		return;
-	}
-	char*    common = NULL;
-	bool     same = true;
-	GString* details = g_string_new(NULL);
-	for (guint n = 0; n < self->items->len; ++n) {
-		signing_item* item = g_ptr_array_index(self->items, n);
-		char* display = item->output ? g_filename_display_name(item->output)
-		                             : g_strdup(_("Unavailable"));
-		if (details->len) {
-			g_string_append_c(details, '\n');
-		}
-		g_string_append(details, display);
-		g_free(display);
-		char* parent = item->output ? g_path_get_dirname(item->output) : NULL;
-		if (!parent) {
-			same = false;
-		} else if (!common) {
-			common = parent;
-			parent = NULL;
-		} else if (strcmp(common, parent)) {
-			same = false;
-		}
-		g_free(parent);
-	}
-	char* text = same && common ? g_strdup_printf(_("Output: %s"), common)
-	                            : g_strdup(_("Multiple output locations"));
-	gtk_label_set_text(GTK_LABEL(self->output_location), text);
-	gtk_widget_set_tooltip_text(self->output_location, details->str);
-	g_free(text);
-	g_free(common);
-	g_string_free(details, TRUE);
-}
 static bool refresh_output_warnings(SignSigning* self) {
 	GHashTable* inputs = g_hash_table_new_full(
 	    (GHashFunc)g_file_hash,
@@ -267,7 +223,6 @@ static bool refresh_output_warnings(SignSigning* self) {
 	}
 	g_hash_table_unref(inputs);
 	g_hash_table_unref(outputs);
-	update_output_summary(self);
 	update_warning_widgets(self);
 	return hard;
 }
@@ -278,10 +233,14 @@ static void controls(SignSigning* self) {
 	gtk_widget_set_sensitive(self->clear, !self->busy);
 
 	update_warning_widgets(self);
-	update_output_summary(self);
 	gtk_widget_set_sensitive(
 	    self->sign_button,
 	    self->items->len && !self->busy && !self->loading
+	);
+	gtk_widget_set_visible(self->output_options, self->items->len > 0);
+	gtk_widget_set_sensitive(
+	    self->output_options,
+	    self->items->len > 0 && !self->busy
 	);
 	bool reader = sign_signing_is_reader(self);
 	gtk_widget_set_visible(self->add, !reader);
@@ -998,7 +957,7 @@ void sign_signing_add_files(SignSigning* self, GListModel* files) {
 		gtk_widget_add_css_class(item->warning, "warning");
 		adw_action_row_add_suffix(ADW_ACTION_ROW(item->row), item->warning);
 		item->output_button = gtk_button_new_from_icon_name(
-		    "document-save-symbolic"
+		    "document-edit-symbolic"
 		);
 		gtk_widget_set_name(item->output_button, "sign-change-output");
 		gtk_widget_add_css_class(item->output_button, "flat");
@@ -1030,10 +989,6 @@ void sign_signing_add_files(SignSigning* self, GListModel* files) {
 		GFile* location = g_file_new_for_path(item->path);
 		sign_file_actions_attach(item->row, location, false, false, NULL, NULL);
 		g_object_unref(location);
-		adw_action_row_add_suffix(
-		    ADW_ACTION_ROW(item->row),
-		    sign_file_location_button()
-		);
 		adw_action_row_add_suffix(ADW_ACTION_ROW(item->row), remove);
 		gtk_list_box_append(self->list, item->row);
 		g_ptr_array_add(self->items, item);
@@ -2444,19 +2399,6 @@ static void sign_signing_init(SignSigning* self) {
 	    self
 	);
 	gtk_box_append(GTK_BOX(actions), self->sign_button);
-	gtk_box_append(GTK_BOX(footer), actions);
-	GtkWidget* output_row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
-	gtk_widget_set_halign(output_row, GTK_ALIGN_END);
-	self->output_location = gtk_label_new(NULL);
-	gtk_widget_set_name(self->output_location, "sign-output-location");
-	gtk_widget_add_css_class(self->output_location, "dim-label");
-	gtk_label_set_ellipsize(
-	    GTK_LABEL(self->output_location),
-	    PANGO_ELLIPSIZE_MIDDLE
-	);
-	gtk_label_set_max_width_chars(GTK_LABEL(self->output_location), 48);
-	gtk_label_set_xalign(GTK_LABEL(self->output_location), 1);
-	gtk_box_append(GTK_BOX(output_row), self->output_location);
 	self->output_options = gtk_menu_button_new();
 	gtk_widget_set_name(self->output_options, "sign-output-options");
 	gtk_menu_button_set_icon_name(
@@ -2464,6 +2406,7 @@ static void sign_signing_init(SignSigning* self) {
 	    "view-more-symbolic"
 	);
 	gtk_widget_add_css_class(self->output_options, "flat");
+	gtk_widget_set_valign(self->output_options, GTK_ALIGN_CENTER);
 	gtk_widget_set_tooltip_text(self->output_options, _("Output file options"));
 	GtkWidget* options = gtk_popover_new();
 	GtkWidget* options_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
@@ -2492,8 +2435,8 @@ static void sign_signing_init(SignSigning* self) {
 	gtk_box_append(GTK_BOX(options_box), names);
 	gtk_popover_set_child(GTK_POPOVER(options), options_box);
 	gtk_menu_button_set_popover(GTK_MENU_BUTTON(self->output_options), options);
-	gtk_box_append(GTK_BOX(output_row), self->output_options);
-	gtk_box_append(GTK_BOX(footer), output_row);
+	gtk_box_append(GTK_BOX(actions), self->output_options);
+	gtk_box_append(GTK_BOX(footer), actions);
 	gtk_box_append(GTK_BOX(queue), footer);
 	gtk_stack_add_named(self->modes, queue, "queue");
 	GtkWidget* reader = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);

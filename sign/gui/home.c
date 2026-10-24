@@ -29,6 +29,7 @@ struct _SignHome {
 	GFileMonitor* monitor;
 	GCancellable* thumbnails;
 	GHashTable*   selected;
+	GtkWidget*    selection_anchor;
 };
 G_DEFINE_TYPE(SignHome, sign_home, GTK_TYPE_BOX)
 static guint      history_changed;
@@ -125,6 +126,67 @@ static GtkWidget* section_item(GtkWidget* child) {
 	           ? gtk_flow_box_child_get_child(GTK_FLOW_BOX_CHILD(child))
 	           : child;
 }
+static home_section* item_section(GtkWidget* item) {
+	for (GtkWidget* widget = item; widget;
+	     widget = gtk_widget_get_parent(widget)) {
+		home_section* section = g_object_get_data(
+		    G_OBJECT(widget),
+		    "home-section"
+		);
+		if (section) {
+			return section;
+		}
+	}
+	return NULL;
+}
+static int item_index(home_section* section, GtkWidget* item) {
+	int index = 0;
+	for (GtkWidget* child = gtk_widget_get_first_child(section->list); child;
+	     child = gtk_widget_get_next_sibling(child), ++index) {
+		if (section_item(child) == item) {
+			return index;
+		}
+	}
+	return -1;
+}
+static void select_range(
+    SignHome*     self,
+    home_section* section,
+    GtkWidget*    anchor,
+    GtkWidget*    item
+) {
+	int first = item_index(section, anchor);
+	int last = item_index(section, item);
+	if (first < 0 || last < 0) {
+		return;
+	}
+	if (first > last) {
+		int swap = first;
+		first = last;
+		last = swap;
+	}
+	int index = 0;
+	for (GtkWidget* child = gtk_widget_get_first_child(section->list); child;
+	     child = gtk_widget_get_next_sibling(child), ++index) {
+		if (index < first || index > last) {
+			continue;
+		}
+		GtkWidget* entry = section_item(child);
+		if (entry) {
+			selection_set(self, entry, true);
+		}
+	}
+}
+static bool picked_button(GtkWidget* item, double x, double y) {
+	GtkWidget* picked = gtk_widget_pick(item, x, y, GTK_PICK_DEFAULT);
+	for (GtkWidget* widget = picked; widget && widget != item;
+	     widget = gtk_widget_get_parent(widget)) {
+		if (GTK_IS_BUTTON(widget)) {
+			return true;
+		}
+	}
+	return false;
+}
 static bool picked_item(GtkWidget* picked, GtkWidget* list) {
 	for (GtkWidget* widget = picked; widget && widget != list;
 	     widget = gtk_widget_get_parent(widget)) {
@@ -203,6 +265,7 @@ static void rubber_begin(
 	section->x1 = section->x2 = start_x;
 	section->y1 = section->y2 = start_y;
 	selection_clear(section->self);
+	section->self->selection_anchor = NULL;
 	gtk_gesture_set_state(GTK_GESTURE(gesture), GTK_EVENT_SEQUENCE_CLAIMED);
 	gtk_widget_queue_draw(section->area);
 }
@@ -245,14 +308,39 @@ static void item_clicked(
     double           y,
     gpointer         data
 ) {
-	(void)gesture;
-	(void)presses;
-	(void)x;
-	(void)y;
 	SignHome* self = data;
-	if (g_hash_table_size(self->selected)) {
-		selection_clear(self);
+	if (presses != 1) {
+		return;
 	}
+	GtkWidget* item = gtk_event_controller_get_widget(
+	    GTK_EVENT_CONTROLLER(gesture)
+	);
+	if (picked_button(item, x, y)) {
+		return;
+	}
+	GdkModifierType state = gtk_event_controller_get_current_event_state(
+	    GTK_EVENT_CONTROLLER(gesture)
+	);
+	bool control = (state & GDK_CONTROL_MASK) != 0;
+	bool shift = (state & GDK_SHIFT_MASK) != 0;
+	if (shift && self->selection_anchor) {
+		home_section* section = item_section(item);
+		if (section && item_section(self->selection_anchor) == section) {
+			if (!control) {
+				selection_clear(self);
+			}
+			select_range(self, section, self->selection_anchor, item);
+			return;
+		}
+	}
+	if (control) {
+		selection_set(self, item, !item_selected(self, item));
+		self->selection_anchor = item;
+		return;
+	}
+	selection_clear(self);
+	selection_set(self, item, true);
+	self->selection_anchor = item;
 }
 static GdkContentProvider* home_drag_prepare(
     GtkDragSource* source,
@@ -264,11 +352,6 @@ static GdkContentProvider* home_drag_prepare(
 	(void)y;
 	SignHome*  self = data;
 	GtkWidget* item = g_object_get_data(G_OBJECT(source), "home-item");
-	g_printerr(
-	    "prepare item=%p selected=%u\n",
-	    (void*)item,
-	    g_hash_table_size(self->selected)
-	);
 	GHashTable*
 	    seen = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
 	GPtrArray* paths = g_ptr_array_new_with_free_func(g_free);
@@ -408,10 +491,7 @@ static GtkWidget* file_widget(
 	if (!grid) {
 		gtk_list_box_row_set_child(GTK_LIST_BOX_ROW(item), box);
 		gtk_list_box_row_set_activatable(GTK_LIST_BOX_ROW(item), TRUE);
-		gtk_actionable_set_action_name(
-		    GTK_ACTIONABLE(item),
-		    "document.location"
-		);
+		gtk_actionable_set_action_name(GTK_ACTIONABLE(item), "document.open");
 	}
 	sign_file_actions_attach(
 	    item,
@@ -512,7 +592,7 @@ static void grid_file_activated(
 	(void)data;
 	gtk_widget_activate_action(
 	    gtk_flow_box_child_get_child(child),
-	    "document.location",
+	    "document.open",
 	    NULL
 	);
 }
@@ -555,7 +635,7 @@ static GtkWidget* section_list(SignHome* self, GtkWidget* target) {
 	if (self->grid) {
 		GtkWidget* flow = gtk_flow_box_new();
 		gtk_flow_box_set_selection_mode(GTK_FLOW_BOX(flow), GTK_SELECTION_NONE);
-		gtk_flow_box_set_activate_on_single_click(GTK_FLOW_BOX(flow), TRUE);
+		gtk_flow_box_set_activate_on_single_click(GTK_FLOW_BOX(flow), FALSE);
 		g_signal_connect(
 		    flow,
 		    "child-activated",
@@ -587,6 +667,7 @@ static GtkWidget* section_list(SignHome* self, GtkWidget* target) {
 	gtk_box_append(GTK_BOX(target), columns);
 	GtkWidget* list = gtk_list_box_new();
 	gtk_list_box_set_selection_mode(GTK_LIST_BOX(list), GTK_SELECTION_NONE);
+	gtk_list_box_set_activate_on_single_click(GTK_LIST_BOX(list), FALSE);
 	gtk_widget_add_css_class(list, "home-file-list");
 	attach_selection(self, target, list);
 	return list;
@@ -626,6 +707,7 @@ static void render_section(SignHome* self, bool favorites, size_t start) {
 }
 static void render_home(SignHome* self) {
 	selection_clear(self);
+	self->selection_anchor = NULL;
 	g_cancellable_cancel(self->thumbnails);
 	g_object_unref(self->thumbnails);
 	self->thumbnails = g_cancellable_new();
@@ -834,10 +916,7 @@ static void search_update(SignHome* self) {
 		sign_file_drag_attach(row, file);
 		g_object_unref(file);
 		gtk_list_box_row_set_activatable(GTK_LIST_BOX_ROW(row), TRUE);
-		gtk_actionable_set_action_name(
-		    GTK_ACTIONABLE(row),
-		    "document.location"
-		);
+		gtk_actionable_set_action_name(GTK_ACTIONABLE(row), "document.open");
 		g_signal_connect_object(
 		    row,
 		    "activate",
