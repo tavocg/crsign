@@ -101,6 +101,11 @@ sign_static_pkg_dependencies(SIGN_MAGIC_LINK_LIBRARIES MAGIC magic "${SIGN_MAGIC
 set_target_properties(PkgConfig::MAGIC PROPERTIES
     INTERFACE_LINK_LIBRARIES "${SIGN_MAGIC_LINK_LIBRARIES}"
     INTERFACE_LINK_OPTIONS "${MAGIC_STATIC_LDFLAGS_OTHER}")
+if(WIN32)
+    # libmagic's Windows path discovery uses PathRemoveFileSpecA, but its .pc
+    # file omits shlwapi from the static dependencies.
+    set_property(TARGET PkgConfig::MAGIC APPEND PROPERTY INTERFACE_LINK_LIBRARIES shlwapi)
+endif()
 
 pkg_check_modules(XML2 REQUIRED IMPORTED_TARGET libxml-2.0)
 sign_find_static_library(SIGN_XML2_LIBRARY NAMES xml2 libxml2
