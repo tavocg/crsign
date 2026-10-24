@@ -3,6 +3,7 @@
 #include <p11-kit/p11-kit.h>
 #include <sign/config.h>
 #include <sign/gui/certificate.h>
+#include <sign/gui/device_access.h>
 #include <sign/gui/devices.h>
 #include <sign/gui/error.h>
 #include <sign/gui/i18n.h>
@@ -600,6 +601,7 @@ static void monitor_worker(
 		last_revision = revision;
 		bool    changed = reload;
 		GError* error = NULL;
+		sign_device_access_reader_lock();
 		if (reload || (!context.impl && ++retry >= 5)) {
 			retry = 0;
 			changed = true;
@@ -648,6 +650,12 @@ static void monitor_worker(
 				    G_IO_ERROR_FAILED,
 				    _("Cannot monitor devices")
 				);
+				/* Rebuild the context and state on the next retry instead of
+				 * treating a failed poll as a device change. */
+				libssig_context_close(&context);
+				arg_free(&settings);
+				state = (libssig_device_state){0};
+				retry = 0;
 			}
 		}
 		if (changed) {
@@ -668,6 +676,7 @@ static void monitor_worker(
 		} else {
 			g_clear_error(&error);
 		}
+		sign_device_access_reader_unlock();
 		for (unsigned n = 0;
 		     n < 10 && !g_cancellable_is_cancelled(cancellable) &&
 		     g_atomic_int_get(&self->revision) == last_revision;
@@ -675,7 +684,9 @@ static void monitor_worker(
 			g_usleep(100000);
 		}
 	}
+	sign_device_access_reader_lock();
 	libssig_context_close(&context);
+	sign_device_access_reader_unlock();
 	arg_free(&settings);
 	g_task_return_boolean(task, TRUE);
 }

@@ -16,9 +16,17 @@ if(NOT IS_ABSOLUTE "${CMAKE_INSTALL_LOCALEDIR}")
         ENVIRONMENT "LC_ALL=en_US.UTF-8;LANGUAGE=es")
 endif()
 
+add_executable(gui_device_access_test device_access_test.c ../../sign/gui/device_access.c)
+target_include_directories(gui_device_access_test PRIVATE "${PROJECT_SOURCE_DIR}")
+target_link_libraries(gui_device_access_test PRIVATE PkgConfig::GLIB)
+target_compile_options(gui_device_access_test PRIVATE -Wall -Wextra -Wpedantic -Werror)
+add_test(NAME gui_device_access COMMAND $<TARGET_FILE:gui_device_access_test>)
+set_tests_properties(gui_device_access PROPERTIES TIMEOUT 10)
+
 set(GUI_TEST_SOURCES
     ../../sign/gui/home.c ../../sign/gui/file_actions.c ../../sign/gui/window.c ../../sign/gui/about.c ../../sign/gui/validation.c
     ../../sign/gui/devices.c ../../sign/gui/inventory.c ../../sign/gui/certificate.c
+    ../../sign/gui/device_access.c
     ../../sign/gui/file_drop.c ../../sign/gui/error.c ../../sign/gui/pdf_reader.c ../../sign/gui/pdf_view.c ../../sign/gui/signing.c
     ../../sign/flow.c ../../sign/user_data.c ../../sign/ui_preferences.c ../../sign/history.c ../../sign/execution.c ../../sign/sign.c ../../sign/modules.c
     ../../sign/appearance.c ../../sign/pin.c ../../sign/terminal.c ../../sign/http.c

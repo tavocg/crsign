@@ -2,6 +2,7 @@
 #include <math.h>
 #include <sign/appearance.h>
 #include <sign/config.h>
+#include <sign/gui/device_access.h>
 #include <sign/gui/error.h>
 #include <sign/gui/file_actions.h>
 #include <sign/gui/file_drop.h>
@@ -341,11 +342,15 @@ static void preview_worker(
 	}
 	sign_identity identity = {0};
 	char*         svg = NULL;
-	if ((!job->image || job->information) &&
-	    sign_identity_open(&settings.options, &identity, NULL) == LIBSSIG_OK) {
-		svg = appearance_default_svg(identity.certificate);
+	if (!job->image || job->information) {
+		sign_device_access_writer_lock();
+		if (sign_identity_open(&settings.options, &identity, NULL) ==
+		    LIBSSIG_OK) {
+			svg = appearance_default_svg(identity.certificate);
+		}
+		sign_identity_close(&identity);
+		sign_device_access_writer_unlock();
 	}
-	sign_identity_close(&identity);
 	if (!svg) {
 		svg = appearance_text_svg(_("Certificate holder"));
 	}
@@ -1362,7 +1367,9 @@ static void run_worker(
 	    .cancellable = cancellable
 	};
 	if (ok) {
+		sign_device_access_writer_lock();
 		ok = sign_flow_run(run->flow, &execution, &run->result, &error);
+		sign_device_access_writer_unlock();
 	}
 	/* The only retained PIN copy lasts for this execution, never the UI/JSON.
 	 */
