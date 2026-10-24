@@ -858,6 +858,7 @@ static void sign_validation_init(SignValidation* self) {
 	);
 	gtk_widget_set_vexpand(self->scroll, TRUE);
 	self->list = GTK_LIST_BOX(gtk_list_box_new());
+	gtk_widget_set_valign(GTK_WIDGET(self->list), GTK_ALIGN_START);
 	gtk_widget_set_name(GTK_WIDGET(self->list), "validation-results");
 	gtk_list_box_set_selection_mode(self->list, GTK_SELECTION_NONE);
 	gtk_widget_add_css_class(GTK_WIDGET(self->list), "boxed-list");
