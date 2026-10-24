@@ -7,6 +7,13 @@
 typedef struct {
 	double width, height, x, y;
 } page_box;
+typedef enum {
+	RESIZE_NONE,
+	RESIZE_TOP_LEFT,
+	RESIZE_BOTTOM_LEFT,
+	RESIZE_BOTTOM_RIGHT
+} resize_corner;
+
 struct _SignPdfReader {
 	GtkBox                 parent_instance;
 	GtkScrolledWindow*     scroll;
@@ -25,6 +32,9 @@ struct _SignPdfReader {
 	unsigned int           anchor_page;
 	bool                   pointer_known;
 	bool                   pending, closing, layout, dragging, moving;
+	resize_corner          resizing;
+	double                 hover_x, hover_y;
+	bool                   hover_known;
 	libssig_pdf_appearance drag_appearance;
 	unsigned int           drag_page;
 	double                 drag_x, drag_y, drag_dx, drag_dy;
@@ -37,6 +47,113 @@ static page_box* box(SignPdfReader* self, unsigned int page) {
 	return page && page <= self->pages->len
 	           ? &g_array_index(self->pages, page_box, page - 1)
 	           : NULL;
+}
+/* Handles and hit areas stay the same size on screen at every zoom level. */
+static resize_corner corner_at(SignPdfReader* self, double x, double y) {
+	page_box* p = box(self, self->appearance.page_number);
+	if (!self->stamp || !p || self->scale <= 0) {
+		return RESIZE_NONE;
+	}
+	const libssig_pdf_appearance* a = &self->appearance;
+	double left = p->x + a->x * self->scale, top = p->y + a->y * self->scale;
+	double right = left + a->width * self->scale,
+	       bottom = top + a->height * self->scale;
+	const double  points[3][2] = {{left, top}, {left, bottom}, {right, bottom}};
+	resize_corner closest = RESIZE_NONE;
+	double        distance = 10;
+	for (unsigned n = 0; n < 3; ++n) {
+		double candidate = hypot(x - points[n][0], y - points[n][1]);
+		if (candidate <= distance) {
+			distance = candidate;
+			closest = (resize_corner)(n + 1);
+		}
+	}
+	return closest;
+}
+static bool over_stamp(SignPdfReader* self, double x, double y) {
+	page_box*                     p = box(self, self->appearance.page_number);
+	const libssig_pdf_appearance* a = &self->appearance;
+	return self->stamp && p && self->scale > 0 &&
+	       x >= p->x + a->x * self->scale &&
+	       x <= p->x + (a->x + a->width) * self->scale &&
+	       y >= p->y + a->y * self->scale &&
+	       y <= p->y + (a->y + a->height) * self->scale;
+}
+static void update_cursor(SignPdfReader* self) {
+	resize_corner corner = self->resizing;
+	if (!self->dragging && self->hover_known) {
+		corner = corner_at(self, self->hover_x, self->hover_y);
+	}
+	const char* cursor = "crosshair";
+	if (corner != RESIZE_NONE) {
+		cursor = corner == RESIZE_BOTTOM_LEFT ? "nesw-resize" : "nwse-resize";
+	} else if (self->dragging && self->moving) {
+		cursor = "grabbing";
+	} else if (!self->dragging && self->hover_known &&
+	           over_stamp(self, self->hover_x, self->hover_y)) {
+		cursor = "grab";
+	}
+	gtk_widget_set_cursor_from_name(self->canvas, cursor);
+}
+static void canvas_motion(
+    GtkEventControllerMotion* controller,
+    double                    x,
+    double                    y,
+    gpointer                  data
+) {
+	(void)controller;
+	SignPdfReader* self = data;
+	self->hover_x = x;
+	self->hover_y = y;
+	self->hover_known = true;
+	update_cursor(self);
+}
+static void canvas_leave(GtkEventControllerMotion* controller, gpointer data) {
+	(void)controller;
+	SignPdfReader* self = data;
+	self->hover_known = false;
+	update_cursor(self);
+}
+/* Project the pointer onto the diagonal, fixing the opposite corner. Clamp
+ * in PDF points so minimum/maximum dimensions and page edges do not depend on
+ * zoom. */
+static void resize_update(SignPdfReader* self, double dx, double dy) {
+	page_box*                     p = box(self, self->drag_page);
+	const libssig_pdf_appearance* a = &self->drag_appearance;
+	if (!p || self->scale <= 0 || a->width <= 0 || a->height <= 0) {
+		return;
+	}
+	double ratio = a->width / a->height;
+	double sx = self->resizing == RESIZE_BOTTOM_RIGHT ? 1 : -1;
+	double sy = self->resizing == RESIZE_TOP_LEFT ? -1 : 1;
+	double ax = sx > 0 ? a->x : a->x + a->width;
+	double ay = sy > 0 ? a->y : a->y + a->height;
+	double low = fmax(
+	    SIGN_APPEARANCE_MIN_SIZE,
+	    SIGN_APPEARANCE_MIN_SIZE * ratio
+	);
+	double high = fmin(
+	    SIGN_APPEARANCE_MAX_SIZE,
+	    SIGN_APPEARANCE_MAX_SIZE * ratio
+	);
+	high = fmin(
+	    high,
+	    fmin(
+	        sx > 0 ? p->width - ax : ax,
+	        (sy > 0 ? p->height - ay : ay) * ratio
+	    )
+	);
+	if (high < low) {
+		return;
+	}
+	double width = a->width + (sx * dx + sy * dy / ratio) / self->scale /
+	                              (1 + 1 / (ratio * ratio));
+	width = CLAMP(width, low, high);
+	self->appearance = *a;
+	self->appearance.width = width;
+	self->appearance.height = width / ratio;
+	self->appearance.x = sx > 0 ? ax : ax - width;
+	self->appearance.y = sy > 0 ? ay : ay - width / ratio;
 }
 static void select_page(SignPdfReader* self, unsigned int page) {
 	if (self->page != page) {
@@ -395,9 +512,24 @@ static void draw(
 			cairo_set_line_width(cr, 2);
 			cairo_rectangle(cr, x, y, w, h);
 			cairo_stroke(cr);
+			const double corners[3][2] = {{x, y}, {x, y + h}, {x + w, y + h}};
+			for (unsigned n = 0; n < 3; ++n) {
+				cairo_rectangle(
+				    cr,
+				    corners[n][0] - 5,
+				    corners[n][1] - 5,
+				    10,
+				    10
+				);
+				cairo_set_source_rgb(cr, 1, 1, 1);
+				cairo_fill_preserve(cr);
+				cairo_set_source_rgb(cr, .15, .45, .85);
+				cairo_set_line_width(cr, 1.5);
+				cairo_stroke(cr);
+			}
 		}
 	}
-	if (self->dragging && !self->moving) {
+	if (self->dragging && !self->moving && self->resizing == RESIZE_NONE) {
 		cairo_rectangle(
 		    cr,
 		    self->drag_x + MIN(0, self->drag_dx),
@@ -423,6 +555,19 @@ static void drag_begin(
 	if (!self->stamp || self->scale <= 0) {
 		return;
 	}
+	self->resizing = corner_at(self, x, y);
+	if (self->resizing != RESIZE_NONE) {
+		select_page(self, self->appearance.page_number);
+		self->drag_appearance = self->appearance;
+		self->dragging = true;
+		self->moving = false;
+		self->drag_page = self->appearance.page_number;
+		self->drag_x = x;
+		self->drag_y = y;
+		self->drag_dx = self->drag_dy = 0;
+		update_cursor(self);
+		return;
+	}
 	for (guint n = 1; n <= self->pages->len; ++n) {
 		page_box* p = box(self, n);
 		if (x < p->x || x > p->x + p->width * self->scale || y < p->y ||
@@ -441,6 +586,7 @@ static void drag_begin(
 		self->drag_x = x;
 		self->drag_y = y;
 		self->drag_dx = self->drag_dy = 0;
+		update_cursor(self);
 		return;
 	}
 }
@@ -455,7 +601,10 @@ static void drag_update(
 	if (self->dragging) {
 		self->drag_dx = dx;
 		self->drag_dy = dy;
-		if (self->moving) {
+		if (self->resizing != RESIZE_NONE) {
+			resize_update(self, dx, dy);
+			remove_position(self);
+		} else if (self->moving) {
 			page_box* p = box(self, self->drag_page);
 			self->appearance.x = CLAMP(
 			    self->drag_appearance.x + dx / self->scale,
@@ -490,7 +639,14 @@ static void drag_end(
 	}
 	double x = (self->drag_x - p->x) / self->scale,
 	       y = (self->drag_y - p->y) / self->scale, w = 0, h = 0;
-	if (self->moving) {
+	if (self->resizing != RESIZE_NONE) {
+		resize_update(self, dx, dy);
+		x = self->appearance.x;
+		y = self->appearance.y;
+		w = self->appearance.width;
+		h = self->appearance.height;
+		self->resizing = RESIZE_NONE;
+	} else if (self->moving) {
 		x = CLAMP(
 		    self->drag_appearance.x + dx / self->scale,
 		    0,
@@ -513,6 +669,10 @@ static void drag_end(
 		y = MIN(y, end_y);
 	}
 	g_signal_emit(self, signals[PLACEMENT], 0, self->drag_page, x, y, w, h);
+	self->hover_x = self->drag_x + dx;
+	self->hover_y = self->drag_y + dy;
+	self->hover_known = true;
+	update_cursor(self);
 	gtk_widget_queue_draw(self->canvas);
 }
 static void drag_cancel(
@@ -523,10 +683,12 @@ static void drag_cancel(
 	(void)gesture;
 	(void)sequence;
 	SignPdfReader* self = data;
-	if (self->dragging && self->moving) {
+	if (self->dragging && (self->moving || self->resizing != RESIZE_NONE)) {
 		self->appearance = self->drag_appearance;
 	}
 	self->dragging = self->moving = false;
+	self->resizing = RESIZE_NONE;
+	update_cursor(self);
 	remove_position(self);
 	gtk_widget_queue_draw(self->canvas);
 }
@@ -714,7 +876,9 @@ void sign_pdf_reader_set_stamp(
 	}
 	self->stamp = stamp ? cairo_surface_reference(stamp) : NULL;
 	self->dragging = self->moving = false;
+	self->resizing = RESIZE_NONE;
 	self->appearance = appearance ? *appearance : (libssig_pdf_appearance){0};
+	update_cursor(self);
 	remove_position(self);
 	gtk_widget_queue_draw(self->canvas);
 }
@@ -862,6 +1026,11 @@ static void sign_pdf_reader_init(SignPdfReader* self) {
 	g_signal_connect(drag, "drag-end", G_CALLBACK(drag_end), self);
 	g_signal_connect(drag, "cancel", G_CALLBACK(drag_cancel), self);
 	gtk_widget_add_controller(self->canvas, GTK_EVENT_CONTROLLER(drag));
+	GtkEventController* hover = gtk_event_controller_motion_new();
+	g_signal_connect(hover, "motion", G_CALLBACK(canvas_motion), self);
+	g_signal_connect(hover, "enter", G_CALLBACK(canvas_motion), self);
+	g_signal_connect(hover, "leave", G_CALLBACK(canvas_leave), self);
+	gtk_widget_add_controller(self->canvas, hover);
 	gtk_overlay_set_child(GTK_OVERLAY(overlay), self->canvas);
 	self->remove = gtk_button_new();
 	GtkWidget* cross = gtk_drawing_area_new();

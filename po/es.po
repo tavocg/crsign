@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: CRSign 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/tavocg/crsign/issues\n"
-"POT-Creation-Date: 2026-10-23 22:24-0600\n"
+"POT-Creation-Date: 2026-10-23 22:34-0600\n"
 "PO-Revision-Date: 2026-10-23 00:00-0600\n"
 "Last-Translator: Gustavo Calvo <tavo@tavo.cr>\n"
 "Language-Team: Spanish\n"
@@ -724,7 +724,7 @@ msgstr "No se puede leer la geometría de las páginas del PDF"
 msgid "Invalid page number"
 msgstr "Número de página no válido"
 
-#: sign/gui/pdf_view.c:196 sign/gui/pdf_reader.c:297
+#: sign/gui/pdf_view.c:196 sign/gui/pdf_reader.c:414
 msgid "Cannot render this PDF page"
 msgstr "No se puede mostrar esta página del PDF"
 
@@ -881,19 +881,19 @@ msgstr "Añadir información de firma"
 msgid "Page"
 msgstr "Página"
 
-#: sign/gui/pdf_reader.c:851
+#: sign/gui/pdf_reader.c:1015
 msgid "Click or drag to place the graphical signature"
 msgstr "Haz clic o arrastra para colocar la firma gráfica"
 
-#: sign/gui/pdf_reader.c:878
+#: sign/gui/pdf_reader.c:1047
 msgid "Remove graphical signature"
 msgstr "Quitar firma gráfica"
 
-#: sign/gui/pdf_reader.c:895
+#: sign/gui/pdf_reader.c:1064
 msgid "Zoom in"
 msgstr "Acercar"
 
-#: sign/gui/pdf_reader.c:896
+#: sign/gui/pdf_reader.c:1065
 msgid "Zoom out"
 msgstr "Alejar"
 

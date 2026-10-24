@@ -94,8 +94,12 @@ son puntos PDF sobre la página visible, considerando recorte, rotación y escal
 Se conserva la relación de aspecto y se ajusta el tamaño entre los límites
 compartidos con la CLI (12–720 puntos por dimensión). Si no cabe, se muestra un
 error. Arrastrar sobre la imagen ya colocada la mueve, conserva sus dimensiones
-y la limita a los bordes de su página. El cursor de cruz se mantiene en ambos
-casos. El selector inferior permite saltar a una página y refleja la página
+y la limita a los bordes de su página. El cursor es una mano sobre la imagen,
+una mano cerrada mientras se mueve y una cruz fuera de ella. Las tres esquinas
+sin equis muestran controles para redimensionar, con cursor diagonal. Al
+arrastrarlos se conserva la proporción y permanece fija la esquina opuesta;
+los límites de tamaño y de página se aplican en puntos PDF a cualquier zoom.
+El selector inferior permite saltar a una página y refleja la página
 visible al desplazarse; la equis quita la representación.
 
 Los botones de imagen, alineados a la derecha, permiten elegir SVG, PNG, JPEG y los formatos disponibles en

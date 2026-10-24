@@ -292,6 +292,251 @@ static void move_stamp(GtkWidget* window, SignSigning* self) {
 	g_free(id);
 	g_free(tool);
 }
+static void resize_stamp(
+    GtkWidget*   window,
+    SignSigning* self,
+    double       page_width,
+    double       page_height
+) {
+	GtkWidget*     canvas = named(GTK_WIDGET(self), "sign-pdf-canvas");
+	SignPdfReader* reader = SIGN_PDF_READER(
+	    find_widget(GTK_WIDGET(self), SIGN_TYPE_PDF_READER)
+	);
+	GtkGestureDrag*           drag = NULL;
+	GtkEventControllerMotion* motion = NULL;
+	GListModel* controllers = gtk_widget_observe_controllers(canvas);
+	for (guint n = 0; n < g_list_model_get_n_items(controllers); ++n) {
+		GObject* controller = g_list_model_get_item(controllers, n);
+		if (GTK_IS_GESTURE_DRAG(controller)) {
+			drag = g_object_ref(GTK_GESTURE_DRAG(controller));
+		}
+		if (GTK_IS_EVENT_CONTROLLER_MOTION(controller)) {
+			motion = g_object_ref(GTK_EVENT_CONTROLLER_MOTION(controller));
+		}
+		g_object_unref(controller);
+	}
+	g_object_unref(controllers);
+	g_assert_nonnull(drag);
+	g_assert_nonnull(motion);
+	char* tool = g_find_program_in_path("xdotool");
+	char* id = NULL;
+	if (tool) {
+		char* args[] =
+		    {tool, "search", "--name", "^CRSign Signing Test$", NULL};
+		int status = 0;
+		g_assert_true(g_spawn_sync(
+		    NULL,
+		    args,
+		    NULL,
+		    G_SPAWN_DEFAULT,
+		    NULL,
+		    NULL,
+		    &id,
+		    NULL,
+		    &status,
+		    NULL
+		));
+		g_assert_cmpint(status, ==, 0);
+		g_strstrip(id);
+	}
+	const libssig_pdf_appearance* a = sign_signing_appearance(self, 0);
+	GError*                       error = NULL;
+	for (unsigned corner = 0; corner < 3; ++corner) {
+		g_assert_true(sign_signing_place(self, 100, 140, 180, 90, &error));
+		g_assert_no_error(error);
+		settle();
+		graphene_rect_t page, bounds;
+		g_assert_true(
+		    sign_pdf_reader_page_bounds(reader, a->page_number, &page)
+		);
+		g_assert_true(gtk_widget_compute_bounds(canvas, window, &bounds));
+		double scale = page.size.width / page_width;
+		double sx = corner == 2 ? 1 : -1, sy = corner == 0 ? -1 : 1;
+		double x = page.origin.x +
+		           (corner == 2 ? a->x + a->width : a->x) * scale;
+		double y = page.origin.y +
+		           (corner == 0 ? a->y : a->y + a->height) * scale;
+		g_signal_emit_by_name(
+		    motion,
+		    "motion",
+		    page.origin.x + (a->x + a->width / 2) * scale,
+		    page.origin.y + (a->y + a->height / 2) * scale
+		);
+		g_assert_cmpstr(
+		    gdk_cursor_get_name(gtk_widget_get_cursor(canvas)),
+		    ==,
+		    "grab"
+		);
+		g_signal_emit_by_name(
+		    motion,
+		    "motion",
+		    page.origin.x + 500 * scale,
+		    page.origin.y + 20 * scale
+		);
+		g_assert_cmpstr(
+		    gdk_cursor_get_name(gtk_widget_get_cursor(canvas)),
+		    ==,
+		    "crosshair"
+		);
+		g_signal_emit_by_name(motion, "motion", x, y);
+		g_assert_cmpstr(
+		    gdk_cursor_get_name(gtk_widget_get_cursor(canvas)),
+		    ==,
+		    corner == 1 ? "nesw-resize" : "nwse-resize"
+		);
+		if (tool) {
+			char* command = g_strdup_printf(
+			    "%s mousemove --window %s %d %d mousedown 1 mousemove --window "
+			    "%s %d %d mouseup 1",
+			    tool,
+			    id,
+			    (int)round(bounds.origin.x + x),
+			    (int)round(bounds.origin.y + y),
+			    id,
+			    (int)round(bounds.origin.x + x + sx * 30 * scale),
+			    (int)round(bounds.origin.y + y + sy * 15 * scale)
+			);
+			int status = 0;
+			g_assert_true(
+			    g_spawn_command_line_sync(command, NULL, NULL, &status, NULL)
+			);
+			g_assert_cmpint(status, ==, 0);
+			g_free(command);
+			settle();
+		} else {
+			g_signal_emit_by_name(drag, "drag-begin", x, y);
+			g_signal_emit_by_name(
+			    drag,
+			    "drag-update",
+			    sx * 30 * scale,
+			    sy * 15 * scale
+			);
+			g_signal_emit_by_name(
+			    drag,
+			    "drag-end",
+			    sx * 30 * scale,
+			    sy * 15 * scale
+			);
+		}
+		g_assert_cmpfloat(a->width, >, 180);
+		g_assert_cmpfloat(fabs(a->width / a->height - 2), <, .0001);
+		g_assert_cmpfloat(
+		    fabs((sx < 0 ? a->x + a->width : a->x) - (sx < 0 ? 280 : 100)),
+		    <,
+		    .001
+		);
+		g_assert_cmpfloat(
+		    fabs((sy < 0 ? a->y + a->height : a->y) - (sy < 0 ? 230 : 140)),
+		    <,
+		    .001
+		);
+	}
+	/* Extreme drags clamp sizes without flipping or crossing a page edge. */
+	for (unsigned shrink = 0; shrink < 2; ++shrink) {
+		g_assert_true(sign_signing_place(self, 100, 140, 180, 90, &error));
+		graphene_rect_t page;
+		g_assert_true(
+		    sign_pdf_reader_page_bounds(reader, a->page_number, &page)
+		);
+		double scale = page.size.width / page_width;
+		double delta = (shrink ? -50000 : 50000) * scale;
+		g_signal_emit_by_name(
+		    drag,
+		    "drag-begin",
+		    page.origin.x + 280 * scale,
+		    page.origin.y + 230 * scale
+		);
+		g_signal_emit_by_name(drag, "drag-update", delta, delta);
+		g_signal_emit_by_name(drag, "drag-end", delta, delta);
+		double width = shrink
+		                   ? 24
+		                   : fmin(
+		                         720,
+		                         fmin(page_width - 100, (page_height - 140) * 2)
+		                     );
+		g_assert_cmpfloat(fabs(a->width - width), <, .001);
+		g_assert_cmpfloat(fabs(a->height - width / 2), <, .001);
+		g_assert_cmpfloat(a->x, ==, 100);
+		g_assert_cmpfloat(a->y, ==, 140);
+	}
+	if (page_width >= 760 && page_height >= 380) {
+		g_assert_true(sign_signing_place(self, 20, 20, 180, 90, &error));
+		graphene_rect_t page;
+		g_assert_true(
+		    sign_pdf_reader_page_bounds(reader, a->page_number, &page)
+		);
+		double scale = page.size.width / page_width;
+		g_signal_emit_by_name(
+		    drag,
+		    "drag-begin",
+		    page.origin.x + 200 * scale,
+		    page.origin.y + 110 * scale
+		);
+		g_signal_emit_by_name(
+		    drag,
+		    "drag-update",
+		    50000 * scale,
+		    50000 * scale
+		);
+		g_signal_emit_by_name(drag, "drag-end", 50000 * scale, 50000 * scale);
+		g_assert_cmpfloat(a->width, ==, 720);
+		g_assert_cmpfloat(a->height, ==, 360);
+	}
+	g_assert_true(sign_signing_place(self, 100, 140, 180, 90, &error));
+	graphene_rect_t page;
+	g_assert_true(sign_pdf_reader_page_bounds(reader, a->page_number, &page));
+	double scale = page.size.width / page_width;
+	double x = page.origin.x + 280 * scale, y = page.origin.y + 230 * scale;
+	g_signal_emit_by_name(drag, "drag-begin", x, y);
+	g_signal_emit_by_name(drag, "drag-update", 30 * scale, 15 * scale);
+	g_signal_emit_by_name(drag, "cancel", NULL);
+	g_signal_emit_by_name(motion, "motion", x, y);
+	g_assert_cmpstr(
+	    gdk_cursor_get_name(gtk_widget_get_cursor(canvas)),
+	    ==,
+	    "nwse-resize"
+	);
+	g_assert_cmpfloat(a->width, ==, 180);
+	g_signal_emit_by_name(
+	    drag,
+	    "drag-begin",
+	    page.origin.x + 190 * scale,
+	    page.origin.y + 185 * scale
+	);
+	g_assert_cmpstr(
+	    gdk_cursor_get_name(gtk_widget_get_cursor(canvas)),
+	    ==,
+	    "grabbing"
+	);
+	g_signal_emit_by_name(drag, "cancel", NULL);
+	g_signal_emit_by_name(named(GTK_WIDGET(self), "sign-zoom-in"), "clicked");
+	settle();
+	g_assert_true(sign_pdf_reader_page_bounds(reader, a->page_number, &page));
+	scale = page.size.width / page_width;
+	g_signal_emit_by_name(
+	    drag,
+	    "drag-begin",
+	    page.origin.x + 280 * scale,
+	    page.origin.y + 230 * scale
+	);
+	g_signal_emit_by_name(drag, "drag-update", 30 * scale, 15 * scale);
+	g_signal_emit_by_name(drag, "drag-end", 30 * scale, 15 * scale);
+	g_assert_cmpfloat(fabs(a->width - 210), <, .001);
+	g_signal_emit_by_name(named(GTK_WIDGET(self), "sign-zoom-out"), "clicked");
+	settle();
+	sign_flow* flow = sign_signing_build_flow(self, &error);
+	g_assert_no_error(error);
+	g_assert_cmpfloat(
+	    fabs(sign_flow_document(flow, 0)->appearance.width - 210),
+	    <,
+	    .001
+	);
+	sign_flow_free(flow);
+	g_object_unref(drag);
+	g_object_unref(motion);
+	g_free(id);
+	g_free(tool);
+}
 int main(int argc, char** argv) {
 	g_assert_true(argc == 3 || argc == 4);
 	gui_i18n_init();
@@ -428,6 +673,7 @@ int main(int argc, char** argv) {
 	g_assert_true(sign_signing_place(self, 30, 40, 144, 72, &error));
 	g_assert_no_error(error);
 	move_stamp(window, self);
+	resize_stamp(window, self, 612, 792);
 	g_assert_true(sign_signing_place(self, 30, 40, 1, 1, &error));
 	g_assert_cmpfloat(a->width, ==, 24);
 	g_assert_cmpfloat(a->height, ==, 12);
@@ -437,6 +683,8 @@ int main(int argc, char** argv) {
 	wait_done(self);
 	g_assert_true(sign_signing_place(self, 40, 50, 300, 150, &error));
 	g_assert_cmpuint(a->page_number, ==, 2);
+	resize_stamp(window, self, 800, 480);
+	g_assert_true(sign_signing_place(self, 40, 50, 300, 150, &error));
 	gtk_window_set_default_size(GTK_WINDOW(window), 420, 760);
 	settle();
 	g_assert_cmpint(gtk_widget_get_width(window), <=, 420);
