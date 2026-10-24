@@ -32,4 +32,8 @@ const libssig_pdf_appearance* sign_signing_appearance(
 );
 sign_flow* sign_signing_build_flow(SignSigning* self, GError** error);
 void       sign_signing_run(SignSigning* self);
+void       sign_signing_clear(SignSigning* self);
+/* signing-completed emits a borrowed verification flow after full success.
+ * Copy it during the signal to retain it; documents-signed also covers partial
+ * success. */
 #endif

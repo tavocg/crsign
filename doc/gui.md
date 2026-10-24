@@ -110,6 +110,15 @@ y junto a «Firmar» aparece un aviso que permite continuar igualmente. Seleccio
 PDF de la cola vuelve a abrir su lector y conserva la representación elegida.
 Los documentos de otros tipos se firman sin representación gráfica.
 
+La barra superior de la cola muestra «Total: n» y «Limpiar todo», que vacía la
+cola y cancela cualquier previsualización pendiente. Cada fila permite abrir la
+ubicación del archivo y quitarlo, con la carpeta a la izquierda de la equis.
+
+Al completar correctamente el firmado, se vacía la cola de Firmar y se abre
+Validar con los archivos de salida, conservando los ajustes de confianza del
+perfil y el original cuando la firma es separada. Los resultados anteriores de
+Validar se conservan. Si falla el firmado, la cola permanece disponible.
+
 La GUI construye un [flow JSON versionado](flows.md) con los ajustes y rutas de
 cada documento. Se ejecuta un único flow a la vez y se detiene ante el primer
 fallo. El PIN se solicita al ejecutar mediante una ventana modal, salvo que

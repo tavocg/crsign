@@ -168,6 +168,32 @@ int main(int argc, char** argv) {
 	g_assert_cmpuint(sign_validation_count(self), ==, 2);
 	g_assert_true(sign_validation_result(self, 1)->ok);
 	g_signal_emit_by_name(named(view, "validation-clear"), "clicked");
+	/* Flow intake owns its options and supplies detached content immediately.
+	 */
+	char*          detached = g_file_get_path(files[3]);
+	char*          original = g_file_get_path(files[0]);
+	char*          anchor = g_build_filename(root, "anchor.der", NULL);
+	sign_flow_item document = {
+	    .operation = SIGN_FLOW_VERIFY,
+	    .content = original
+	};
+	document.options.input = detached;
+	document.options.ca_file = anchor;
+	GError*    error = NULL;
+	sign_flow* flow = sign_flow_from_items(&document, 1, &error);
+	g_assert_no_error(error);
+	g_assert_true(sign_validation_add_flow(self, flow, &error));
+	g_assert_no_error(error);
+	sign_flow_free(flow);
+	g_free(detached);
+	g_free(original);
+	g_free(anchor);
+	wait_done(self);
+	g_assert_cmpuint(sign_validation_count(self), ==, 1);
+	g_assert_true(sign_validation_result(self, 0)->ok);
+	g_assert_true(sign_validation_result(self, 0)->verification.detached);
+	g_assert_true(sign_validation_result(self, 0)->verification.trusted);
+	g_signal_emit_by_name(named(view, "validation-clear"), "clicked");
 	/* Closing with work pending cancels the queue and releases the page once
 	 * its current worker returns; the callback must not access destroyed UI. */
 	sign_validation_add_files(self, G_LIST_MODEL(extra));

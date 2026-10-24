@@ -387,6 +387,43 @@ int main(int argc, char** argv) {
 	    ==,
 	    "sign"
 	);
+	/* Successful signing switches sections and empties the original queue. */
+	g_assert_true(
+	    g_file_set_contents(output, "signed output fixture", -1, NULL)
+	);
+	SignSigning* signing = SIGN_SIGNING(
+	    gtk_stack_get_child_by_name(reopened_stack, "sign")
+	);
+	GListStore* pending = g_list_store_new(G_TYPE_FILE);
+	GFile*      file = g_file_new_for_path(output);
+	g_list_store_append(pending, file);
+	sign_signing_add_files(signing, G_LIST_MODEL(pending));
+	g_object_unref(file);
+	g_object_unref(pending);
+	sign_flow_item item = {.operation = SIGN_FLOW_VERIFY};
+	item.options.input = output;
+	sign_flow* verification = sign_flow_from_items(&item, 1, &error);
+	g_assert_no_error(error);
+	g_signal_emit_by_name(signing, "signing-completed", verification);
+	sign_flow_free(verification);
+	g_assert_cmpstr(
+	    gtk_stack_get_visible_child_name(reopened_stack),
+	    ==,
+	    "verify"
+	);
+	g_assert_cmpuint(sign_signing_count(signing), ==, 0);
+	SignValidation* validation = SIGN_VALIDATION(
+	    gtk_stack_get_child_by_name(reopened_stack, "verify")
+	);
+	g_assert_cmpuint(sign_validation_count(validation), ==, 1);
+	gint64 deadline = g_get_monotonic_time() + 5 * G_TIME_SPAN_SECOND;
+	while (sign_validation_is_busy(validation) &&
+	       g_get_monotonic_time() < deadline) {
+		g_main_context_iteration(NULL, FALSE);
+		g_usleep(1000);
+	}
+	g_assert_false(sign_validation_is_busy(validation));
+	g_unlink(output);
 	gtk_window_destroy(GTK_WINDOW(reopened));
 	settle();
 	char* path = history_path();

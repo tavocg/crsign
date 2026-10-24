@@ -22,4 +22,7 @@ void sign_validation_set_content(
     size_t          index,
     GFile*          content
 );
+/* Copies a verification flow before starting work, preserving trust and
+ * detached content. */
+bool sign_validation_add_flow(SignValidation*, const sign_flow*, GError**);
 #endif

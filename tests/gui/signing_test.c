@@ -6,7 +6,23 @@
 #include <sign/gui/pdf_reader.h>
 #include <sign/gui/pdf_view.h>
 #include <sign/gui/signing.h>
+#include <sign/gui/validation.h>
 
+static guint handoffs;
+static void completed(SignSigning* self, const sign_flow* flow, gpointer data) {
+	(void)self;
+	GError* error = NULL;
+	g_assert_cmpuint(sign_flow_count(flow), ==, 2);
+	for (size_t n = 0; n < sign_flow_count(flow); ++n) {
+		const sign_flow_item* item = sign_flow_get_item(flow, n);
+		g_assert_cmpint(item->operation, ==, SIGN_FLOW_VERIFY);
+		g_assert_nonnull(strstr(item->options.input, "-signed."));
+		g_assert_nonnull(item->options.ca_file);
+	}
+	g_assert_true(sign_validation_add_flow(data, flow, &error));
+	g_assert_no_error(error);
+	++handoffs;
+}
 static guint    pins;
 static bool     cancel_pin, close_parent;
 static gboolean answer_pin(gpointer data) {
@@ -523,11 +539,55 @@ int main(int argc, char** argv) {
 	g_assert_null(strstr(json, "1234"));
 	free(json);
 	sign_flow_free(flow);
+	g_assert_cmpstr(
+	    gtk_label_get_text(GTK_LABEL(named(GTK_WIDGET(self), "sign-total"))),
+	    ==,
+	    "Total: 2"
+	);
+	GtkWidget* remove_document = named(
+	    GTK_WIDGET(self),
+	    "sign-remove-document"
+	);
+	g_assert_cmpstr(
+	    gtk_widget_get_name(gtk_widget_get_prev_sibling(remove_document)),
+	    ==,
+	    "document-location"
+	);
+	SignValidation* validation = SIGN_VALIDATION(sign_validation_new());
+	gtk_widget_set_visible(GTK_WIDGET(validation), FALSE);
+	gtk_box_append(GTK_BOX(box), GTK_WIDGET(validation));
+	g_signal_connect(
+	    self,
+	    "signing-completed",
+	    G_CALLBACK(completed),
+	    validation
+	);
 	snapshot(window, argv[2], "sign-queue.png");
 	guint timer = g_timeout_add(10, answer_pin, app);
 	sign_signing_run(self);
+	g_assert_false(
+	    gtk_widget_get_sensitive(named(GTK_WIDGET(self), "sign-clear"))
+	);
 	wait_done(self);
 	g_source_remove(timer);
+	g_assert_cmpuint(handoffs, ==, 1);
+	gint64 deadline = g_get_monotonic_time() + 15 * G_TIME_SPAN_SECOND;
+	while (sign_validation_is_busy(validation) &&
+	       g_get_monotonic_time() < deadline) {
+		g_main_context_iteration(NULL, FALSE);
+		g_usleep(1000);
+	}
+	g_assert_false(sign_validation_is_busy(validation));
+	g_assert_cmpuint(sign_validation_count(validation), ==, 2);
+	for (size_t n = 0; n < 2; ++n) {
+		const sign_flow_document_result* result = sign_validation_result(
+		    validation,
+		    n
+		);
+		g_assert_true(result->ok);
+		g_assert_true(result->verification.signature_valid);
+		g_assert_true(result->verification.trusted);
+	}
 	g_assert_cmpuint(pins, ==, 1);
 	char* output = g_build_filename(argv[1], "page-signed.pdf", NULL);
 	g_assert_true(g_file_test(output, G_FILE_TEST_IS_REGULAR));
@@ -539,6 +599,27 @@ int main(int argc, char** argv) {
 	sign_signing_run(self);
 	wait_done(self);
 	g_assert_cmpuint(pins, ==, 1);
+	g_assert_cmpuint(handoffs, ==, 1);
+	g_signal_emit_by_name(named(GTK_WIDGET(self), "sign-clear"), "clicked");
+	g_assert_cmpuint(sign_signing_count(self), ==, 0);
+	g_assert_cmpstr(
+	    gtk_label_get_text(GTK_LABEL(named(GTK_WIDGET(self), "sign-total"))),
+	    ==,
+	    "Total: 0"
+	);
+	/* Clearing during preview prevents a stale callback restoring a document.
+	 */
+	GListStore* pending = g_list_store_new(G_TYPE_FILE);
+	GFile*      pending_file = g_file_new_for_path(pdf);
+	g_list_store_append(pending, pending_file);
+	sign_signing_add_files(self, G_LIST_MODEL(pending));
+	sign_signing_clear(self);
+	settle();
+	g_assert_false(sign_signing_is_reader(self));
+	g_assert_false(sign_signing_is_loading(self));
+	g_assert_cmpuint(sign_signing_count(self), ==, 0);
+	g_object_unref(pending_file);
+	g_object_unref(pending);
 	/* Cancellation of a runtime PIN leaves the document untouched. */
 	GtkWidget* second = adw_application_window_new(GTK_APPLICATION(app));
 	gtk_window_set_default_size(GTK_WINDOW(second), 760, 650);

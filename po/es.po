@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: CRSign 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/tavocg/crsign/issues\n"
-"POT-Creation-Date: 2026-10-23 18:40-0600\n"
+"POT-Creation-Date: 2026-10-23 18:50-0600\n"
 "PO-Revision-Date: 2026-10-23 00:00-0600\n"
 "Last-Translator: Gustavo Calvo <tavo@tavo.cr>\n"
 "Language-Team: Spanish\n"
@@ -15,43 +15,47 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: sign/gui/window.c:18 sign/gui/window.c:206 sign/gui/window.c:267
+#: sign/gui/window.c:19 sign/gui/window.c:237 sign/gui/window.c:298
 msgid "Home"
 msgstr "Inicio"
 
-#: sign/gui/window.c:19 sign/gui/signing.c:139 sign/gui/signing.c:1554
+#: sign/gui/window.c:20 sign/gui/signing.c:145 sign/gui/signing.c:1650
 msgid "Sign"
 msgstr "Firmar"
 
-#: sign/gui/window.c:20
+#: sign/gui/window.c:21
 msgid "Validate"
 msgstr "Validar"
 
-#: sign/gui/window.c:21
+#: sign/gui/window.c:22
 msgid "Devices"
 msgstr "Dispositivos"
 
-#: sign/gui/window.c:22
+#: sign/gui/window.c:23
 msgid "Settings"
 msgstr "Ajustes"
 
-#: sign/gui/window.c:23
+#: sign/gui/window.c:24
 msgid "About"
 msgstr "Acerca de"
 
-#: sign/gui/window.c:113
+#: sign/gui/window.c:114
 msgid "Menu"
 msgstr "Menú"
 
-#: sign/gui/window.c:195 sign/gui/window.c:244
+#: sign/gui/window.c:196 sign/gui/window.c:275
 msgid "Show list"
 msgstr "Mostrar lista"
 
-#: sign/gui/window.c:195
+#: sign/gui/window.c:196
 msgid "Show grid"
 msgstr "Mostrar cuadrícula"
 
-#: sign/gui/window.c:216 sign/gui/window.c:220
+#: sign/gui/window.c:218 sign/gui/signing.c:1385
+msgid "Could not validate signed documents"
+msgstr "No se pudieron validar los documentos firmados"
+
+#: sign/gui/window.c:247 sign/gui/window.c:251
 msgid "Toggle menu"
 msgstr "Mostrar u ocultar el menú"
 
@@ -76,7 +80,7 @@ msgstr "Ruta del módulo"
 msgid "Remove module"
 msgstr "Eliminar módulo"
 
-#: sign/gui/settings.c:469 sign/gui/settings.c:527 sign/gui/signing.c:848
+#: sign/gui/settings.c:469 sign/gui/settings.c:527 sign/gui/signing.c:890
 msgid "Global"
 msgstr "Global"
 
@@ -96,11 +100,11 @@ msgstr "Agregar módulo"
 msgid "Value"
 msgstr "Valor"
 
-#: sign/gui/settings.c:530 sign/gui/validation.c:123 sign/gui/devices.c:26
+#: sign/gui/settings.c:530 sign/gui/validation.c:125 sign/gui/devices.c:26
 msgid "No"
 msgstr "No"
 
-#: sign/gui/settings.c:531 sign/gui/validation.c:123 sign/gui/devices.c:26
+#: sign/gui/settings.c:531 sign/gui/validation.c:125 sign/gui/devices.c:26
 msgid "Yes"
 msgstr "Sí"
 
@@ -166,11 +170,11 @@ msgstr "Hash"
 msgid "Signature level"
 msgstr "Nivel de firma"
 
-#: sign/gui/settings.c:652 sign/gui/validation.c:258
+#: sign/gui/settings.c:652 sign/gui/validation.c:260
 msgid "Format"
 msgstr "Formato"
 
-#: sign/gui/settings.c:657 sign/gui/validation.c:269
+#: sign/gui/settings.c:657 sign/gui/validation.c:271
 msgid "Detached signature"
 msgstr "Firma separada"
 
@@ -262,185 +266,189 @@ msgstr "Código fuente"
 msgid "Report an issue"
 msgstr "Informar de un problema"
 
-#: sign/gui/validation.c:83
+#: sign/gui/validation.c:85
 #, c-format
 msgid "Valid: %u · Failed: %u · Pending: %u"
 msgstr "Válidos: %u · Fallidos: %u · Pendientes: %u"
 
-#: sign/gui/validation.c:112
+#: sign/gui/validation.c:114
 msgid "Not available"
 msgstr "No disponible"
 
-#: sign/gui/validation.c:127
+#: sign/gui/validation.c:129
 msgid "Valid"
 msgstr "Válido"
 
-#: sign/gui/validation.c:130
+#: sign/gui/validation.c:132
 msgid "Could not validate"
 msgstr "No se pudo validar"
 
-#: sign/gui/validation.c:134
+#: sign/gui/validation.c:136
 msgid "Untrusted or expired certificate"
 msgstr "Certificado no confiable o vencido"
 
-#: sign/gui/validation.c:136
+#: sign/gui/validation.c:138
 msgid "Original content required"
 msgstr "Se requiere el contenido original"
 
-#: sign/gui/validation.c:138
+#: sign/gui/validation.c:140
 msgid "Revoked certificate"
 msgstr "Certificado revocado"
 
-#: sign/gui/validation.c:140
+#: sign/gui/validation.c:142
 msgid "Invalid timestamp"
 msgstr "Sello de tiempo inválido"
 
-#: sign/gui/validation.c:142
+#: sign/gui/validation.c:144
 msgid "Incomplete validation evidence"
 msgstr "Evidencias de validación incompletas"
 
-#: sign/gui/validation.c:144
+#: sign/gui/validation.c:146
 msgid "Revocation check failed"
 msgstr "Falló la comprobación de revocación"
 
-#: sign/gui/validation.c:147
+#: sign/gui/validation.c:149
 msgid "Unsupported or unsigned file"
 msgstr "Archivo sin firma o formato no admitido"
 
-#: sign/gui/validation.c:149
+#: sign/gui/validation.c:151
 msgid "Validation failed"
 msgstr "Validación fallida"
 
-#: sign/gui/validation.c:168 sign/gui/devices.c:180
+#: sign/gui/validation.c:170 sign/gui/devices.c:180
 msgid "Certificate subject"
 msgstr "Titular del certificado"
 
-#: sign/gui/validation.c:169 sign/gui/devices.c:181
+#: sign/gui/validation.c:171 sign/gui/devices.c:181
 msgid "Certificate issuer"
 msgstr "Emisor del certificado"
 
-#: sign/gui/validation.c:170 sign/gui/devices.c:182
+#: sign/gui/validation.c:172 sign/gui/devices.c:182
 msgid "Valid from"
 msgstr "Válido desde"
 
-#: sign/gui/validation.c:171 sign/gui/devices.c:183
+#: sign/gui/validation.c:173 sign/gui/devices.c:183
 msgid "Valid until"
 msgstr "Válido hasta"
 
-#: sign/gui/validation.c:183 sign/gui/devices.c:195
+#: sign/gui/validation.c:185 sign/gui/devices.c:195
 msgid "Certificate SHA-256"
 msgstr "SHA-256 del certificado"
 
-#: sign/gui/validation.c:203
+#: sign/gui/validation.c:205
 msgid "Time not authenticated"
 msgstr "Fecha sin autenticar"
 
-#: sign/gui/validation.c:205
+#: sign/gui/validation.c:207
 msgid "Timestamp signature valid"
 msgstr "Firma del sello de tiempo válida"
 
-#: sign/gui/validation.c:208
+#: sign/gui/validation.c:210
 msgid "Timestamp certificate trusted"
 msgstr "Certificado del sello de tiempo confiable"
 
-#: sign/gui/validation.c:209 sign/gui/validation.c:267 sign/gui/error.c:95
+#: sign/gui/validation.c:211 sign/gui/validation.c:269 sign/gui/error.c:95
 msgid "Not checked"
 msgstr "Sin comprobar"
 
-#: sign/gui/validation.c:218
+#: sign/gui/validation.c:220
 msgid "File"
 msgstr "Archivo"
 
-#: sign/gui/validation.c:222
+#: sign/gui/validation.c:224
 msgid "Original content"
 msgstr "Contenido original"
 
-#: sign/gui/validation.c:244
+#: sign/gui/validation.c:246
 msgid "Details"
 msgstr "Detalles"
 
-#: sign/gui/validation.c:261 sign/gui/devices.c:86
+#: sign/gui/validation.c:263 sign/gui/devices.c:86
 msgid "Unknown"
 msgstr "Desconocido"
 
-#: sign/gui/validation.c:263
+#: sign/gui/validation.c:265
 msgid "Signature valid"
 msgstr "Firma válida"
 
-#: sign/gui/validation.c:266
+#: sign/gui/validation.c:268
 msgid "Certificate chain trusted"
 msgstr "Cadena de certificados confiable"
 
-#: sign/gui/validation.c:272
+#: sign/gui/validation.c:274
 #, c-format
 msgid "Signer %zu"
 msgstr "Firmante %zu"
 
-#: sign/gui/validation.c:281
+#: sign/gui/validation.c:283
 msgid "Detected signature level"
 msgstr "Nivel de firma detectado"
 
-#: sign/gui/validation.c:284
+#: sign/gui/validation.c:286
 msgid "No baseline level detected"
 msgstr "No se detectó un nivel baseline"
 
-#: sign/gui/validation.c:289
+#: sign/gui/validation.c:291
 msgid "Signature level validated"
 msgstr "Nivel de firma validado"
 
-#: sign/gui/validation.c:296
+#: sign/gui/validation.c:298
 msgid "Certificate trust error"
 msgstr "Error de confianza del certificado"
 
-#: sign/gui/validation.c:302
+#: sign/gui/validation.c:304
 msgid "Revocation checked"
 msgstr "Revocación comprobada"
 
-#: sign/gui/validation.c:305
+#: sign/gui/validation.c:307
 msgid "Signing timestamp"
 msgstr "Sello de tiempo de firma"
 
-#: sign/gui/validation.c:306
+#: sign/gui/validation.c:308
 msgid "Archive timestamp"
 msgstr "Sello de tiempo de archivo"
 
-#: sign/gui/validation.c:319
+#: sign/gui/validation.c:321
 msgid "Only local files can be validated"
 msgstr "Solo se pueden validar archivos locales"
 
-#: sign/gui/validation.c:401
+#: sign/gui/validation.c:412
 msgid "Waiting for another operation"
 msgstr "Esperando a que termine otra operación"
 
-#: sign/gui/validation.c:427
+#: sign/gui/validation.c:438
 msgid "Validating…"
 msgstr "Validando…"
 
-#: sign/gui/validation.c:456 sign/gui/validation.c:486
+#: sign/gui/validation.c:467 sign/gui/validation.c:512
 msgid "Queued"
 msgstr "En cola"
 
-#: sign/gui/validation.c:495
+#: sign/gui/validation.c:521
 msgid "Select original content…"
 msgstr "Elegir contenido original…"
 
-#: sign/gui/validation.c:573
+#: sign/gui/validation.c:591
+msgid "Only verification flows can be added to validation"
+msgstr "Solo se pueden añadir flows de validación"
+
+#: sign/gui/validation.c:646
 msgid "Select signed files"
 msgstr "Elegir archivos firmados"
 
-#: sign/gui/validation.c:624
+#: sign/gui/validation.c:697
 msgid "Select original content"
 msgstr "Elegir contenido original"
 
-#: sign/gui/validation.c:745
+#: sign/gui/validation.c:818
 msgid "Drop signed files here"
 msgstr "Arrastra aquí los archivos firmados"
 
-#: sign/gui/validation.c:749 sign/gui/signing.c:1504
+#: sign/gui/validation.c:822 sign/gui/signing.c:1588
 msgid "Click to choose one or more files"
 msgstr "Haz clic para elegir uno o varios archivos"
 
-#: sign/gui/validation.c:775
+#: sign/gui/validation.c:848
 msgid "Clear results"
 msgstr "Limpiar resultados"
 
@@ -712,145 +720,144 @@ msgstr "No se puede mostrar esta página del PDF"
 msgid "The signature image cannot fit at this position"
 msgstr "La imagen de firma no cabe en esta posición"
 
-#: sign/gui/signing.c:134 sign/gui/signing.c:1073
+#: sign/gui/signing.c:85
+#, c-format
+msgid "Total: %u"
+msgstr "Total: %u"
+
+#: sign/gui/signing.c:140 sign/gui/signing.c:1115
 msgid "Continue"
 msgstr "Continuar"
 
-#: sign/gui/signing.c:135 sign/gui/signing.c:1631
+#: sign/gui/signing.c:141 sign/gui/signing.c:1727
 msgid "Continue without graphical signature"
 msgstr "Continuar sin firma gráfica"
 
-#: sign/gui/signing.c:139
+#: sign/gui/signing.c:145
 msgid "Signing…"
 msgstr "Firmando…"
 
-#: sign/gui/signing.c:190
+#: sign/gui/signing.c:196
 msgid "Wait for the PDF preview to finish loading"
 msgstr "Espera a que termine de cargar la previsualización del PDF"
 
-#: sign/gui/signing.c:301 sign/gui/signing.c:918
+#: sign/gui/signing.c:307 sign/gui/signing.c:960
 msgid ""
 "The signing profile could not be loaded. Check the configuration in Settings."
 msgstr ""
 "No se pudo cargar el perfil de firmado. Revisa la configuración en Ajustes."
 
-#: sign/gui/signing.c:319
+#: sign/gui/signing.c:325
 msgid "Certificate holder"
 msgstr "Titular del certificado"
 
-#: sign/gui/signing.c:359
+#: sign/gui/signing.c:365
 msgid "Cannot preview this signature image"
 msgstr "No se puede previsualizar esta imagen de firma"
 
-#: sign/gui/signing.c:393 sign/gui/signing.c:499
+#: sign/gui/signing.c:399 sign/gui/signing.c:505
 msgid "Graphical signatures are available for PDF files"
 msgstr "Las firmas gráficas están disponibles para archivos PDF"
 
-#: sign/gui/signing.c:427
+#: sign/gui/signing.c:433
 #, c-format
 msgid "of %u"
 msgstr "de %u"
 
-#: sign/gui/signing.c:616
+#: sign/gui/signing.c:657
 msgid "Only local files can be signed"
 msgstr "Solo se pueden firmar archivos locales"
 
-#: sign/gui/signing.c:634
+#: sign/gui/signing.c:675
 msgid "The document queue is full"
 msgstr "La cola de documentos está llena"
 
-#: sign/gui/signing.c:654
+#: sign/gui/signing.c:695
 msgid "No graphical signature"
 msgstr "Sin representación gráfica de la firma"
 
-#: sign/gui/signing.c:662
+#: sign/gui/signing.c:703
 msgid "Remove document"
 msgstr "Eliminar documento"
 
-#: sign/gui/signing.c:717
+#: sign/gui/signing.c:759
 msgid "Choose documents to sign"
 msgstr "Seleccionar documentos para firmar"
 
-#: sign/gui/signing.c:744
+#: sign/gui/signing.c:786
 msgid "Only local images are supported"
 msgstr "Solo se admiten imágenes locales"
 
-#: sign/gui/signing.c:766 sign/gui/signing.c:1579
+#: sign/gui/signing.c:808 sign/gui/signing.c:1675
 msgid "Choose signature image"
 msgstr "Seleccionar imagen de firma"
 
-#: sign/gui/signing.c:768
+#: sign/gui/signing.c:810
 msgid "Signature images"
 msgstr "Imágenes de firma"
 
-#: sign/gui/signing.c:1048
+#: sign/gui/signing.c:1090
 msgid "Token PIN"
 msgstr "PIN del token"
 
-#: sign/gui/signing.c:1055
+#: sign/gui/signing.c:1097
 msgid "Enter the PIN to sign"
 msgstr "Introduce el PIN para firmar"
 
-#: sign/gui/signing.c:1068
+#: sign/gui/signing.c:1110
 msgid "PIN"
 msgstr "PIN"
 
-#: sign/gui/signing.c:1072
+#: sign/gui/signing.c:1114
 msgid "Cancel"
 msgstr "Cancelar"
 
-#: sign/gui/signing.c:1200
+#: sign/gui/signing.c:1242
 msgid "PIN entry was cancelled or unavailable"
 msgstr "Se canceló la solicitud del PIN o no está disponible"
 
-#: sign/gui/signing.c:1242
+#: sign/gui/signing.c:1284
 #, c-format
 msgid "Output already exists: %s"
 msgstr "El archivo de salida ya existe: %s"
 
-#: sign/gui/signing.c:1267 sign/gui/signing.c:1291
+#: sign/gui/signing.c:1309 sign/gui/signing.c:1346
 msgid "Signing failed"
 msgstr "No se pudo firmar"
 
-#: sign/gui/signing.c:1287
-#, c-format
-msgid "Signed: %s"
-msgstr "Firmado: %s"
-
-#: sign/gui/signing.c:1292
+#: sign/gui/signing.c:1346
 msgid "Not started"
 msgstr "Sin iniciar"
 
-#: sign/gui/signing.c:1299
-#, c-format
-msgid "Documents signed: %zu"
-msgstr "Documentos firmados: %zu"
-
-#: sign/gui/signing.c:1311
+#: sign/gui/signing.c:1359
 msgid "Could not sign documents"
 msgstr "No se pudieron firmar los documentos"
 
-#: sign/gui/signing.c:1450
+#: sign/gui/signing.c:1534
 msgid "Signing profile"
 msgstr "Perfil de firmado"
 
-#: sign/gui/signing.c:1500
+#: sign/gui/signing.c:1584
 msgid "Drop files here to sign"
 msgstr "Arrastra aquí los archivos para firmar"
 
-#: sign/gui/signing.c:1551
+#: sign/gui/signing.c:1613
+msgid "Clear all"
+msgstr "Limpiar todo"
+
+#: sign/gui/signing.c:1647
 msgid "Some files have no graphical signature"
 msgstr "Hay archivos sin representación gráfica de la firma"
 
-#: sign/gui/signing.c:1570
+#: sign/gui/signing.c:1666
 msgid "Document queue"
 msgstr "Cola de documentos"
 
-#: sign/gui/signing.c:1587
+#: sign/gui/signing.c:1683
 msgid "Use profile signature image"
 msgstr "Usar la imagen de firma del perfil"
 
-#: sign/gui/signing.c:1617
+#: sign/gui/signing.c:1713
 msgid "Page"
 msgstr "Página"
 
@@ -1201,6 +1208,14 @@ msgstr "Abrir ubicación del archivo"
 #: sign/gui/file_actions.c:150 sign/gui/file_actions.c:254
 msgid "Favorite"
 msgstr "Favorito"
+
+#, c-format
+#~ msgid "Signed: %s"
+#~ msgstr "Firmado: %s"
+
+#, c-format
+#~ msgid "Documents signed: %zu"
+#~ msgstr "Documentos firmados: %zu"
 
 #~ msgid "Include software tokens and certificates"
 #~ msgstr "Incluir tokens y certificados de software"

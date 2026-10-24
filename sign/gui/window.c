@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include <sign/gui/about.h>
 #include <sign/gui/devices.h>
+#include <sign/gui/error.h>
 #include <sign/gui/home.h>
 #include <sign/gui/i18n.h>
 #include <sign/gui/settings.h>
@@ -200,6 +201,36 @@ static void signed_documents(SignSigning* signing, gpointer data) {
 	(void)signing;
 	sign_home_reload(SIGN_HOME(data));
 }
+static void signing_completed(
+    SignSigning*     signing,
+    const sign_flow* flow,
+    gpointer         data
+) {
+	SignWindow*     self = data;
+	SignValidation* validation = SIGN_VALIDATION(
+	    gtk_stack_get_child_by_name(self->pages, "verify")
+	);
+	GError* error = NULL;
+	if (!sign_validation_add_flow(validation, flow, &error)) {
+		char* text = gui_error_message(error, GUI_ERROR_VALIDATION);
+		gui_error_dialog(
+		    GTK_WINDOW(self),
+		    _("Could not validate signed documents"),
+		    text
+		);
+		g_free(text);
+		g_clear_error(&error);
+		return;
+	}
+	sign_signing_clear(signing);
+	GtkListBox* navigation = GTK_LIST_BOX(
+	    gtk_widget_get_parent(self->home_row)
+	);
+	gtk_list_box_select_row(
+	    navigation,
+	    gtk_list_box_get_row_at_index(navigation, 2)
+	);
+}
 static GtkWidget* create_content(SignWindow* self) {
 	GtkWidget* toolbar = adw_toolbar_view_new();
 	GtkWidget* header = adw_header_bar_new();
@@ -270,6 +301,13 @@ static GtkWidget* create_content(SignWindow* self) {
 		}
 		if (!strcmp(sections[i].id, "sign")) {
 			GtkWidget* signing = sign_signing_new();
+			g_signal_connect_object(
+			    signing,
+			    "signing-completed",
+			    G_CALLBACK(signing_completed),
+			    self,
+			    0
+			);
 			g_signal_connect_object(
 			    signing,
 			    "documents-signed",

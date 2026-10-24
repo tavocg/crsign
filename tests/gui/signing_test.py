@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Exercise the GTK signing workflow with real signatures and an ephemeral PIN."""
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -27,7 +28,9 @@ with tempfile.TemporaryDirectory(prefix='crsign-gui-signing-') as directory:
     root = Path(directory)
     config = root/'config'/'crsign'
     config.mkdir(parents=True)
-    (config/'crsign.toml').write_text('version=0.1\nlevel="B-B"\n[[profiles]]\nlabel="test"\nname="Test profile"\n')
+    (config/'crsign.toml').write_text(
+        'version=0.1\nlevel="B-B"\n[[profiles]]\nlabel="test"\nname="Test profile"\n'
+        'ca=' + json.dumps(str(root/'anchor.der')) + '\n')
     (root/'page.pdf').write_bytes(pdf())
     (root/'payload.bin').write_bytes(b'arbitrary document\x00\xff')
     (root/'image.svg').write_text('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100"><rect width="200" height="100" fill="green"/></svg>')
@@ -38,7 +41,6 @@ with tempfile.TemporaryDirectory(prefix='crsign-gui-signing-') as directory:
     for name in ('page-signed.pdf', 'payload-signed.bin'):
         result = subprocess.run([sys.argv[2], 'verify', '--json', '--ca-file', str(root/'anchor.der'), str(root/name)],
                                 env=env, check=True, capture_output=True, timeout=10)
-        import json
         report = json.loads(result.stdout)
         assert report['signature_valid'] and report['trusted'], report
     assert b'/Subtype /Image' in (root/'page-signed.pdf').read_bytes()

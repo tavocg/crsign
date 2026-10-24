@@ -18,6 +18,7 @@ typedef struct {
 	GtkWidget *      details, *original, *icon, *spinner;
 	item_state       state;
 	sign_flow_result result;
+	sign_flow*       template;
 	GError*          error;
 	bool             ok;
 } validation_item;
@@ -46,6 +47,7 @@ static void item_free(gpointer data) {
 		g_object_unref(item->content);
 	}
 	sign_flow_result_clear(&item->result);
+	sign_flow_free(item->template);
 	g_clear_error(&item->error);
 	g_free(item);
 }
@@ -322,6 +324,15 @@ static sign_flow* verification_flow(validation_item* item, GError** error) {
 		g_free(content);
 		return NULL;
 	}
+	if (item->template) {
+		sign_flow_item document = *sign_flow_get_item(item->template, 0);
+		document.options.input = input;
+		document.content = content;
+		sign_flow* flow = sign_flow_from_items(&document, 1, error);
+		g_free(input);
+		g_free(content);
+		return flow;
+	}
 	sign_args settings = {0};
 	char      detail[512];
 	if (!config_load(&settings, NULL, detail, sizeof(detail))) {
@@ -457,7 +468,11 @@ void sign_validation_set_content(
 	start_next(self);
 	summary_update(self);
 }
-void sign_validation_add_files(SignValidation* self, GListModel* files) {
+static void add_files(
+    SignValidation* self,
+    GListModel*     files,
+    GPtrArray*      templates
+) {
 	if (self->closing) {
 		return;
 	}
@@ -472,6 +487,17 @@ void sign_validation_add_files(SignValidation* self, GListModel* files) {
 		}
 		validation_item* item = g_new0(validation_item, 1);
 		item->file = file;
+		if (templates) {
+			item->template = g_ptr_array_index(templates, i);
+			g_ptr_array_index(templates, i) = NULL;
+			const sign_flow_item* document = sign_flow_get_item(
+			    item->template,
+			    0
+			);
+			if (document->content) {
+				item->content = g_file_new_for_path(document->content);
+			}
+		}
 		item->row = ADW_EXPANDER_ROW(adw_expander_row_new());
 		char* basename = g_file_get_basename(file);
 		char* display = basename ? g_filename_display_name(basename)
@@ -521,6 +547,53 @@ void sign_validation_add_files(SignValidation* self, GListModel* files) {
 	}
 	start_next(self);
 	summary_update(self);
+}
+void sign_validation_add_files(SignValidation* self, GListModel* files) {
+	add_files(self, files, NULL);
+}
+bool sign_validation_add_flow(
+    SignValidation*  self,
+    const sign_flow* flow,
+    GError**         error
+) {
+	if (self->closing) {
+		return false;
+	}
+	size_t     count = flow ? sign_flow_count(flow) : 0;
+	GPtrArray* templates = g_ptr_array_new_with_free_func(
+	    (GDestroyNotify)sign_flow_free
+	);
+	GListStore* files = g_list_store_new(G_TYPE_FILE);
+	bool        ok = count > 0;
+	for (size_t n = 0; ok && n < count; ++n) {
+		const sign_flow_item* item = sign_flow_get_item(flow, n);
+		if (item->operation != SIGN_FLOW_VERIFY) {
+			ok = false;
+			break;
+		}
+		sign_flow* document = sign_flow_from_items(item, 1, error);
+		if (!document) {
+			ok = false;
+			break;
+		}
+		g_ptr_array_add(templates, document);
+		GFile* file = g_file_new_for_path(item->options.input);
+		g_list_store_append(files, file);
+		g_object_unref(file);
+	}
+	if (ok) {
+		add_files(self, G_LIST_MODEL(files), templates);
+	} else if (!error || !*error) {
+		g_set_error_literal(
+		    error,
+		    SIGN_GUI_ERROR,
+		    G_IO_ERROR_INVALID_ARGUMENT,
+		    _("Only verification flows can be added to validation")
+		);
+	}
+	g_object_unref(files);
+	g_ptr_array_unref(templates);
+	return ok;
 }
 typedef struct {
 	SignValidation*  self;

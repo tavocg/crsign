@@ -32,7 +32,8 @@ struct _SignSigning {
 	GtkWidget *    canvas, *image_button, *default_button;
 	SignPdfReader* reader;
 	GtkWidget *continue_button, *sign_button, *warning, *add, *back, *spinner;
-	GtkLabel * notice, *filename, *page_count;
+	GtkLabel * notice, *filename, *page_count, *total;
+	GtkWidget* clear;
 	GtkSpinButton*   page;
 	signing_item*    current;
 	cairo_surface_t *surface, *stamp;
@@ -43,7 +44,7 @@ struct _SignSigning {
 	bool             updating, loading, busy, closing;
 };
 G_DEFINE_TYPE(SignSigning, sign_signing, GTK_TYPE_BOX)
-static guint documents_signed;
+static guint documents_signed, signing_completed;
 
 static signing_item* item_ref(signing_item* item) {
 	g_atomic_int_inc(&item->references);
@@ -81,6 +82,11 @@ static const char* profile(SignSigning* self) {
 	           : NULL;
 }
 static void controls(SignSigning* self) {
+	char* total = g_strdup_printf(_("Total: %u"), self->items->len);
+	gtk_label_set_text(self->total, total);
+	g_free(total);
+	gtk_widget_set_sensitive(self->clear, !self->busy);
+
 	bool missing = false;
 	for (guint n = 0; n < self->items->len; ++n) {
 		signing_item* item = g_ptr_array_index(self->items, n);
@@ -571,6 +577,41 @@ static void reset_image(GtkButton* button, gpointer data) {
 		load_preview(self, self->page_number, NULL, false);
 	}
 }
+void sign_signing_clear(SignSigning* self) {
+	if (self->busy || self->closing) {
+		return;
+	}
+	++self->revision;
+	if (self->preview) {
+		g_cancellable_cancel(self->preview);
+		g_object_unref(self->preview);
+		self->preview = NULL;
+	}
+	self->loading = false;
+	self->current = NULL;
+	self->page_number = 0;
+	sign_pdf_reader_set_document(self->reader, NULL, 0, NULL);
+	sign_pdf_reader_set_stamp(self->reader, NULL, NULL);
+	if (self->surface) {
+		cairo_surface_destroy(self->surface);
+		self->surface = NULL;
+	}
+	if (self->stamp) {
+		cairo_surface_destroy(self->stamp);
+		self->stamp = NULL;
+	}
+	GtkWidget* row;
+	while ((row = gtk_widget_get_first_child(GTK_WIDGET(self->list)))) {
+		gtk_list_box_remove(self->list, row);
+	}
+	g_ptr_array_set_size(self->items, 0);
+	message(self, NULL);
+	sign_signing_show_queue(self);
+}
+static void clear_clicked(GtkButton* button, gpointer data) {
+	(void)button;
+	sign_signing_clear(data);
+}
 static void remove_item(GtkButton* button, gpointer data) {
 	SignSigning* self = data;
 	if (self->busy) {
@@ -662,7 +703,7 @@ void sign_signing_add_files(SignSigning* self, GListModel* files) {
 		gtk_widget_set_tooltip_text(remove, _("Remove document"));
 		g_object_set_data(G_OBJECT(remove), "signing-item", item);
 		g_signal_connect(remove, "clicked", G_CALLBACK(remove_item), self);
-		adw_action_row_add_suffix(ADW_ACTION_ROW(item->row), remove);
+		gtk_widget_set_name(remove, "sign-remove-document");
 		GFile* location = g_file_new_for_path(item->path);
 		sign_file_actions_attach(item->row, location, false, false, NULL, NULL);
 		g_object_unref(location);
@@ -670,6 +711,7 @@ void sign_signing_add_files(SignSigning* self, GListModel* files) {
 		    ADW_ACTION_ROW(item->row),
 		    sign_file_location_button()
 		);
+		adw_action_row_add_suffix(ADW_ACTION_ROW(item->row), remove);
 		gtk_list_box_append(self->list, item->row);
 		g_ptr_array_add(self->items, item);
 		++added;
@@ -1270,6 +1312,23 @@ static void run_worker(
 		g_task_return_error(task, error);
 	}
 }
+static sign_flow* completed_verification(
+    const sign_flow* signed_flow,
+    GError**         error
+) {
+	size_t          count = sign_flow_count(signed_flow);
+	sign_flow_item* documents = g_new0(sign_flow_item, count);
+	for (size_t n = 0; n < count; ++n) {
+		const sign_options* source = sign_flow_document(signed_flow, n);
+		documents[n].operation = SIGN_FLOW_VERIFY;
+		documents[n].options = *source;
+		documents[n].options.input = source->output;
+		documents[n].content = source->detached ? source->input : NULL;
+	}
+	sign_flow* flow = sign_flow_from_items(documents, count, error);
+	g_free(documents);
+	return flow;
+}
 static void run_finished(GObject* source, GAsyncResult* result, gpointer data) {
 	(void)data;
 	SignSigning* self = SIGN_SIGNING(source);
@@ -1281,26 +1340,15 @@ static void run_finished(GObject* source, GAsyncResult* result, gpointer data) {
 		for (size_t n = 0; n < run->result.count; ++n) {
 			signing_item*              item = g_ptr_array_index(run->items, n);
 			sign_flow_document_result* report = &run->result.documents[n];
-			const sign_options* options = sign_flow_document(run->flow, n);
-			char*               status = report->ok
-			                                 ? g_strdup_printf(
-                                     _("Signed: %s"),
-                                     options->output
-                                 )
-			                                 : g_strdup(
-                                     report->attempted ? _("Signing failed")
-                                                       : _("Not started")
-                                 );
-			adw_action_row_set_subtitle(ADW_ACTION_ROW(item->row), status);
-			g_free(status);
+			if (!report->ok) {
+				adw_action_row_set_subtitle(
+				    ADW_ACTION_ROW(item->row),
+				    report->attempted ? _("Signing failed") : _("Not started")
+				);
+			}
 		}
 		if (ok) {
-			char* text = g_strdup_printf(
-			    _("Documents signed: %zu"),
-			    run->result.completed
-			);
-			message(self, text);
-			g_free(text);
+			message(self, NULL);
 		} else {
 			char* text = gui_error_message(error, GUI_ERROR_SIGNING);
 			message(self, NULL);
@@ -1317,6 +1365,29 @@ static void run_finished(GObject* source, GAsyncResult* result, gpointer data) {
 		controls(self);
 		if (run->result.completed) {
 			g_signal_emit(self, documents_signed, 0);
+		}
+		if (ok) {
+			GError*    handoff_error = NULL;
+			sign_flow* verification = completed_verification(
+			    run->flow,
+			    &handoff_error
+			);
+			if (verification) {
+				g_signal_emit(self, signing_completed, 0, verification);
+				sign_flow_free(verification);
+			} else {
+				char* text = gui_error_message(
+				    handoff_error,
+				    GUI_ERROR_VALIDATION
+				);
+				gui_error_dialog(
+				    parent_window(self),
+				    _("Could not validate signed documents"),
+				    text
+				);
+				g_free(text);
+				g_clear_error(&handoff_error);
+			}
 		}
 	}
 	if (run->application) {
@@ -1408,6 +1479,19 @@ static void signing_finalize(GObject* object) {
 	G_OBJECT_CLASS(sign_signing_parent_class)->finalize(object);
 }
 static void sign_signing_class_init(SignSigningClass* klass) {
+	signing_completed = g_signal_new(
+	    "signing-completed",
+	    G_TYPE_FROM_CLASS(klass),
+	    G_SIGNAL_RUN_LAST,
+	    0,
+	    NULL,
+	    NULL,
+	    NULL,
+	    G_TYPE_NONE,
+	    1,
+	    G_TYPE_POINTER
+	);
+
 	documents_signed = g_signal_new(
 	    "documents-signed",
 	    G_TYPE_FROM_CLASS(klass),
@@ -1519,6 +1603,18 @@ static void sign_signing_init(SignSigning* self) {
 	    "empty"
 	);
 	GtkWidget* queue = gtk_box_new(GTK_ORIENTATION_VERTICAL, 12);
+	GtkWidget* queue_controls = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
+	self->total = GTK_LABEL(gtk_label_new(NULL));
+	gtk_widget_set_name(GTK_WIDGET(self->total), "sign-total");
+	gtk_widget_add_css_class(GTK_WIDGET(self->total), "dim-label");
+	gtk_label_set_xalign(self->total, 0);
+	gtk_widget_set_hexpand(GTK_WIDGET(self->total), TRUE);
+	gtk_box_append(GTK_BOX(queue_controls), GTK_WIDGET(self->total));
+	self->clear = gtk_button_new_with_label(_("Clear all"));
+	gtk_widget_set_name(self->clear, "sign-clear");
+	g_signal_connect(self->clear, "clicked", G_CALLBACK(clear_clicked), self);
+	gtk_box_append(GTK_BOX(queue_controls), self->clear);
+	gtk_box_append(GTK_BOX(queue), queue_controls);
 	GtkWidget* scroll = gtk_scrolled_window_new();
 	gtk_widget_set_vexpand(scroll, TRUE);
 	gtk_scrolled_window_set_policy(
