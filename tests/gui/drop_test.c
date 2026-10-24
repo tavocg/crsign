@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include <sign/gui/file_actions.h>
+#include <sign/gui/home.h>
 #include <sign/gui/validation.h>
+#include <sign/history.h>
 #include <stdlib.h>
 
 static GMainLoop*      loop;
@@ -45,13 +47,140 @@ static void drag_end(
 	);
 	g_main_loop_quit(loop);
 }
+static GtkWidget* find_named(GtkWidget* widget, const char* name) {
+	if (g_str_equal(gtk_widget_get_name(widget), name)) {
+		return widget;
+	}
+	for (GtkWidget* child = gtk_widget_get_first_child(widget); child;
+	     child = gtk_widget_get_next_sibling(child)) {
+		GtkWidget* found = find_named(child, name);
+		if (found) {
+			return found;
+		}
+	}
+	return NULL;
+}
+static void unexpected_open(
+    GSimpleAction* action,
+    GVariant*      parameter,
+    gpointer       data
+) {
+	(void)action;
+	(void)parameter;
+	(void)data;
+	g_error("A selection or drag unexpectedly opened a file");
+}
+static gboolean home_ready(gpointer data) {
+	GtkWidget* window = data;
+	GtkWidget* section = find_named(window, "home-recents");
+	GtkWidget* list = gtk_widget_get_first_child(section);
+	/* List mode also has a column heading. */
+	if (!GTK_IS_FLOW_BOX(list)) {
+		list = gtk_widget_get_next_sibling(list);
+	}
+	GString* positions = g_string_new(NULL);
+	for (GtkWidget* child = gtk_widget_get_first_child(list); child;
+	     child = gtk_widget_get_next_sibling(child)) {
+		GtkWidget*          item = GTK_IS_FLOW_BOX_CHILD(child)
+		                               ? gtk_flow_box_child_get_child(
+                                    GTK_FLOW_BOX_CHILD(child)
+                                )
+		                               : child;
+		GSimpleActionGroup* actions = g_simple_action_group_new();
+		GSimpleAction*      open = g_simple_action_new("open", NULL);
+		g_signal_connect(open, "activate", G_CALLBACK(unexpected_open), NULL);
+		g_action_map_add_action(G_ACTION_MAP(actions), G_ACTION(open));
+		gtk_widget_insert_action_group(
+		    item,
+		    "document",
+		    G_ACTION_GROUP(actions)
+		);
+		g_object_unref(open);
+		g_object_unref(actions);
+		graphene_rect_t bounds;
+		g_assert_true(gtk_widget_compute_bounds(item, window, &bounds));
+		g_string_append_printf(
+		    positions,
+		    "%d %d\n",
+		    (int)(bounds.origin.x + bounds.size.width / 2),
+		    (int)(bounds.origin.y + bounds.size.height / 2)
+		);
+		GListModel* controllers = gtk_widget_observe_controllers(item);
+		for (guint n = 0; n < g_list_model_get_n_items(controllers); ++n) {
+			GObject* controller = g_list_model_get_item(controllers, n);
+			if (GTK_IS_DRAG_SOURCE(controller)) {
+				g_signal_connect(
+				    controller,
+				    "drag-end",
+				    G_CALLBACK(drag_end),
+				    NULL
+				);
+			}
+			g_object_unref(controller);
+		}
+		g_object_unref(controllers);
+	}
+	char* path = g_strconcat(report, ".positions", NULL);
+	g_assert_true(g_file_set_contents(path, positions->str, -1, NULL));
+	g_free(path);
+	g_string_free(positions, TRUE);
+	return G_SOURCE_REMOVE;
+}
+static gboolean receive_files(
+    GtkDropTarget* target,
+    const GValue*  value,
+    double         x,
+    double         y,
+    gpointer       data
+) {
+	(void)target;
+	(void)x;
+	(void)y;
+	(void)data;
+	GString* received = g_string_new(NULL);
+	for (GSList* node = gdk_file_list_get_files(g_value_get_boxed(value)); node;
+	     node = node->next) {
+		char* path = g_file_get_path(node->data);
+		g_assert_nonnull(path);
+		g_string_append_printf(received, "%s\n", path);
+		g_free(path);
+	}
+	g_assert_true(g_file_set_contents(report, received->str, -1, NULL));
+	g_string_free(received, TRUE);
+	g_main_loop_quit(loop);
+	return TRUE;
+}
 int main(int argc, char** argv) {
 	g_assert_cmpint(argc, >=, 3);
 	adw_init();
 	report = argv[2];
 	GtkWidget* window = gtk_window_new();
 	gtk_window_set_default_size(GTK_WINDOW(window), 400, 400);
-	if (g_str_equal(argv[1], "source") || g_str_equal(argv[1], "file-source")) {
+	if (g_str_has_prefix(argv[1], "home-")) {
+		g_assert_cmpint(argc, ==, 7);
+		paths[0] = argv[4];
+		paths[1] = argv[5];
+		for (int n = argc - 1; n >= 4; --n) {
+			g_assert_true(history_record(argv[n], NULL));
+		}
+		GtkWidget* home = sign_home_new();
+		sign_home_set_grid(SIGN_HOME(home), g_str_equal(argv[1], "home-grid"));
+		gtk_window_set_child(GTK_WINDOW(window), home);
+		gtk_window_set_default_size(GTK_WINDOW(window), 600, 500);
+		gtk_window_set_title(GTK_WINDOW(window), "CRSign Drop Source");
+		g_timeout_add(250, home_ready, window);
+	} else if (g_str_equal(argv[1], "file-target")) {
+		GtkWidget*     area = gtk_label_new("Receive actual Home files");
+		GtkDropTarget* target = gtk_drop_target_new(
+		    GDK_TYPE_FILE_LIST,
+		    GDK_ACTION_COPY
+		);
+		g_signal_connect(target, "drop", G_CALLBACK(receive_files), NULL);
+		gtk_widget_add_controller(area, GTK_EVENT_CONTROLLER(target));
+		gtk_window_set_child(GTK_WINDOW(window), area);
+		gtk_window_set_title(GTK_WINDOW(window), "CRSign Drop Target");
+	} else if (g_str_equal(argv[1], "source") ||
+	           g_str_equal(argv[1], "file-source")) {
 		g_assert_cmpint(argc, ==, 6);
 		paths[0] = argv[4];
 		paths[1] = argv[5];

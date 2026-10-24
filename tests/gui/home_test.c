@@ -603,57 +603,26 @@ int main(int argc, char** argv) {
 		GtkWidget* previous = gtk_flow_box_child_get_child(
 		    GTK_FLOW_BOX_CHILD(previous_child)
 		);
-		graphene_rect_t last_bounds, previous_bounds;
-		g_assert_true(gtk_widget_compute_bounds(last, window, &last_bounds));
-		g_assert_true(
-		    gtk_widget_compute_bounds(previous, window, &previous_bounds)
-		);
-		int start_x = (int)(last_bounds.origin.x + last_bounds.size.width + 20);
-		int start_y = (int)(last_bounds.origin.y + last_bounds.size.height - 2);
-		int end_x = (int)(previous_bounds.origin.x + 2);
-		int end_y = (int)(previous_bounds.origin.y + 10);
 		char* id = test_window_id(tool);
-		char* command = g_strdup_printf(
-		    "%s mousemove --window %s %d %d mousedown 1 "
-		    "mousemove --window %s %d %d sleep 0.2 mouseup 1",
-		    tool,
-		    id,
-		    start_x,
-		    start_y,
-		    id,
-		    end_x,
-		    end_y
-		);
-		int status = 0;
-		g_assert_true(
-		    g_spawn_command_line_sync(command, NULL, NULL, &status, NULL)
-		);
-		g_free(command);
-		g_free(id);
-		settle();
+		click_item(tool, id, window, previous, NULL, FALSE);
+		click_item(tool, id, window, last, "ctrl", FALSE);
 		g_assert_true(gtk_widget_has_css_class(last, "selected"));
 		g_assert_true(gtk_widget_has_css_class(previous, "selected"));
 		GtkDragSource* source = drag_source(last);
 		g_assert_nonnull(source);
 		GdkContentProvider* provider = NULL;
 		g_signal_emit_by_name(source, "prepare", 0.0, 0.0, &provider);
+		g_assert_nonnull(provider);
 		GValue value = G_VALUE_INIT;
 		g_value_init(&value, GDK_TYPE_FILE_LIST);
-		g_assert_true(gdk_content_provider_get_value(
-		    gtk_drag_source_get_content(source),
-		    &value,
-		    NULL
-		));
+		g_assert_true(gdk_content_provider_get_value(provider, &value, NULL));
 		GSList* files = gdk_file_list_get_files(g_value_get_boxed(&value));
 		g_assert_cmpuint(g_slist_length(files), ==, 2);
 		g_value_unset(&value);
-		if (provider) {
-			g_object_unref(provider);
-		}
+		g_object_unref(provider);
 		GtkWidget* second = gtk_flow_box_child_get_child(
 		    gtk_flow_box_get_child_at_index(GTK_FLOW_BOX(recent), children - 2)
 		);
-		id = test_window_id(tool);
 		click_item(tool, id, window, second, NULL, FALSE);
 		g_assert_true(gtk_widget_has_css_class(second, "selected"));
 		g_assert_false(gtk_widget_has_css_class(last, "selected"));
@@ -685,6 +654,39 @@ int main(int argc, char** argv) {
 		g_assert_cmpuint(manager.calls, ==, 4);
 		g_assert_true(gtk_widget_has_css_class(last, "selected"));
 		g_assert_false(gtk_widget_has_css_class(second, "selected"));
+		/* Clicking the header outside the grid clears the complete selection.
+		 */
+		char* command = g_strdup_printf(
+		    "%s mousemove --window %s 200 25 click 1",
+		    tool,
+		    id
+		);
+		g_assert_true(
+		    g_spawn_command_line_sync(command, NULL, NULL, NULL, NULL)
+		);
+		g_free(command);
+		settle();
+		g_assert_false(gtk_widget_has_css_class(last, "selected"));
+		click_item(tool, id, window, last, NULL, FALSE);
+		graphene_rect_t bounds;
+		g_assert_true(gtk_widget_compute_bounds(last, window, &bounds));
+		command = g_strdup_printf(
+		    "%s mousemove --window %s 8 %d mousedown 1 mousemove --window %s "
+		    "%d %d sleep 0.1 mouseup 1",
+		    tool,
+		    id,
+		    (int)bounds.origin.y,
+		    id,
+		    (int)(bounds.origin.x + bounds.size.width / 2),
+		    (int)(bounds.origin.y + bounds.size.height / 2)
+		);
+		g_assert_true(
+		    g_spawn_command_line_sync(command, NULL, NULL, NULL, NULL)
+		);
+		g_free(command);
+		settle();
+		g_assert_false(gtk_widget_has_css_class(last, "selected"));
+		g_assert_false(gtk_widget_has_css_class(previous, "selected"));
 		g_free(id);
 		g_free(tool);
 	}

@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-#include <math.h>
 #include <sign/gui/error.h>
 #include <sign/gui/file_actions.h>
 #include <sign/gui/home.h>
@@ -11,11 +10,7 @@
 #include <string.h>
 #define PAGE_SIZE 25
 typedef struct {
-	SignHome*  self;
 	GtkWidget* list;
-	GtkWidget* area;
-	bool       active;
-	double     x1, y1, x2, y2;
 } home_section;
 struct _SignHome {
 	GtkBox        parent_instance;
@@ -30,6 +25,8 @@ struct _SignHome {
 	GCancellable* thumbnails;
 	GHashTable*   selected;
 	GtkWidget*    selection_anchor;
+	GtkGesture*   outside_click;
+	bool          dragging;
 };
 G_DEFINE_TYPE(SignHome, sign_home, GTK_TYPE_BOX)
 static guint      history_changed;
@@ -187,135 +184,24 @@ static bool picked_button(GtkWidget* item, double x, double y) {
 	}
 	return false;
 }
-static bool picked_item(GtkWidget* picked, GtkWidget* list) {
-	for (GtkWidget* widget = picked; widget && widget != list;
-	     widget = gtk_widget_get_parent(widget)) {
-		if (g_object_get_data(G_OBJECT(widget), "home-item")) {
-			return true;
-		}
-	}
-	return false;
-}
-static void rubber_draw(
-    GtkDrawingArea* area,
-    cairo_t*        cr,
-    int             width,
-    int             height,
-    gpointer        data
-) {
-	(void)area;
-	(void)width;
-	(void)height;
-	home_section* section = data;
-	if (!section->active) {
-		return;
-	}
-	double x = MIN(section->x1, section->x2);
-	double y = MIN(section->y1, section->y2);
-	double w = fabs(section->x2 - section->x1);
-	double h = fabs(section->y2 - section->y1);
-	cairo_set_source_rgba(cr, 0.2, 0.5, 0.9, 0.18);
-	cairo_rectangle(cr, x, y, w, h);
-	cairo_fill_preserve(cr);
-	cairo_set_source_rgba(cr, 0.2, 0.5, 0.9, 0.9);
-	cairo_set_line_width(cr, 1);
-	cairo_rectangle(cr, x + .5, y + .5, w, h);
-	cairo_stroke(cr);
-}
-static void selection_apply(home_section* section) {
-	double          x = MIN(section->x1, section->x2);
-	double          y = MIN(section->y1, section->y2);
-	double          w = fabs(section->x2 - section->x1);
-	double          h = fabs(section->y2 - section->y1);
-	graphene_rect_t selection = GRAPHENE_RECT_INIT(x, y, w, h);
-	for (GtkWidget* child = gtk_widget_get_first_child(section->list); child;
-	     child = gtk_widget_get_next_sibling(child)) {
-		GtkWidget* item = section_item(child);
-		if (!item) {
-			continue;
-		}
-		graphene_rect_t bounds;
-		bool            selected = gtk_widget_compute_bounds(
-                            item,
-                            section->list,
-                            &bounds
-                        ) &&
-		                graphene_rect_intersection(&bounds, &selection, NULL);
-		selection_set(section->self, item, selected);
-	}
-}
-static void rubber_begin(
-    GtkGestureDrag* gesture,
-    double          start_x,
-    double          start_y,
-    gpointer        data
-) {
-	home_section* section = data;
-	GtkWidget*    picked = gtk_widget_pick(
-        section->list,
-        start_x,
-        start_y,
-        GTK_PICK_DEFAULT
-    );
-	if (picked_item(picked, section->list)) {
-		gtk_gesture_set_state(GTK_GESTURE(gesture), GTK_EVENT_SEQUENCE_DENIED);
-		return;
-	}
-	section->active = true;
-	section->x1 = section->x2 = start_x;
-	section->y1 = section->y2 = start_y;
-	selection_clear(section->self);
-	section->self->selection_anchor = NULL;
-	gtk_gesture_set_state(GTK_GESTURE(gesture), GTK_EVENT_SEQUENCE_CLAIMED);
-	gtk_widget_queue_draw(section->area);
-}
-static void rubber_update(
-    GtkGestureDrag* gesture,
-    double          offset_x,
-    double          offset_y,
-    gpointer        data
-) {
-	(void)gesture;
-	home_section* section = data;
-	if (!section->active) {
-		return;
-	}
-	section->x2 = section->x1 + offset_x;
-	section->y2 = section->y1 + offset_y;
-	gtk_widget_queue_draw(section->area);
-	selection_apply(section);
-}
-static void rubber_end(
-    GtkGestureDrag* gesture,
-    double          offset_x,
-    double          offset_y,
-    gpointer        data
-) {
-	(void)gesture;
-	(void)offset_x;
-	(void)offset_y;
-	home_section* section = data;
-	if (!section->active) {
-		return;
-	}
-	section->active = false;
-	gtk_widget_queue_draw(section->area);
-}
-static void item_clicked(
+static void item_pressed(
     GtkGestureClick* gesture,
     int              presses,
     double           x,
     double           y,
     gpointer         data
 ) {
-	SignHome* self = data;
-	if (presses != 1) {
-		return;
-	}
+	SignHome*  self = data;
 	GtkWidget* item = gtk_event_controller_get_widget(
 	    GTK_EVENT_CONTROLLER(gesture)
 	);
 	if (picked_button(item, x, y)) {
+		return;
+	}
+	/* Own primary clicks together with the drag source, so the container
+	 * cannot open a file on the second press before a drag can begin. */
+	gtk_gesture_set_state(GTK_GESTURE(gesture), GTK_EVENT_SEQUENCE_CLAIMED);
+	if (presses != 1) {
 		return;
 	}
 	GdkModifierType state = gtk_event_controller_get_current_event_state(
@@ -338,9 +224,66 @@ static void item_clicked(
 		self->selection_anchor = item;
 		return;
 	}
+	/* Preserve an existing group until release so dragging any selected item
+	 * exports the whole group. An unselected press replaces it immediately. */
+	if (!item_selected(self, item)) {
+		selection_clear(self);
+		selection_set(self, item, true);
+		self->selection_anchor = item;
+	}
+}
+static void item_released(
+    GtkGestureClick* gesture,
+    int              presses,
+    double           x,
+    double           y,
+    gpointer         data
+) {
+	SignHome*  self = data;
+	GtkWidget* item = gtk_event_controller_get_widget(
+	    GTK_EVENT_CONTROLLER(gesture)
+	);
+	GdkModifierType state = gtk_event_controller_get_current_event_state(
+	    GTK_EVENT_CONTROLLER(gesture)
+	);
+	if (self->dragging || picked_button(item, x, y) ||
+	    (state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK))) {
+		return;
+	}
+	if (presses == 2) {
+		gtk_widget_activate_action(item, "document.open", NULL);
+		return;
+	}
+	if (presses != 1) {
+		return;
+	}
 	selection_clear(self);
 	selection_set(self, item, true);
 	self->selection_anchor = item;
+}
+static void outside_pressed(
+    GtkGestureClick* gesture,
+    int              presses,
+    double           x,
+    double           y,
+    gpointer         data
+) {
+	(void)presses;
+	SignHome* self = data;
+	self->dragging = false;
+	GtkWidget* root = gtk_event_controller_get_widget(
+	    GTK_EVENT_CONTROLLER(gesture)
+	);
+	GtkWidget* picked = gtk_widget_pick(root, x, y, GTK_PICK_DEFAULT);
+	for (GtkWidget* widget = picked; widget;
+	     widget = gtk_widget_get_parent(widget)) {
+		if (g_object_get_data(G_OBJECT(widget), "home-item") &&
+		    gtk_widget_is_ancestor(widget, GTK_WIDGET(self))) {
+			return;
+		}
+	}
+	selection_clear(self);
+	self->selection_anchor = NULL;
 }
 static GdkContentProvider* home_drag_prepare(
     GtkDragSource* source,
@@ -352,6 +295,12 @@ static GdkContentProvider* home_drag_prepare(
 	(void)y;
 	SignHome*  self = data;
 	GtkWidget* item = g_object_get_data(G_OBJECT(source), "home-item");
+	self->dragging = true;
+	if (item && !item_selected(self, item)) {
+		selection_clear(self);
+		selection_set(self, item, true);
+		self->selection_anchor = item;
+	}
 	GHashTable*
 	    seen = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
 	GPtrArray* paths = g_ptr_array_new_with_free_func(g_free);
@@ -397,11 +346,7 @@ static GdkContentProvider* home_drag_prepare(
 	}
 	g_ptr_array_unref(paths);
 	g_hash_table_unref(seen);
-	if (content) {
-		gtk_drag_source_set_content(source, content);
-		g_object_unref(content);
-	}
-	return NULL;
+	return content;
 }
 typedef struct {
 	char*            path;
@@ -520,8 +465,12 @@ static GtkWidget* file_widget(
 	    GTK_GESTURE_SINGLE(click),
 	    GDK_BUTTON_PRIMARY
 	);
-	g_signal_connect(click, "released", G_CALLBACK(item_clicked), self);
+	g_signal_connect(click, "pressed", G_CALLBACK(item_pressed), self);
+	g_signal_connect(click, "released", G_CALLBACK(item_released), self);
 	gtk_widget_add_controller(item, GTK_EVENT_CONTROLLER(click));
+	if (source) {
+		gtk_gesture_group(click, GTK_GESTURE(source));
+	}
 	g_object_unref(file);
 	char*      name = g_filename_display_basename(entry->path);
 	GtkWidget* title = gtk_label_new(name);
@@ -596,39 +545,11 @@ static void grid_file_activated(
 	    NULL
 	);
 }
-static void attach_selection(
-    SignHome*  self,
-    GtkWidget* target,
-    GtkWidget* list
-) {
+static void attach_section(GtkWidget* target, GtkWidget* list) {
 	home_section* section = g_new0(home_section, 1);
-	section->self = self;
 	section->list = list;
-	section->area = gtk_drawing_area_new();
-	gtk_widget_set_can_target(section->area, FALSE);
-	gtk_widget_set_hexpand(section->area, TRUE);
-	gtk_widget_set_vexpand(section->area, TRUE);
-	gtk_drawing_area_set_draw_func(
-	    GTK_DRAWING_AREA(section->area),
-	    rubber_draw,
-	    section,
-	    NULL
-	);
-	GtkWidget* overlay = gtk_overlay_new();
-	gtk_overlay_set_child(GTK_OVERLAY(overlay), list);
-	gtk_overlay_add_overlay(GTK_OVERLAY(overlay), section->area);
-	GtkGesture* drag = gtk_gesture_drag_new();
-	gtk_gesture_single_set_button(GTK_GESTURE_SINGLE(drag), GDK_BUTTON_PRIMARY);
-	gtk_event_controller_set_propagation_phase(
-	    GTK_EVENT_CONTROLLER(drag),
-	    GTK_PHASE_BUBBLE
-	);
-	g_signal_connect(drag, "drag-begin", G_CALLBACK(rubber_begin), section);
-	g_signal_connect(drag, "drag-update", G_CALLBACK(rubber_update), section);
-	g_signal_connect(drag, "drag-end", G_CALLBACK(rubber_end), section);
-	gtk_widget_add_controller(list, GTK_EVENT_CONTROLLER(drag));
 	g_object_set_data_full(G_OBJECT(list), "home-section", section, g_free);
-	gtk_box_append(GTK_BOX(target), overlay);
+	gtk_box_append(GTK_BOX(target), list);
 }
 static GtkWidget* section_list(SignHome* self, GtkWidget* target) {
 	clear(target);
@@ -647,7 +568,7 @@ static GtkWidget* section_list(SignHome* self, GtkWidget* target) {
 		gtk_flow_box_set_column_spacing(GTK_FLOW_BOX(flow), 4);
 		gtk_flow_box_set_row_spacing(GTK_FLOW_BOX(flow), 4);
 		gtk_flow_box_set_homogeneous(GTK_FLOW_BOX(flow), TRUE);
-		attach_selection(self, target, flow);
+		attach_section(target, flow);
 		return flow;
 	}
 	GtkWidget* columns = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
@@ -669,7 +590,7 @@ static GtkWidget* section_list(SignHome* self, GtkWidget* target) {
 	gtk_list_box_set_selection_mode(GTK_LIST_BOX(list), GTK_SELECTION_NONE);
 	gtk_list_box_set_activate_on_single_click(GTK_LIST_BOX(list), FALSE);
 	gtk_widget_add_css_class(list, "home-file-list");
-	attach_selection(self, target, list);
+	attach_section(target, list);
 	return list;
 }
 static void render_section(SignHome* self, bool favorites, size_t start) {
@@ -1010,7 +931,43 @@ static void finalize(GObject* object) {
 	g_hash_table_unref(self->selected);
 	G_OBJECT_CLASS(sign_home_parent_class)->finalize(object);
 }
+static void sign_home_root(GtkWidget* widget) {
+	GTK_WIDGET_CLASS(sign_home_parent_class)->root(widget);
+	SignHome* self = SIGN_HOME(widget);
+	self->outside_click = gtk_gesture_click_new();
+	gtk_gesture_single_set_button(
+	    GTK_GESTURE_SINGLE(self->outside_click),
+	    GDK_BUTTON_PRIMARY
+	);
+	gtk_event_controller_set_propagation_phase(
+	    GTK_EVENT_CONTROLLER(self->outside_click),
+	    GTK_PHASE_CAPTURE
+	);
+	g_signal_connect(
+	    self->outside_click,
+	    "pressed",
+	    G_CALLBACK(outside_pressed),
+	    self
+	);
+	gtk_widget_add_controller(
+	    GTK_WIDGET(gtk_widget_get_root(widget)),
+	    GTK_EVENT_CONTROLLER(self->outside_click)
+	);
+}
+static void sign_home_unroot(GtkWidget* widget) {
+	SignHome* self = SIGN_HOME(widget);
+	if (self->outside_click) {
+		gtk_widget_remove_controller(
+		    GTK_WIDGET(gtk_widget_get_root(widget)),
+		    GTK_EVENT_CONTROLLER(self->outside_click)
+		);
+		self->outside_click = NULL;
+	}
+	GTK_WIDGET_CLASS(sign_home_parent_class)->unroot(widget);
+}
 static void sign_home_class_init(SignHomeClass* klass) {
+	GTK_WIDGET_CLASS(klass)->root = sign_home_root;
+	GTK_WIDGET_CLASS(klass)->unroot = sign_home_unroot;
 	history_changed = g_signal_new(
 	    "history-changed",
 	    G_TYPE_FROM_CLASS(klass),
