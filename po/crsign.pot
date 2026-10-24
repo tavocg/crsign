@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: CRSign 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/tavocg/crsign/issues\n"
-"POT-Creation-Date: 2026-10-23 21:47-0600\n"
+"POT-Creation-Date: 2026-10-23 22:24-0600\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -21,7 +21,7 @@ msgstr ""
 msgid "Home"
 msgstr ""
 
-#: sign/gui/window.c:20 sign/gui/signing.c:161 sign/gui/signing.c:1710
+#: sign/gui/window.c:20 sign/gui/signing.c:170 sign/gui/signing.c:1719
 msgid "Sign"
 msgstr ""
 
@@ -53,7 +53,7 @@ msgstr ""
 msgid "Show grid"
 msgstr ""
 
-#: sign/gui/window.c:216 sign/gui/signing.c:1445
+#: sign/gui/window.c:216 sign/gui/signing.c:1454
 msgid "Could not validate signed documents"
 msgstr ""
 
@@ -82,7 +82,7 @@ msgstr ""
 msgid "Remove module"
 msgstr ""
 
-#: sign/gui/settings.c:469 sign/gui/settings.c:527 sign/gui/signing.c:949
+#: sign/gui/settings.c:469 sign/gui/settings.c:527 sign/gui/signing.c:958
 msgid "Global"
 msgstr ""
 
@@ -442,7 +442,7 @@ msgstr ""
 msgid "Drop signed files here"
 msgstr ""
 
-#: sign/gui/validation.c:822 sign/gui/signing.c:1648
+#: sign/gui/validation.c:822 sign/gui/signing.c:1657
 msgid "Click to choose one or more files"
 msgstr ""
 
@@ -724,151 +724,155 @@ msgstr ""
 msgid "Cannot render this PDF page"
 msgstr ""
 
-#: sign/gui/pdf_view.c:256 sign/gui/signing.c:382
+#: sign/gui/pdf_view.c:256 sign/gui/signing.c:391
 msgid "The signature image cannot fit at this position"
 msgstr ""
 
-#: sign/gui/signing.c:85
+#: sign/gui/signing.c:86
 #, c-format
 msgid "Total: %u"
 msgstr ""
 
-#: sign/gui/signing.c:156 sign/gui/signing.c:1175
+#: sign/gui/signing.c:165 sign/gui/signing.c:1184
 msgid "Continue"
 msgstr ""
 
-#: sign/gui/signing.c:157 sign/gui/signing.c:1800
+#: sign/gui/signing.c:166 sign/gui/signing.c:1826
 msgid "Continue without graphical signature"
 msgstr ""
 
-#: sign/gui/signing.c:161
+#: sign/gui/signing.c:170
 msgid "Signing…"
 msgstr ""
 
-#: sign/gui/signing.c:212
+#: sign/gui/signing.c:221
 msgid "Wait for the PDF preview to finish loading"
 msgstr ""
 
-#: sign/gui/signing.c:323 sign/gui/signing.c:1019
+#: sign/gui/signing.c:332 sign/gui/signing.c:1028
 msgid ""
 "The signing profile could not be loaded. Check the configuration in Settings."
 msgstr ""
 
-#: sign/gui/signing.c:341
+#: sign/gui/signing.c:350
 msgid "Certificate holder"
 msgstr ""
 
-#: sign/gui/signing.c:393
+#: sign/gui/signing.c:402
 msgid "Cannot preview this signature image"
 msgstr ""
 
-#: sign/gui/signing.c:427 sign/gui/signing.c:537
+#: sign/gui/signing.c:436 sign/gui/signing.c:546
 msgid "Graphical signatures are available for PDF files"
 msgstr ""
 
-#: sign/gui/signing.c:462
+#: sign/gui/signing.c:471
 #, c-format
 msgid "of %u"
 msgstr ""
 
-#: sign/gui/signing.c:714
+#: sign/gui/signing.c:723
 msgid "Only local files can be signed"
 msgstr ""
 
-#: sign/gui/signing.c:732
+#: sign/gui/signing.c:741
 msgid "The document queue is full"
 msgstr ""
 
-#: sign/gui/signing.c:753
+#: sign/gui/signing.c:762
 msgid "No graphical signature"
 msgstr ""
 
-#: sign/gui/signing.c:761
+#: sign/gui/signing.c:770
 msgid "Remove document"
 msgstr ""
 
-#: sign/gui/signing.c:817
+#: sign/gui/signing.c:826
 msgid "Choose documents to sign"
 msgstr ""
 
-#: sign/gui/signing.c:844
+#: sign/gui/signing.c:853
 msgid "Only local images are supported"
 msgstr ""
 
-#: sign/gui/signing.c:866 sign/gui/signing.c:1735
+#: sign/gui/signing.c:875 sign/gui/signing.c:1744
 msgid "Choose signature image"
 msgstr ""
 
-#: sign/gui/signing.c:868
+#: sign/gui/signing.c:877
 msgid "Signature images"
 msgstr ""
 
-#: sign/gui/signing.c:1150
+#: sign/gui/signing.c:1159
 msgid "Token PIN"
 msgstr ""
 
-#: sign/gui/signing.c:1157
+#: sign/gui/signing.c:1166
 msgid "Enter the PIN to sign"
 msgstr ""
 
-#: sign/gui/signing.c:1170
+#: sign/gui/signing.c:1179
 msgid "PIN"
 msgstr ""
 
-#: sign/gui/signing.c:1174
+#: sign/gui/signing.c:1183
 msgid "Cancel"
 msgstr ""
 
-#: sign/gui/signing.c:1302
+#: sign/gui/signing.c:1311
 msgid "PIN entry was cancelled or unavailable"
 msgstr ""
 
-#: sign/gui/signing.c:1344
+#: sign/gui/signing.c:1353
 #, c-format
 msgid "Output already exists: %s"
 msgstr ""
 
-#: sign/gui/signing.c:1369 sign/gui/signing.c:1406
+#: sign/gui/signing.c:1378 sign/gui/signing.c:1415
 msgid "Signing failed"
 msgstr ""
 
-#: sign/gui/signing.c:1406
+#: sign/gui/signing.c:1415
 msgid "Not started"
 msgstr ""
 
-#: sign/gui/signing.c:1419
+#: sign/gui/signing.c:1428
 msgid "Could not sign documents"
 msgstr ""
 
-#: sign/gui/signing.c:1594
+#: sign/gui/signing.c:1603
 msgid "Signing profile"
 msgstr ""
 
-#: sign/gui/signing.c:1644
+#: sign/gui/signing.c:1653
 msgid "Drop files here to sign"
 msgstr ""
 
-#: sign/gui/signing.c:1673
+#: sign/gui/signing.c:1682
 msgid "Clear all"
 msgstr ""
 
-#: sign/gui/signing.c:1707
+#: sign/gui/signing.c:1716
 msgid "Some files have no graphical signature"
 msgstr ""
 
-#: sign/gui/signing.c:1726
+#: sign/gui/signing.c:1735
 msgid "Document queue"
 msgstr ""
 
-#: sign/gui/signing.c:1743
+#: sign/gui/signing.c:1757
+msgid "Signature image options"
+msgstr ""
+
+#: sign/gui/signing.c:1761
 msgid "Use profile signature image"
 msgstr ""
 
-#: sign/gui/signing.c:1751
+#: sign/gui/signing.c:1769
 msgid "Add signing information"
 msgstr ""
 
-#: sign/gui/signing.c:1786
+#: sign/gui/signing.c:1812
 msgid "Page"
 msgstr ""
 

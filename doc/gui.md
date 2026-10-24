@@ -106,8 +106,9 @@ fecha y «Representación gráfica. Verifique la validez.». La fecha y los dato
 de esa marca se generan al firmar. Si aún no hay un certificado seleccionable,
 la previsualización muestra un titular ilustrativo.
 
-Al seleccionar una imagen propia, incluida la de un perfil, aparece «Añadir
-información de firma», activado inicialmente para cada documento. La imagen
+Al seleccionar una imagen propia, incluida la de un perfil, aparece un menú de
+tres puntos junto al selector de imagen. Contiene «Añadir información de firma»,
+activado inicialmente para cada documento. La imagen
 conserva su proporción y se centra sobre el sello con titular, fecha y aviso de
 validación. El conjunto se coloca, arrastra y dimensiona como un único rectángulo;
 al cambiar la opción se conserva su ancho y se recalcula la altura. Si no cabe,

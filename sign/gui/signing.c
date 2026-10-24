@@ -24,12 +24,13 @@ typedef struct {
 	GtkWidget *            row, *warning;
 } signing_item;
 struct _SignSigning {
-	GtkBox         parent_instance;
-	GPtrArray *    items, *profile_ids;
-	GtkDropDown*   profiles;
-	GtkStack*      modes;
-	GtkListBox*    list;
-	GtkWidget *    canvas, *image_button, *default_button, *information;
+	GtkBox       parent_instance;
+	GPtrArray *  items, *profile_ids;
+	GtkDropDown* profiles;
+	GtkStack*    modes;
+	GtkListBox*  list;
+	GtkWidget *  canvas, *image_button, *image_menu, *default_button,
+	    *information;
 	SignPdfReader* reader;
 	GtkWidget *continue_button, *sign_button, *warning, *add, *back, *spinner;
 	GtkLabel * notice, *filename, *page_count, *total;
@@ -128,6 +129,14 @@ static void controls(SignSigning* self) {
 	);
 	gtk_widget_set_sensitive(
 	    self->default_button,
+	    !self->loading && !self->busy && self->surface
+	);
+	gtk_widget_set_visible(
+	    self->image_menu,
+	    self->current && self->current->image
+	);
+	gtk_widget_set_sensitive(
+	    self->image_menu,
 	    !self->loading && !self->busy && self->surface
 	);
 	gtk_widget_set_visible(
@@ -1738,6 +1747,15 @@ static void sign_signing_init(SignSigning* self) {
 	);
 	gtk_widget_set_name(self->image_button, "sign-image");
 	gtk_box_append(GTK_BOX(reader_tools), self->image_button);
+	self->image_menu = gtk_menu_button_new();
+	gtk_widget_set_name(self->image_menu, "sign-image-options");
+	gtk_menu_button_set_icon_name(
+	    GTK_MENU_BUTTON(self->image_menu),
+	    "view-more-symbolic"
+	);
+	gtk_widget_add_css_class(self->image_menu, "flat");
+	gtk_widget_set_tooltip_text(self->image_menu, _("Signature image options"));
+	gtk_box_append(GTK_BOX(reader_tools), self->image_menu);
 	self->default_button = icon_button(
 	    "edit-undo-symbolic",
 	    _("Use profile signature image"),
@@ -1751,7 +1769,10 @@ static void sign_signing_init(SignSigning* self) {
 	    _("Add signing information")
 	);
 	gtk_widget_set_name(self->information, "sign-information");
-	gtk_widget_set_halign(self->information, GTK_ALIGN_END);
+	gtk_widget_set_margin_start(self->information, 12);
+	gtk_widget_set_margin_end(self->information, 12);
+	gtk_widget_set_margin_top(self->information, 12);
+	gtk_widget_set_margin_bottom(self->information, 12);
 	gtk_check_button_set_active(GTK_CHECK_BUTTON(self->information), TRUE);
 	g_signal_connect(
 	    self->information,
@@ -1759,7 +1780,12 @@ static void sign_signing_init(SignSigning* self) {
 	    G_CALLBACK(information_toggled),
 	    self
 	);
-	gtk_box_append(GTK_BOX(reader), self->information);
+	GtkWidget* image_popover = gtk_popover_new();
+	gtk_popover_set_child(GTK_POPOVER(image_popover), self->information);
+	gtk_menu_button_set_popover(
+	    GTK_MENU_BUTTON(self->image_menu),
+	    image_popover
+	);
 	self->reader = SIGN_PDF_READER(sign_pdf_reader_new());
 	gtk_widget_set_vexpand(GTK_WIDGET(self->reader), TRUE);
 	self->canvas = sign_pdf_reader_canvas(self->reader);
