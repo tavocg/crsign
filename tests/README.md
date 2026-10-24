@@ -6,19 +6,18 @@ Initialize the pinned suite and its nested ETSI schema modules:
 
 ```sh
 git submodule update --init --recursive
-nix develop --command cmake -S tests/libssig -B build-libssig -DBUILD_TESTING=OFF
+nix develop --command cmake -S tests/libssig -B build-libssig -DBUILD_TESTING=OFF -DBUILD_SHARED_LIBS=OFF
 nix develop --command cmake --build build-libssig --parallel
 nix develop --command cmake -S . -B build -Dlibssig_DIR="$PWD/build-libssig" -DBUILD_TESTING=ON
 nix develop --command cmake --build build --parallel
 nix develop --command ctest --test-dir build --parallel 4 --output-on-failure
 ```
 
-To exercise static libssig, add `-DBUILD_SHARED_LIBS=OFF` to its configure
-command, use separate library/application build directories, and point
-`libssig_DIR` at that library build. Use `ON` for the shared variant. Setting
-`BUILD_SHARED_LIBS` only on CRSign does not change an imported library. Linux,
-Windows and macOS CI run the GTK application tests with both variants; test
-registration is the same for each.
+CRSign uses static libssig, tomlc17, Jansson and zlib; external argp is static
+as well. The Nix shell supplies the small static archives. Native builds prepare
+them with `scripts/bootstrap-native.py`. CI has one GTK build per platform,
+without a shared/static matrix. `static_linkage` inspects the executable's actual
+direct imports to catch accidental dynamic linkage of these libraries.
 
 All registration lives in `tests/CMakeLists.txt`. The `tests/libssig` submodule
 pins the same implementation and reusable tests. It contains the nested official
@@ -136,8 +135,8 @@ On Windows/macOS, `system_trust_os` additionally compiles and runs the real
 Crypt32/Security backend against the existing public system stores, rejects an
 unknown self-signed certificate and checks an explicit anchor. It installs no
 certificates, changes no trust settings and accesses no private keys.
-`native-trust.yml` registers these standalone tests on Windows/MSYS2 UCRT64 and
-macOS with Homebrew OpenSSL, independently of the full application build.
+The native GTK workflow also builds and runs these standalone tests on
+Windows/MSYS2 UCRT64 and macOS with Homebrew OpenSSL.
 
 `native_packaging` checks PE/Mach-O dependency parsing, closure and cycles,
 missing/conflicting libraries, relative macOS references, signing of copied

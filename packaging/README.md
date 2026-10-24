@@ -24,7 +24,8 @@ El workflow contiene la lista exacta de paquetes de cada gestor. Windows usa
 `curl-winssl` (Schannel); macOS usa libcurl del SDK/sistema para HTTPS con la
 confianza TLS nativa. La validación de documentos y TSA sigue a cargo de libssig.
 
-`bootstrap-native.py` compila tomlc17 **R20260501** y, con `--with-argp`, la
+`bootstrap-native.py` compila estáticamente tomlc17 **R20260501**, Jansson
+**2.15.0**, zlib **1.3.2** y, con `--with-argp`, la
 variante de argp-standalone **1.2.0** compatible con MinGW. macOS usa
 argp-standalone de Homebrew. Los archivos descargados tienen SHA-256 fijado y
 se comprueban también al reutilizar la caché. La descarga ocurre exclusivamente
@@ -40,16 +41,20 @@ python scripts/bootstrap-native.py --prefix "$PWD/build/native-prefix" --with-ar
 
 Se necesitan Python >= 3.10, CMake >= 3.18 y Git para este proceso. Los gestores
 nativos aportan el compilador, pkg-config, GTK/GLib, libadwaita, gettext, OpenSSL >= 3.5, p11-kit,
-libmagic, zlib, QPDF, Poppler GLib, Jansson y libxml2. Consulta el workflow para las rutas de
+libmagic, QPDF, Poppler GLib y libxml2. Consulta el workflow para las rutas de
 OpenSSL, libxml2 y libcurl del SDK en macOS.
 
 ## Compilar e instalar en un prefijo temporal
 
-Tras instalar las dependencias y ejecutar bootstrap:
+Tras instalar las dependencias y ejecutar bootstrap, antepón
+`build/native-prefix/lib/pkgconfig` a `PKG_CONFIG_PATH` para seleccionar Jansson
+y zlib del prefijo. Se requiere libssig estática:
 
 ```sh
+export PKG_CONFIG_PATH="$PWD/build/native-prefix/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+
 cmake -S tests/libssig -B build-libssig -DCMAKE_BUILD_TYPE=Release \
-  -DBUILD_TESTING=OFF -DLIBSSIG_EMBED_MAGIC_DATABASE=ON \
+  -DBUILD_TESTING=OFF -DBUILD_SHARED_LIBS=OFF -DLIBSSIG_EMBED_MAGIC_DATABASE=ON \
   -DCMAKE_INSTALL_PREFIX="$PWD/build/native-prefix"
 cmake --build build-libssig --parallel 4
 cmake --install build-libssig
@@ -65,8 +70,8 @@ indicadas en `native-build.yml`. `LIBSSIG_MAGIC_DATABASE` permite indicar el
 archivo `magic.mgc` que corresponde a la versión de libmagic enlazada. La base
 se comprime y se incorpora en libssig; no se busca en el equipo de compilación
 al ejecutar el paquete. `MAGIC` sigue siendo un override explícito, incluidos
-sus errores. Las DLL de libssig exportan sus símbolos y se instala su biblioteca
-de importación para que CRSign consuma la instalación, no el árbol de compilación.
+sus errores. libssig, tomlc17, Jansson, zlib y argp externo quedan incorporados
+al ejecutable; las bibliotecas de GUI y del sistema conservan el enlace dinámico.
 
 ## Crear y comprobar el archivo distribuible
 

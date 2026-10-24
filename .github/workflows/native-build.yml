@@ -6,30 +6,27 @@ permissions:
 
 jobs:
   macos:
-    name: macOS (GTK, libssig shared=${{ matrix.shared }})
+    name: macOS (GTK)
     runs-on: macos-latest
-    strategy:
-      matrix:
-        shared: ["ON", "OFF"]
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: true
       - name: Install dependencies
-        run: brew install cmake pkgconf openssl@3 argp-standalone p11-kit libmagic qpdf poppler jansson libxml2 glib gtk4 librsvg libadwaita gettext
-      - name: Build pinned TOML parser
+        run: brew install cmake pkgconf openssl@3 argp-standalone p11-kit libmagic qpdf poppler libxml2 glib gtk4 librsvg libadwaita gettext
+      - name: Build pinned static dependencies
         run: python3 scripts/bootstrap-native.py --prefix "$PWD/build/native-prefix"
       - name: Configure and install libssig
         run: |
-          export PKG_CONFIG_PATH="$(brew --prefix libxml2)/lib/pkgconfig:$(brew --prefix openssl@3)/lib/pkgconfig:$(brew --prefix libmagic)/lib/pkgconfig"
-          cmake -S tests/libssig -B build-libssig -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DBUILD_SHARED_LIBS=${{ matrix.shared }} \
+          export PKG_CONFIG_PATH="$PWD/build/native-prefix/lib/pkgconfig:$(brew --prefix libxml2)/lib/pkgconfig:$(brew --prefix openssl@3)/lib/pkgconfig:$(brew --prefix libmagic)/lib/pkgconfig"
+          cmake -S tests/libssig -B build-libssig -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DBUILD_SHARED_LIBS=OFF \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 -DOPENSSL_ROOT_DIR="$(brew --prefix openssl@3)" \
             -DCMAKE_INSTALL_PREFIX="$PWD/build/native-prefix"
           cmake --build build-libssig --parallel 4
           cmake --install build-libssig
       - name: Configure and build CRSign
         run: |
-          export PKG_CONFIG_PATH="$(brew --prefix libxml2)/lib/pkgconfig:$(brew --prefix openssl@3)/lib/pkgconfig:$(brew --prefix libmagic)/lib/pkgconfig"
+          export PKG_CONFIG_PATH="$PWD/build/native-prefix/lib/pkgconfig:$(brew --prefix libxml2)/lib/pkgconfig:$(brew --prefix openssl@3)/lib/pkgconfig:$(brew --prefix libmagic)/lib/pkgconfig"
           sdk="$(xcrun --show-sdk-path)"
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DHEADLESS=OFF -DBUILD_TESTING=ON \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 -DSIGN_TEST_LIBSSIG=OFF \
@@ -45,11 +42,8 @@ jobs:
           ctest --test-dir build/system-trust --output-on-failure
 
   windows:
-    name: Windows UCRT64 (GTK, libssig shared=${{ matrix.shared }})
+    name: Windows UCRT64 (GTK)
     runs-on: windows-latest
-    strategy:
-      matrix:
-        shared: ["ON", "OFF"]
     defaults:
       run:
         shell: msys2 {0}
@@ -68,22 +62,24 @@ jobs:
             mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-pkgconf
             mingw-w64-ucrt-x86_64-python mingw-w64-ucrt-x86_64-openssl
             mingw-w64-ucrt-x86_64-p11-kit mingw-w64-ucrt-x86_64-file
-            mingw-w64-ucrt-x86_64-qpdf mingw-w64-ucrt-x86_64-jansson
+            mingw-w64-ucrt-x86_64-qpdf
             mingw-w64-ucrt-x86_64-poppler
             mingw-w64-ucrt-x86_64-libxml2 mingw-w64-ucrt-x86_64-glib2
             mingw-w64-ucrt-x86_64-gtk4 mingw-w64-ucrt-x86_64-curl-winssl
             mingw-w64-ucrt-x86_64-librsvg mingw-w64-ucrt-x86_64-libadwaita
             mingw-w64-ucrt-x86_64-gettext-tools
-      - name: Build pinned argp and TOML parser
+      - name: Build pinned static dependencies and argp
         run: python scripts/bootstrap-native.py --prefix "$PWD/build/native-prefix" --with-argp
       - name: Configure and install libssig
         run: |
-          cmake -S tests/libssig -B build-libssig -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DBUILD_SHARED_LIBS=${{ matrix.shared }} \
+          export PKG_CONFIG_PATH="$PWD/build/native-prefix/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+          cmake -S tests/libssig -B build-libssig -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DBUILD_SHARED_LIBS=OFF \
             -DCMAKE_INSTALL_PREFIX="$PWD/build/native-prefix"
           cmake --build build-libssig --parallel 4
           cmake --install build-libssig
       - name: Configure and build CRSign
         run: |
+          export PKG_CONFIG_PATH="$PWD/build/native-prefix/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DHEADLESS=OFF -DBUILD_TESTING=ON \
             -DSIGN_TEST_LIBSSIG=OFF -DCMAKE_PREFIX_PATH="$(cygpath -m "$PWD/build/native-prefix");$(cygpath -m "$MINGW_PREFIX")"
           cmake --build build --parallel 4
