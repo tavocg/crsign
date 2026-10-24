@@ -12,6 +12,8 @@ void sign_file_actions_attach(
     sign_favorite_changed,
     gpointer
 );
+/* Enable exporting the file by drag; keep PDF editing gestures independent. */
+void       sign_file_drag_attach(GtkWidget*, GFile*);
 GtkWidget* sign_file_location_button(void);
 GtkWidget* sign_file_favorite_button(bool);
 #endif

@@ -14,8 +14,10 @@ struct sign_pdf_document {
 	gint             references;
 	PopplerDocument* document;
 	GArray*          pages;
-	GMutex           lock;
 };
+/* Poppler's shared colour profiles also span separate documents. Serialise
+ * its entry points, including thumbnail renders and document destruction. */
+static GMutex      poppler_lock;
 sign_pdf_document* sign_pdf_ref(sign_pdf_document* document) {
 	if (document) {
 		g_atomic_int_inc(&document->references);
@@ -26,9 +28,10 @@ void sign_pdf_unref(sign_pdf_document* document) {
 	if (!document || !g_atomic_int_dec_and_test(&document->references)) {
 		return;
 	}
+	g_mutex_lock(&poppler_lock);
 	g_object_unref(document->document);
+	g_mutex_unlock(&poppler_lock);
 	g_array_unref(document->pages);
-	g_mutex_clear(&document->lock);
 	g_free(document);
 }
 unsigned int sign_pdf_pages(const sign_pdf_document* document) {
@@ -76,8 +79,10 @@ sign_pdf_document* sign_pdf_open(
 		return NULL;
 	}
 	/* No PDF JavaScript, external links, forms or mutations are executed. */
+	g_mutex_lock(&poppler_lock);
 	PopplerDocument* pdf = poppler_document_new_from_bytes(bytes, NULL, error);
 	if (!pdf) {
+		g_mutex_unlock(&poppler_lock);
 		g_bytes_unref(bytes);
 		return NULL;
 	}
@@ -85,7 +90,6 @@ sign_pdf_document* sign_pdf_open(
 	document->references = 1;
 	document->document = pdf;
 	document->pages = g_array_new(FALSE, FALSE, sizeof(pdf_page));
-	g_mutex_init(&document->lock);
 	qpdf_data parser = qpdf_init();
 	qpdf_silence_errors(parser);
 	qpdf_set_suppress_warnings(parser, QPDF_TRUE);
@@ -122,6 +126,7 @@ sign_pdf_document* sign_pdf_open(
 			g_array_append_val(document->pages, p);
 		}
 	}
+	g_mutex_unlock(&poppler_lock);
 	qpdf_cleanup(&parser);
 	g_bytes_unref(bytes);
 	if (ok && !g_cancellable_set_error_if_cancelled(cancellable, error)) {
@@ -171,7 +176,7 @@ static cairo_surface_t* render(
 	cairo_set_source_rgb(cr, 1, 1, 1);
 	cairo_paint(cr);
 	cairo_scale(cr, scale, scale);
-	g_mutex_lock(&document->lock);
+	g_mutex_lock(&poppler_lock);
 	PopplerPage* pdf_page = poppler_document_get_page(
 	    document->document,
 	    (int)page - 1
@@ -180,7 +185,7 @@ static cairo_surface_t* render(
 		poppler_page_render(pdf_page, cr);
 		g_object_unref(pdf_page);
 	}
-	g_mutex_unlock(&document->lock);
+	g_mutex_unlock(&poppler_lock);
 	bool ok = pdf_page && cairo_status(cr) == CAIRO_STATUS_SUCCESS &&
 	          cairo_surface_status(surface) == CAIRO_STATUS_SUCCESS;
 	cairo_destroy(cr);

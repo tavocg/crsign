@@ -59,7 +59,7 @@ int main(int argc, char** argv) {
 		GtkDragSource* source = NULL;
 		if (g_str_equal(argv[1], "file-source")) {
 			GFile* file = g_file_new_for_path(paths[0]);
-			sign_file_actions_attach(area, file, false, false, NULL, NULL);
+			sign_file_drag_attach(area, file);
 			g_object_unref(file);
 			GListModel* controllers = gtk_widget_observe_controllers(area);
 			for (guint i = 0; i < g_list_model_get_n_items(controllers); ++i) {

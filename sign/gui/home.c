@@ -181,6 +181,7 @@ static GtkWidget* file_widget(
 	    favorite_changed,
 	    self
 	);
+	sign_file_drag_attach(item, file);
 	g_object_unref(file);
 	char*      name = g_filename_display_basename(entry->path);
 	GtkWidget* title = gtk_label_new(name);
@@ -541,6 +542,7 @@ static void search_update(SignHome* self) {
 		adw_action_row_set_subtitle_lines(ADW_ACTION_ROW(row), 1);
 		GFile* file = g_file_new_for_path(entry->path);
 		sign_file_actions_attach(row, file, false, false, NULL, NULL);
+		sign_file_drag_attach(row, file);
 		g_object_unref(file);
 		gtk_list_box_row_set_activatable(GTK_LIST_BOX_ROW(row), TRUE);
 		gtk_actionable_set_action_name(

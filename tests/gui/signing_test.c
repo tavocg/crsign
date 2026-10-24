@@ -103,29 +103,32 @@ static void mouse_place(GtkWidget* window, SignSigning* self, bool drag) {
 	g_assert_true(sign_pdf_reader_page_bounds(reader, 1, &page));
 	int x = (int)(bounds.origin.x + page.origin.x) + 40,
 	    y = (int)(bounds.origin.y + page.origin.y) + 40;
-	char* command = drag ? g_strdup_printf(
-	                           "%s mousemove --window %s %d %d mousedown 1 "
-	                           "mousemove --window %s %d %d mouseup 1",
-	                           tool,
-	                           id,
-	                           x,
-	                           y,
-	                           id,
-	                           x + 180,
-	                           y + 90
-	                       )
-	                     : g_strdup_printf(
-	                           "%s mousemove --window %s %d %d click 1",
-	                           tool,
-	                           id,
-	                           x,
-	                           y
-	                       );
+	char* command = drag
+	                    ? g_strdup_printf(
+	                          "%s mousemove --window %s %d %d mousedown 1 "
+	                          "sleep 0.1 "
+	                          "mousemove --window %s %d %d sleep 0.1 mouseup 1",
+	                          tool,
+	                          id,
+	                          x,
+	                          y,
+	                          id,
+	                          x + 180,
+	                          y + 90
+	                      )
+	                    : g_strdup_printf(
+	                          "%s mousemove --window %s %d %d click 1",
+	                          tool,
+	                          id,
+	                          x,
+	                          y
+	                      );
 	g_assert_true(
 	    g_spawn_command_line_sync(command, NULL, NULL, &status, NULL)
 	);
 	g_assert_cmpint(status, ==, 0);
 	settle();
+	g_assert_true(sign_signing_is_reader(self));
 	g_assert_cmpuint(sign_signing_appearance(self, 0)->page_number, ==, 1);
 	if (drag) {
 		g_assert_cmpfloat(sign_signing_appearance(self, 0)->width, >, 144);
@@ -254,8 +257,9 @@ static void move_stamp(GtkWidget* window, SignSigning* self) {
 	    y = (int)(bounds.origin.y + page.origin.y +
 	              (a->y + a->height / 2) * zoom);
 	char* cmd = g_strdup_printf(
-	    "%s mousemove --window %s %d %d mousedown 1 mousemove --window %s %d "
-	    "%d mouseup 1",
+	    "%s mousemove --window %s %d %d mousedown 1 sleep 0.1 mousemove "
+	    "--window %s %d "
+	    "%d sleep 0.1 mouseup 1",
 	    tool,
 	    id,
 	    x,
@@ -267,6 +271,7 @@ static void move_stamp(GtkWidget* window, SignSigning* self) {
 	g_assert_true(g_spawn_command_line_sync(cmd, NULL, NULL, &status, NULL));
 	g_free(cmd);
 	settle();
+	g_assert_true(sign_signing_is_reader(self));
 	g_assert_cmpfloat(a->x, >, saved.x);
 	g_assert_cmpfloat(a->y, >, saved.y);
 	g_assert_cmpfloat(a->width, ==, saved.width);
@@ -275,8 +280,9 @@ static void move_stamp(GtkWidget* window, SignSigning* self) {
 	x += 50;
 	y += 40;
 	cmd = g_strdup_printf(
-	    "%s mousemove --window %s %d %d mousedown 1 mousemove --window %s 1 1 "
-	    "mouseup 1",
+	    "%s mousemove --window %s %d %d mousedown 1 sleep 0.1 mousemove "
+	    "--window %s 1 1 "
+	    "sleep 0.1 mouseup 1",
 	    tool,
 	    id,
 	    x,
@@ -286,6 +292,7 @@ static void move_stamp(GtkWidget* window, SignSigning* self) {
 	g_assert_true(g_spawn_command_line_sync(cmd, NULL, NULL, &status, NULL));
 	g_free(cmd);
 	settle();
+	g_assert_true(sign_signing_is_reader(self));
 	g_assert_cmpfloat(a->x, ==, 0);
 	g_assert_cmpfloat(a->y, ==, 0);
 	g_assert_cmpfloat(a->width, ==, saved.width);
@@ -386,8 +393,9 @@ static void resize_stamp(
 		);
 		if (tool) {
 			char* command = g_strdup_printf(
-			    "%s mousemove --window %s %d %d mousedown 1 mousemove --window "
-			    "%s %d %d mouseup 1",
+			    "%s mousemove --window %s %d %d mousedown 1 sleep 0.1 "
+			    "mousemove --window "
+			    "%s %d %d sleep 0.1 mouseup 1",
 			    tool,
 			    id,
 			    (int)round(bounds.origin.x + x),
@@ -403,6 +411,7 @@ static void resize_stamp(
 			g_assert_cmpint(status, ==, 0);
 			g_free(command);
 			settle();
+			g_assert_true(sign_signing_is_reader(self));
 		} else {
 			g_signal_emit_by_name(drag, "drag-begin", x, y);
 			g_signal_emit_by_name(
@@ -632,6 +641,14 @@ int main(int argc, char** argv) {
 	g_object_unref(dropped);
 	wait_done(self);
 	g_assert_true(sign_signing_is_reader(self));
+	GtkWidget* pdf_reader = find_widget(GTK_WIDGET(self), SIGN_TYPE_PDF_READER);
+	GListModel* reader_controllers = gtk_widget_observe_controllers(pdf_reader);
+	for (guint i = 0; i < g_list_model_get_n_items(reader_controllers); ++i) {
+		GObject* controller = g_list_model_get_item(reader_controllers, i);
+		g_assert_false(GTK_IS_DRAG_SOURCE(controller));
+		g_object_unref(controller);
+	}
+	g_object_unref(reader_controllers);
 	g_assert_false(
 	    gtk_widget_get_visible(named(GTK_WIDGET(self), "sign-profile-image"))
 	);
