@@ -8,6 +8,15 @@
 #include <sign/gui/signing.h>
 #include <sign/gui/validation.h>
 
+static GtkWidget* window_named(AdwApplication* app, const char* name) {
+	for (GList* n = gtk_application_get_windows(GTK_APPLICATION(app)); n;
+	     n = n->next) {
+		if (!strcmp(gtk_widget_get_name(n->data), name)) {
+			return n->data;
+		}
+	}
+	return NULL;
+}
 static guint handoffs;
 static void completed(SignSigning* self, const sign_flow* flow, gpointer data) {
 	(void)self;
@@ -574,13 +583,7 @@ int main(int argc, char** argv) {
 		add(self, input);
 		sign_signing_run(self);
 		wait_done(self);
-		GtkWidget* dialog = NULL;
-		for (GList* n = gtk_application_get_windows(GTK_APPLICATION(app)); n;
-		     n = n->next) {
-			if (!strcmp(gtk_widget_get_name(n->data), "sign-error-dialog")) {
-				dialog = n->data;
-			}
-		}
+		GtkWidget* dialog = window_named(app, "sign-error-dialog");
 		g_assert_nonnull(dialog);
 		g_assert_false(
 		    gtk_widget_get_visible(named(GTK_WIDGET(self), "sign-notice"))
@@ -801,6 +804,33 @@ int main(int argc, char** argv) {
 	add(self, payload);
 	g_assert_false(sign_signing_is_reader(self));
 	g_assert_cmpuint(sign_signing_count(self), ==, 2);
+	g_assert_nonnull(strstr(sign_signing_output(self, 0), "-firmado.pdf"));
+	g_assert_nonnull(strstr(sign_signing_output(self, 1), "-firmado.bin"));
+	GtkWidget* output_location = named(
+	    GTK_WIDGET(self),
+	    "sign-output-location"
+	);
+	g_assert_nonnull(output_location);
+	g_assert_nonnull(
+	    strstr(gtk_label_get_text(GTK_LABEL(output_location)), argv[1])
+	);
+	g_assert_nonnull(named(GTK_WIDGET(self), "sign-output-options"));
+	g_assert_nonnull(named(GTK_WIDGET(self), "sign-change-output"));
+	char* first_output = g_strdup(sign_signing_output(self, 0));
+	char* second_output = g_strdup(sign_signing_output(self, 1));
+	sign_signing_set_output(self, 1, first_output);
+	sign_signing_run(self);
+	GtkWidget* conflict = window_named(app, "sign-conflict-dialog");
+	g_assert_nonnull(conflict);
+	g_assert_false(
+	    gtk_widget_get_sensitive(named(conflict, "sign-conflict-overwrite"))
+	);
+	g_signal_emit_by_name(named(conflict, "sign-conflict-cancel"), "clicked");
+	settle();
+	g_assert_null(window_named(app, "sign-conflict-dialog"));
+	sign_signing_set_output(self, 1, second_output);
+	g_free(first_output);
+	g_free(second_output);
 	g_assert_true(
 	    gtk_widget_get_visible(named(GTK_WIDGET(self), "sign-warning"))
 	);
@@ -889,11 +919,42 @@ int main(int argc, char** argv) {
 	output = g_build_filename(argv[1], "payload-firmado.bin", NULL);
 	g_assert_true(g_file_test(output, G_FILE_TEST_IS_REGULAR));
 	g_free(output);
-	/* Existing output must stop before asking for a second PIN. */
+	/* Existing outputs are reported together before a second PIN request. */
+	const char* warning = gtk_widget_get_tooltip_text(
+	    named(GTK_WIDGET(self), "sign-warning")
+	);
+	g_assert_nonnull(warning);
+	g_assert_nonnull(strchr(warning, '\n'));
 	sign_signing_run(self);
-	wait_done(self);
+	conflict = window_named(app, "sign-conflict-dialog");
+	g_assert_nonnull(conflict);
+	g_assert_true(gtk_widget_get_visible(conflict));
+	g_signal_emit_by_name(named(conflict, "sign-conflict-cancel"), "clicked");
+	settle();
+	g_assert_null(window_named(app, "sign-conflict-dialog"));
 	g_assert_cmpuint(pins, ==, 1);
 	g_assert_cmpuint(handoffs, ==, 1);
+	/* Overwrite proceeds after the same confirmation. */
+	timer = g_timeout_add(10, answer_pin, app);
+	sign_signing_run(self);
+	conflict = window_named(app, "sign-conflict-dialog");
+	g_assert_nonnull(conflict);
+	g_signal_emit_by_name(
+	    named(conflict, "sign-conflict-overwrite"),
+	    "clicked"
+	);
+	wait_done(self);
+	g_source_remove(timer);
+	g_assert_cmpuint(pins, ==, 2);
+	g_assert_cmpuint(handoffs, ==, 2);
+	deadline = g_get_monotonic_time() + 15 * G_TIME_SPAN_SECOND;
+	while (sign_validation_is_busy(validation) &&
+	       g_get_monotonic_time() < deadline) {
+		g_main_context_iteration(NULL, FALSE);
+		g_usleep(1000);
+	}
+	g_assert_false(sign_validation_is_busy(validation));
+	g_assert_cmpuint(sign_validation_count(validation), ==, 4);
 	g_signal_emit_by_name(named(GTK_WIDGET(self), "sign-clear"), "clicked");
 	g_assert_cmpuint(sign_signing_count(self), ==, 0);
 	g_assert_cmpstr(
@@ -931,7 +992,7 @@ int main(int argc, char** argv) {
 	sign_signing_run(cancelled);
 	wait_done(cancelled);
 	g_source_remove(timer);
-	g_assert_cmpuint(pins, ==, 2);
+	g_assert_cmpuint(pins, ==, 3);
 	output = g_build_filename(argv[1], "cancel-firmado.bin", NULL);
 	g_assert_false(g_file_test(output, G_FILE_TEST_EXISTS));
 	g_free(output);
@@ -943,7 +1004,7 @@ int main(int argc, char** argv) {
 	sign_signing_run(cancelled);
 	wait_done(cancelled);
 	g_source_remove(timer);
-	g_assert_cmpuint(pins, ==, 3);
+	g_assert_cmpuint(pins, ==, 4);
 	g_object_unref(cancelled);
 	gtk_window_destroy(GTK_WINDOW(window));
 	settle();

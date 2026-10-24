@@ -17,12 +17,13 @@
 #include <string.h>
 
 typedef struct {
-	gint                   references;
-	char *                 path, *image, *profile_image;
-	bool                   image_set, checked, information;
-	sign_pdf_document*     pdf;
+	gint               references;
+	char *             path, *output, *image, *profile_image;
+	bool               image_set, checked, information;
+	bool               output_exists, output_duplicate, output_input_collision;
+	sign_pdf_document* pdf;
 	libssig_pdf_appearance appearance;
-	GtkWidget *            row, *warning;
+	GtkWidget *            row, *warning, *output_button;
 } signing_item;
 struct _SignSigning {
 	GtkBox       parent_instance;
@@ -34,6 +35,7 @@ struct _SignSigning {
 	    *information;
 	SignPdfReader* reader;
 	GtkWidget *continue_button, *sign_button, *warning, *add, *back, *spinner;
+	GtkWidget *output_location, *output_options, *conflict_dialog;
 	GtkLabel * notice, *filename, *page_count, *total;
 	GtkWidget* clear;
 	GtkSpinButton*   page;
@@ -58,6 +60,7 @@ static void item_unref(gpointer data) {
 		return;
 	}
 	g_free(item->path);
+	g_free(item->output);
 	g_free(item->image);
 	g_free(item->profile_image);
 	sign_pdf_unref(item->pdf);
@@ -68,11 +71,21 @@ static void message(SignSigning* self, const char* text) {
 	gtk_widget_set_visible(GTK_WIDGET(self->notice), text && *text);
 }
 static GtkWindow* parent_window(SignSigning* self);
-static void       report_error(
-          SignSigning*      self,
-          const GError*     error,
-          gui_error_context context
-      ) {
+static bool       refresh_output_warnings(SignSigning* self);
+static void       update_warning_widgets(SignSigning* self);
+static void       update_output_summary(SignSigning* self);
+static void       start_run(SignSigning* self, bool overwrite);
+static void       change_output_clicked(GtkButton* button, gpointer data);
+static void       set_item_output(
+          SignSigning*  self,
+          signing_item* item,
+          const char*   output
+      );
+static void report_error(
+    SignSigning*      self,
+    const GError*     error,
+    gui_error_context context
+) {
 	char* text = gui_error_message(error, context);
 	message(self, text);
 	g_free(text);
@@ -83,20 +96,189 @@ static const char* profile(SignSigning* self) {
 	           ? g_ptr_array_index(self->profile_ids, index)
 	           : NULL;
 }
+static void append_warning(GString* text, const char* warning) {
+	if (text->len) {
+		g_string_append_c(text, '\n');
+	}
+	g_string_append(text, warning);
+}
+static bool item_warning_text(signing_item* item, GString* text) {
+	if (!item->appearance.page_number) {
+		append_warning(text, _("No graphical signature"));
+	}
+	if (!item->output || !item->output[0]) {
+		append_warning(text, _("The output path is unavailable"));
+	}
+	if (item->output_exists) {
+		append_warning(text, _("The output file already exists"));
+	}
+	if (item->output_duplicate) {
+		append_warning(text, _("Another document uses the same output path"));
+	}
+	if (item->output_input_collision) {
+		append_warning(text, _("The output path matches an input file"));
+	}
+	return text->len > 0;
+}
+static void update_warning_widgets(SignSigning* self) {
+	if (!self->warning) {
+		return;
+	}
+	bool footer = false;
+	for (guint n = 0; n < self->items->len; ++n) {
+		signing_item* item = g_ptr_array_index(self->items, n);
+		GString*      text = g_string_new(NULL);
+		bool          visible = item_warning_text(item, text);
+		gtk_widget_set_visible(item->warning, visible);
+		gtk_widget_set_tooltip_text(item->warning, visible ? text->str : NULL);
+		footer |= visible;
+		g_string_free(text, TRUE);
+	}
+	GString* tooltip = g_string_new(NULL);
+	bool missing = false, exists = false, duplicate = false, collision = false,
+	     unavailable = false;
+	for (guint n = 0; n < self->items->len; ++n) {
+		signing_item* item = g_ptr_array_index(self->items, n);
+		missing |= !item->appearance.page_number;
+		exists |= item->output_exists;
+		duplicate |= item->output_duplicate;
+		collision |= item->output_input_collision;
+		unavailable |= !item->output || !item->output[0];
+	}
+	if (missing) {
+		append_warning(tooltip, _("Some files have no graphical signature"));
+	}
+	if (exists) {
+		append_warning(tooltip, _("Some output files already exist"));
+	}
+	if (duplicate) {
+		append_warning(tooltip, _("Some documents share an output path"));
+	}
+	if (collision) {
+		append_warning(tooltip, _("Some output paths match an input file"));
+	}
+	if (unavailable) {
+		append_warning(tooltip, _("Some output paths are unavailable"));
+	}
+	gtk_widget_set_visible(self->warning, footer);
+	gtk_widget_set_tooltip_text(
+	    self->warning,
+	    tooltip->len ? tooltip->str : NULL
+	);
+	g_string_free(tooltip, TRUE);
+}
+static void update_output_summary(SignSigning* self) {
+	if (!self->output_location) {
+		return;
+	}
+	bool visible = self->items->len > 0;
+	gtk_widget_set_visible(self->output_location, visible);
+	gtk_widget_set_visible(self->output_options, visible);
+	if (!visible) {
+		gtk_label_set_text(GTK_LABEL(self->output_location), "");
+		gtk_widget_set_tooltip_text(self->output_location, NULL);
+		return;
+	}
+	char*    common = NULL;
+	bool     same = true;
+	GString* details = g_string_new(NULL);
+	for (guint n = 0; n < self->items->len; ++n) {
+		signing_item* item = g_ptr_array_index(self->items, n);
+		char* display = item->output ? g_filename_display_name(item->output)
+		                             : g_strdup(_("Unavailable"));
+		if (details->len) {
+			g_string_append_c(details, '\n');
+		}
+		g_string_append(details, display);
+		g_free(display);
+		char* parent = item->output ? g_path_get_dirname(item->output) : NULL;
+		if (!parent) {
+			same = false;
+		} else if (!common) {
+			common = parent;
+			parent = NULL;
+		} else if (strcmp(common, parent)) {
+			same = false;
+		}
+		g_free(parent);
+	}
+	char* text = same && common ? g_strdup_printf(_("Output: %s"), common)
+	                            : g_strdup(_("Multiple output locations"));
+	gtk_label_set_text(GTK_LABEL(self->output_location), text);
+	gtk_widget_set_tooltip_text(self->output_location, details->str);
+	g_free(text);
+	g_free(common);
+	g_string_free(details, TRUE);
+}
+static bool refresh_output_warnings(SignSigning* self) {
+	GHashTable* inputs = g_hash_table_new_full(
+	    (GHashFunc)g_file_hash,
+	    (GEqualFunc)g_file_equal,
+	    g_object_unref,
+	    NULL
+	);
+	GHashTable* outputs = g_hash_table_new_full(
+	    (GHashFunc)g_file_hash,
+	    (GEqualFunc)g_file_equal,
+	    g_object_unref,
+	    NULL
+	);
+	for (guint n = 0; n < self->items->len; ++n) {
+		signing_item* item = g_ptr_array_index(self->items, n);
+		g_hash_table_add(inputs, g_file_new_for_path(item->path));
+	}
+	for (guint n = 0; n < self->items->len; ++n) {
+		signing_item* item = g_ptr_array_index(self->items, n);
+		item->output_exists = false;
+		item->output_duplicate = false;
+		item->output_input_collision = false;
+		if (!item->output || !item->output[0]) {
+			continue;
+		}
+		GFile*   output = g_file_new_for_path(item->output);
+		gpointer value = NULL;
+		if (g_hash_table_lookup_extended(outputs, output, NULL, &value)) {
+			guint count = GPOINTER_TO_UINT(value) + 1;
+			g_hash_table_replace(
+			    outputs,
+			    g_object_ref(output),
+			    GUINT_TO_POINTER(count)
+			);
+			g_object_unref(output);
+		} else {
+			g_hash_table_insert(outputs, output, GUINT_TO_POINTER(1));
+		}
+	}
+	bool hard = false;
+	for (guint n = 0; n < self->items->len; ++n) {
+		signing_item* item = g_ptr_array_index(self->items, n);
+		if (!item->output || !item->output[0]) {
+			hard = true;
+			continue;
+		}
+		GFile* output = g_file_new_for_path(item->output);
+		item->output_input_collision = g_hash_table_contains(inputs, output);
+		item->output_duplicate = GPOINTER_TO_UINT(
+		                             g_hash_table_lookup(outputs, output)
+		                         ) > 1;
+		item->output_exists = g_file_query_exists(output, NULL);
+		hard |= item->output_input_collision || item->output_duplicate;
+		g_object_unref(output);
+	}
+	g_hash_table_unref(inputs);
+	g_hash_table_unref(outputs);
+	update_output_summary(self);
+	update_warning_widgets(self);
+	return hard;
+}
 static void controls(SignSigning* self) {
 	char* total = g_strdup_printf(_("Total: %u"), self->items->len);
 	gtk_label_set_text(self->total, total);
 	g_free(total);
 	gtk_widget_set_sensitive(self->clear, !self->busy);
 
-	bool missing = false;
-	for (guint n = 0; n < self->items->len; ++n) {
-		signing_item* item = g_ptr_array_index(self->items, n);
-		bool          empty = !item->appearance.page_number;
-		missing |= empty;
-		gtk_widget_set_visible(item->warning, empty);
-	}
-	gtk_widget_set_visible(self->warning, missing);
+	update_warning_widgets(self);
+	update_output_summary(self);
 	gtk_widget_set_sensitive(
 	    self->sign_button,
 	    self->items->len && !self->busy && !self->loading
@@ -524,6 +706,22 @@ static void load_preview(
 size_t sign_signing_count(SignSigning* self) {
 	return self->items->len;
 }
+const char* sign_signing_output(SignSigning* self, size_t index) {
+	return index < self->items->len
+	           ? ((signing_item*)g_ptr_array_index(self->items, index))->output
+	           : NULL;
+}
+void sign_signing_set_output(
+    SignSigning* self,
+    size_t       index,
+    const char*  output
+) {
+	if (index >= self->items->len) {
+		return;
+	}
+	set_item_output(self, g_ptr_array_index(self->items, index), output);
+	controls(self);
+}
 bool sign_signing_is_loading(SignSigning* self) {
 	return self->loading;
 }
@@ -676,6 +874,7 @@ void sign_signing_clear(SignSigning* self) {
 		gtk_list_box_remove(self->list, row);
 	}
 	g_ptr_array_set_size(self->items, 0);
+	refresh_output_warnings(self);
 	message(self, NULL);
 	sign_signing_show_queue(self);
 }
@@ -703,11 +902,38 @@ static void remove_item(GtkButton* button, gpointer data) {
 	}
 	gtk_list_box_remove(self->list, item->row);
 	g_ptr_array_remove_index(self->items, index);
+	refresh_output_warnings(self);
 	sign_signing_show_queue(self);
 }
 static void row_activated(GtkListBox* list, GtkListBoxRow* row, gpointer data) {
 	(void)list;
 	sign_signing_open_document(data, (size_t)gtk_list_box_row_get_index(row));
+}
+static void update_item_output_row(signing_item* item) {
+	if (!item->row) {
+		return;
+	}
+	char* display = item->output ? g_filename_display_name(item->output)
+	                             : g_strdup(_("Unavailable"));
+	char* text = g_strdup_printf(_("Output: %s"), display);
+	adw_action_row_set_subtitle(ADW_ACTION_ROW(item->row), text);
+	adw_action_row_set_subtitle_lines(ADW_ACTION_ROW(item->row), 1);
+	gtk_widget_set_tooltip_text(item->row, item->path);
+	g_free(text);
+	g_free(display);
+}
+static void set_item_output(
+    SignSigning*  self,
+    signing_item* item,
+    const char*   output
+) {
+	if (!g_strcmp0(item->output, output)) {
+		return;
+	}
+	g_free(item->output);
+	item->output = g_strdup(output);
+	update_item_output_row(item);
+	refresh_output_warnings(self);
 }
 void sign_signing_add_files(SignSigning* self, GListModel* files) {
 	if (self->busy || self->closing) {
@@ -746,10 +972,17 @@ void sign_signing_add_files(SignSigning* self, GListModel* files) {
 			message(self, _("The document queue is full"));
 			break;
 		}
+		char* output = file_signed_path(path);
+		if (!output) {
+			g_free(path);
+			message(self, _("Cannot prepare the output path"));
+			continue;
+		}
 		signing_item* item = g_new0(signing_item, 1);
 		item->references = 1;
 		item->information = true;
 		item->path = path;
+		item->output = output;
 		item->row = adw_action_row_new();
 		adw_preferences_row_set_use_markup(
 		    ADW_PREFERENCES_ROW(item->row),
@@ -758,15 +991,33 @@ void sign_signing_add_files(SignSigning* self, GListModel* files) {
 		char* name = g_filename_display_basename(path);
 		adw_preferences_row_set_title(ADW_PREFERENCES_ROW(item->row), name);
 		g_free(name);
-		char* display = g_filename_display_name(path);
-		adw_action_row_set_subtitle(ADW_ACTION_ROW(item->row), display);
-		g_free(display);
+		update_item_output_row(item);
 		gtk_list_box_row_set_activatable(GTK_LIST_BOX_ROW(item->row), TRUE);
 		item->warning = gtk_image_new_from_icon_name("dialog-warning-symbolic");
 		gtk_widget_set_name(item->warning, "sign-document-warning");
-		gtk_widget_set_tooltip_text(item->warning, _("No graphical signature"));
 		gtk_widget_add_css_class(item->warning, "warning");
 		adw_action_row_add_suffix(ADW_ACTION_ROW(item->row), item->warning);
+		item->output_button = gtk_button_new_from_icon_name(
+		    "document-save-symbolic"
+		);
+		gtk_widget_set_name(item->output_button, "sign-change-output");
+		gtk_widget_add_css_class(item->output_button, "flat");
+		gtk_widget_set_valign(item->output_button, GTK_ALIGN_CENTER);
+		gtk_widget_set_tooltip_text(
+		    item->output_button,
+		    _("Change the output file")
+		);
+		g_object_set_data(G_OBJECT(item->output_button), "signing-item", item);
+		g_signal_connect(
+		    item->output_button,
+		    "clicked",
+		    G_CALLBACK(change_output_clicked),
+		    self
+		);
+		adw_action_row_add_suffix(
+		    ADW_ACTION_ROW(item->row),
+		    item->output_button
+		);
 		GtkWidget* remove = gtk_button_new_from_icon_name(
 		    "window-close-symbolic"
 		);
@@ -788,6 +1039,7 @@ void sign_signing_add_files(SignSigning* self, GListModel* files) {
 		g_ptr_array_add(self->items, item);
 		++added;
 	}
+	refresh_output_warnings(self);
 	sign_signing_show_queue(self);
 	if (added == 1 && self->items->len == 1) {
 		sign_signing_open_document(self, 0);
@@ -1022,6 +1274,7 @@ static sign_flow* build_items(
     GPtrArray*  items,
     const char* label,
     sign_args*  settings,
+    bool        overwrite,
     GError**    error
 ) {
 	char detail[512];
@@ -1042,6 +1295,8 @@ static sign_flow* build_items(
 		documents[n].options = settings->options;
 		sign_options* options = &documents[n].options;
 		options->input = item->path;
+		options->output = item->output;
+		options->overwrite = overwrite;
 		options->appearance = item->appearance;
 		options->appearance_information = item->information;
 		options->appearance_file = item->appearance.page_number ? item->image
@@ -1061,8 +1316,9 @@ static sign_flow* build_items(
 	return flow;
 }
 sign_flow* sign_signing_build_flow(SignSigning* self, GError** error) {
-	sign_args  settings = {0};
-	sign_flow* flow = build_items(self->items, profile(self), &settings, error);
+	sign_args settings = {0};
+	sign_flow*
+	    flow = build_items(self->items, profile(self), &settings, false, error);
 	arg_free(&settings);
 	return flow;
 }
@@ -1250,6 +1506,7 @@ typedef struct {
 	GApplication*    application;
 	SignSigning*     self;
 	GCancellable*    cancellable;
+	bool             overwrite;
 } signing_run;
 static bool request_pin(
     const libssig_token* token,
@@ -1343,9 +1600,16 @@ static void run_worker(
 	(void)source;
 	signing_run* run = data;
 	GError*      error = NULL;
-	run->flow = build_items(run->items, run->profile, &run->settings, &error);
+	run->flow = build_items(
+	    run->items,
+	    run->profile,
+	    &run->settings,
+	    run->overwrite,
+	    &error
+	);
 	bool ok = run->flow != NULL;
-	for (size_t n = 0; ok && n < sign_flow_count(run->flow); ++n) {
+	for (size_t n = 0; ok && !run->overwrite && n < sign_flow_count(run->flow);
+	     ++n) {
 		const sign_options* options = sign_flow_document(run->flow, n);
 		GFile*              output = g_file_new_for_path(options->output);
 		bool                exists = g_file_query_exists(output, cancellable);
@@ -1438,6 +1702,7 @@ static void run_finished(GObject* source, GAsyncResult* result, gpointer data) {
 			}
 			g_free(text);
 		}
+		refresh_output_warnings(self);
 		controls(self);
 		if (run->result.completed) {
 			g_signal_emit(self, documents_signed, 0);
@@ -1471,14 +1736,459 @@ static void run_finished(GObject* source, GAsyncResult* result, gpointer data) {
 	}
 	g_clear_error(&error);
 }
+typedef struct {
+	SignSigning* self;
+	GArray*      indices;
+	guint        position;
+	bool         run_after;
+} name_request;
+typedef struct {
+	SignSigning* self;
+	bool         run_after;
+} folder_request;
+typedef struct {
+	SignSigning* self;
+	GArray*      indices;
+	bool         hard;
+} conflict_request;
+static GArray* copy_indices(const GArray* source) {
+	GArray* copy = g_array_sized_new(
+	    FALSE,
+	    FALSE,
+	    sizeof(guint),
+	    source ? source->len : 0
+	);
+	if (source && source->len) {
+		g_array_append_vals(copy, source->data, source->len);
+	}
+	return copy;
+}
+static void name_request_free(name_request* request) {
+	g_array_unref(request->indices);
+	g_object_unref(request->self);
+	g_free(request);
+}
+static void start_next_name(name_request* request);
+static void name_finished(
+    GObject*      source,
+    GAsyncResult* result,
+    gpointer      data
+) {
+	name_request* request = data;
+	SignSigning*  self = request->self;
+	GError*       error = NULL;
+	GFile*        file = gtk_file_dialog_save_finish(
+        GTK_FILE_DIALOG(source),
+        result,
+        &error
+    );
+	if (!file) {
+		if (!self->closing &&
+		    !g_error_matches(
+		        error,
+		        GTK_DIALOG_ERROR,
+		        GTK_DIALOG_ERROR_DISMISSED
+		    ) &&
+		    !g_error_matches(error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
+			report_error(self, error, GUI_ERROR_FILES);
+		}
+		g_clear_error(&error);
+		name_request_free(request);
+		return;
+	}
+	char* path = g_file_get_path(file);
+	g_object_unref(file);
+	if (path && request->position < request->indices->len) {
+		guint index = g_array_index(request->indices, guint, request->position);
+		signing_item* item = index < self->items->len
+		                         ? g_ptr_array_index(self->items, index)
+		                         : NULL;
+		if (item) {
+			set_item_output(self, item, path);
+		}
+	}
+	g_free(path);
+	++request->position;
+	start_next_name(request);
+}
+static void start_next_name(name_request* request) {
+	SignSigning* self = request->self;
+	if (self->closing || request->position >= request->indices->len) {
+		if (request->run_after && !self->closing) {
+			sign_signing_run(self);
+		}
+		name_request_free(request);
+		return;
+	}
+	guint index = g_array_index(request->indices, guint, request->position);
+	if (index >= self->items->len) {
+		++request->position;
+		start_next_name(request);
+		return;
+	}
+	signing_item*  item = g_ptr_array_index(self->items, index);
+	GtkFileDialog* dialog = gtk_file_dialog_new();
+	gtk_file_dialog_set_title(dialog, _("Choose the output file"));
+	if (item->output) {
+		char* name = g_path_get_basename(item->output);
+		gtk_file_dialog_set_initial_name(dialog, name);
+		g_free(name);
+		GFile* initial = g_file_new_for_path(item->output);
+		gtk_file_dialog_set_initial_file(dialog, initial);
+		g_object_unref(initial);
+	}
+	gtk_file_dialog_save(
+	    dialog,
+	    parent_window(self),
+	    self->lifetime,
+	    name_finished,
+	    request
+	);
+	g_object_unref(dialog);
+}
+static void choose_output_names(
+    SignSigning* self,
+    GArray*      indices,
+    bool         run_after
+) {
+	if (!indices->len) {
+		g_array_unref(indices);
+		if (run_after) {
+			sign_signing_run(self);
+		}
+		return;
+	}
+	name_request* request = g_new0(name_request, 1);
+	request->self = g_object_ref(self);
+	request->indices = indices;
+	request->run_after = run_after;
+	start_next_name(request);
+}
+static void choose_all_output_names(SignSigning* self) {
+	GArray* indices = g_array_new(FALSE, FALSE, sizeof(guint));
+	for (guint n = 0; n < self->items->len; ++n) {
+		g_array_append_val(indices, n);
+	}
+	choose_output_names(self, indices, false);
+}
+static void change_output_clicked(GtkButton* button, gpointer data) {
+	SignSigning*  self = data;
+	signing_item* item = g_object_get_data(G_OBJECT(button), "signing-item");
+	guint         index;
+	if (self->busy || self->closing || !item ||
+	    !g_ptr_array_find(self->items, item, &index)) {
+		return;
+	}
+	GArray* indices = g_array_new(FALSE, FALSE, sizeof(guint));
+	g_array_append_val(indices, index);
+	choose_output_names(self, indices, false);
+}
+static void folder_finished(
+    GObject*      source,
+    GAsyncResult* result,
+    gpointer      data
+) {
+	folder_request* request = data;
+	SignSigning*    self = request->self;
+	GError*         error = NULL;
+	GFile*          folder = gtk_file_dialog_select_folder_finish(
+        GTK_FILE_DIALOG(source),
+        result,
+        &error
+    );
+	if (!folder) {
+		if (!self->closing &&
+		    !g_error_matches(
+		        error,
+		        GTK_DIALOG_ERROR,
+		        GTK_DIALOG_ERROR_DISMISSED
+		    ) &&
+		    !g_error_matches(error, G_IO_ERROR, G_IO_ERROR_CANCELLED)) {
+			report_error(self, error, GUI_ERROR_FILES);
+		}
+		g_clear_error(&error);
+	} else {
+		char* directory = g_file_get_path(folder);
+		g_object_unref(folder);
+		if (directory) {
+			for (guint n = 0; n < self->items->len; ++n) {
+				signing_item* item = g_ptr_array_index(self->items, n);
+				char*         signed_path = file_signed_path(item->path);
+				if (!signed_path) {
+					continue;
+				}
+				char* base = g_path_get_basename(signed_path);
+				char* output = g_build_filename(directory, base, NULL);
+				set_item_output(self, item, output);
+				g_free(output);
+				g_free(base);
+				g_free(signed_path);
+			}
+		}
+		g_free(directory);
+	}
+	if (request->run_after && !self->closing) {
+		sign_signing_run(self);
+	}
+	g_object_unref(self);
+	g_free(request);
+}
+static void choose_output_folder(SignSigning* self, bool run_after) {
+	if (self->closing || !self->items->len) {
+		return;
+	}
+	GtkFileDialog* dialog = gtk_file_dialog_new();
+	gtk_file_dialog_set_title(dialog, _("Choose the output folder"));
+	if (self->items->len) {
+		signing_item* item = g_ptr_array_index(self->items, 0);
+		if (item->output) {
+			GFile* initial = g_file_new_for_path(item->output);
+			GFile* parent = g_file_get_parent(initial);
+			if (parent) {
+				gtk_file_dialog_set_initial_folder(dialog, parent);
+				g_object_unref(parent);
+			}
+			g_object_unref(initial);
+		}
+	}
+	folder_request* request = g_new0(folder_request, 1);
+	request->self = g_object_ref(self);
+	request->run_after = run_after;
+	gtk_file_dialog_select_folder(
+	    dialog,
+	    parent_window(self),
+	    self->lifetime,
+	    folder_finished,
+	    request
+	);
+	g_object_unref(dialog);
+}
+static void output_folder_clicked(GtkButton* button, gpointer data) {
+	(void)button;
+	SignSigning* self = data;
+	if (self->output_options) {
+		GtkPopover* popover = gtk_menu_button_get_popover(
+		    GTK_MENU_BUTTON(self->output_options)
+		);
+		if (popover) {
+			gtk_popover_popdown(popover);
+		}
+	}
+	choose_output_folder(self, false);
+}
+static void output_names_clicked(GtkButton* button, gpointer data) {
+	(void)button;
+	SignSigning* self = data;
+	if (self->output_options) {
+		GtkPopover* popover = gtk_menu_button_get_popover(
+		    GTK_MENU_BUTTON(self->output_options)
+		);
+		if (popover) {
+			gtk_popover_popdown(popover);
+		}
+	}
+	choose_all_output_names(self);
+}
+static void conflict_free(conflict_request* request) {
+	g_array_unref(request->indices);
+	g_object_unref(request->self);
+	g_free(request);
+}
+static void conflict_cancel(GtkButton* button, gpointer data) {
+	(void)button;
+	gtk_window_destroy(GTK_WINDOW(data));
+}
+static void conflict_names(GtkButton* button, gpointer data) {
+	(void)button;
+	GtkWidget*        window = data;
+	conflict_request* request = g_object_get_data(
+	    G_OBJECT(window),
+	    "sign-conflict-request"
+	);
+	SignSigning* self = g_object_ref(request->self);
+	GArray*      indices = copy_indices(request->indices);
+	gtk_window_destroy(GTK_WINDOW(window));
+	choose_output_names(self, indices, true);
+	g_object_unref(self);
+}
+static void conflict_folder(GtkButton* button, gpointer data) {
+	(void)button;
+	GtkWidget*        window = data;
+	conflict_request* request = g_object_get_data(
+	    G_OBJECT(window),
+	    "sign-conflict-request"
+	);
+	SignSigning* self = g_object_ref(request->self);
+	gtk_window_destroy(GTK_WINDOW(window));
+	choose_output_folder(self, true);
+	g_object_unref(self);
+}
+static void conflict_overwrite(GtkButton* button, gpointer data) {
+	(void)button;
+	GtkWidget*        window = data;
+	conflict_request* request = g_object_get_data(
+	    G_OBJECT(window),
+	    "sign-conflict-request"
+	);
+	if (request->hard) {
+		return;
+	}
+	SignSigning* self = g_object_ref(request->self);
+	gtk_window_destroy(GTK_WINDOW(window));
+	start_run(self, true);
+	g_object_unref(self);
+}
+static char* conflict_reason(signing_item* item) {
+	GString* reason = g_string_new(NULL);
+	if (!item->output || !item->output[0]) {
+		append_warning(reason, _("output unavailable"));
+	}
+	if (item->output_exists) {
+		append_warning(reason, _("already exists"));
+	}
+	if (item->output_duplicate) {
+		append_warning(reason, _("duplicated path"));
+	}
+	if (item->output_input_collision) {
+		append_warning(reason, _("matches an input file"));
+	}
+	return g_string_free(reason, FALSE);
+}
+static void show_conflict_dialog(
+    SignSigning* self,
+    GArray*      indices,
+    bool         hard
+) {
+	if (self->conflict_dialog) {
+		gtk_window_present(GTK_WINDOW(self->conflict_dialog));
+		return;
+	}
+	GString* body = g_string_new(
+	    _("These output files need attention before signing:")
+	);
+	for (guint n = 0; n < indices->len; ++n) {
+		guint         index = g_array_index(indices, guint, n);
+		signing_item* item = index < self->items->len
+		                         ? g_ptr_array_index(self->items, index)
+		                         : NULL;
+		if (!item) {
+			continue;
+		}
+		char* display = item->output ? g_filename_display_name(item->output)
+		                             : g_strdup(_("Unavailable"));
+		char* reason = conflict_reason(item);
+		g_string_append_printf(body, "\n• %s (%s)", display, reason);
+		g_free(reason);
+		g_free(display);
+	}
+	GtkWidget* window = gtk_window_new();
+	self->conflict_dialog = window;
+	g_object_add_weak_pointer(
+	    G_OBJECT(window),
+	    (gpointer*)&self->conflict_dialog
+	);
+	gtk_widget_set_name(window, "sign-conflict-dialog");
+	gtk_window_set_title(GTK_WINDOW(window), _("Output files already exist"));
+	gtk_window_set_modal(GTK_WINDOW(window), TRUE);
+	gtk_window_set_transient_for(GTK_WINDOW(window), parent_window(self));
+	gtk_window_set_destroy_with_parent(GTK_WINDOW(window), TRUE);
+	gtk_window_set_default_size(GTK_WINDOW(window), 620, -1);
+	if (parent_window(self)) {
+		gtk_window_set_application(
+		    GTK_WINDOW(window),
+		    gtk_window_get_application(parent_window(self))
+		);
+	}
+	GtkWidget* box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 16);
+	gtk_widget_set_margin_start(box, 24);
+	gtk_widget_set_margin_end(box, 24);
+	gtk_widget_set_margin_top(box, 24);
+	gtk_widget_set_margin_bottom(box, 24);
+	GtkWidget* label = gtk_label_new(body->str);
+	g_string_free(body, TRUE);
+	gtk_label_set_wrap(GTK_LABEL(label), TRUE);
+	gtk_label_set_xalign(GTK_LABEL(label), 0);
+	gtk_label_set_selectable(GTK_LABEL(label), TRUE);
+	gtk_box_append(GTK_BOX(box), label);
+	GtkWidget* actions = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
+	GtkWidget* cancel = gtk_button_new_with_label(_("Cancel"));
+	gtk_widget_set_name(cancel, "sign-conflict-cancel");
+	GtkWidget* names = gtk_button_new_with_label(
+	    _("Choose a new location for each file")
+	);
+	gtk_widget_set_name(names, "sign-conflict-names");
+	GtkWidget* folder = gtk_button_new_with_label(
+	    _("Choose another folder for all files")
+	);
+	gtk_widget_set_name(folder, "sign-conflict-folder");
+	GtkWidget* overwrite = gtk_button_new_with_label(_("Overwrite"));
+	gtk_widget_set_name(overwrite, "sign-conflict-overwrite");
+	gtk_widget_add_css_class(overwrite, "destructive-action");
+	gtk_widget_set_sensitive(overwrite, !hard);
+	if (hard) {
+		gtk_widget_set_tooltip_text(
+		    overwrite,
+		    _("Duplicated or input paths cannot be overwritten")
+		);
+	}
+	gtk_box_append(GTK_BOX(actions), cancel);
+	gtk_box_append(GTK_BOX(actions), names);
+	gtk_box_append(GTK_BOX(actions), folder);
+	gtk_box_append(GTK_BOX(actions), overwrite);
+	gtk_box_append(GTK_BOX(box), actions);
+	conflict_request* request = g_new0(conflict_request, 1);
+	request->self = g_object_ref(self);
+	request->indices = copy_indices(indices);
+	request->hard = hard;
+	g_object_set_data_full(
+	    G_OBJECT(window),
+	    "sign-conflict-request",
+	    request,
+	    (GDestroyNotify)conflict_free
+	);
+	g_signal_connect(cancel, "clicked", G_CALLBACK(conflict_cancel), window);
+	g_signal_connect(names, "clicked", G_CALLBACK(conflict_names), window);
+	g_signal_connect(folder, "clicked", G_CALLBACK(conflict_folder), window);
+	g_signal_connect(
+	    overwrite,
+	    "clicked",
+	    G_CALLBACK(conflict_overwrite),
+	    window
+	);
+	gtk_window_set_child(GTK_WINDOW(window), box);
+	gtk_window_present(GTK_WINDOW(window));
+}
 void sign_signing_run(SignSigning* self) {
 	if (self->busy || self->loading || !self->items->len || self->closing) {
 		return;
 	}
+	if (self->conflict_dialog) {
+		gtk_window_present(GTK_WINDOW(self->conflict_dialog));
+		return;
+	}
+	bool    hard = refresh_output_warnings(self);
+	GArray* conflicts = g_array_new(FALSE, FALSE, sizeof(guint));
+	for (guint n = 0; n < self->items->len; ++n) {
+		signing_item* item = g_ptr_array_index(self->items, n);
+		if (!item->output || !item->output[0] || item->output_exists ||
+		    item->output_duplicate || item->output_input_collision) {
+			g_array_append_val(conflicts, n);
+		}
+	}
+	if (conflicts->len) {
+		show_conflict_dialog(self, conflicts, hard);
+		g_array_unref(conflicts);
+		return;
+	}
+	g_array_unref(conflicts);
+	start_run(self, false);
+}
+static void start_run(SignSigning* self, bool overwrite) {
 	self->busy = true;
 	message(self, NULL);
 	controls(self);
 	signing_run* run = g_new0(signing_run, 1);
+	run->overwrite = overwrite;
 	run->items = g_ptr_array_new_with_free_func(item_unref);
 	for (guint n = 0; n < self->items->len; ++n) {
 		g_ptr_array_add(
@@ -1524,6 +2234,9 @@ static void signing_unroot(GtkWidget* widget) {
 	}
 	if (self->pin_window) {
 		gtk_window_destroy(self->pin_window);
+	}
+	if (self->conflict_dialog) {
+		gtk_window_destroy(GTK_WINDOW(self->conflict_dialog));
 	}
 	GTK_WIDGET_CLASS(sign_signing_parent_class)->unroot(widget);
 }
@@ -1714,16 +2427,13 @@ static void sign_signing_init(SignSigning* self) {
 	    GTK_WIDGET(self->list)
 	);
 	gtk_box_append(GTK_BOX(queue), scroll);
-	GtkWidget* footer = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
-	gtk_widget_set_halign(footer, GTK_ALIGN_END);
+	GtkWidget* footer = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
+	GtkWidget* actions = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
+	gtk_widget_set_halign(actions, GTK_ALIGN_END);
 	self->warning = gtk_image_new_from_icon_name("dialog-warning-symbolic");
 	gtk_widget_set_name(self->warning, "sign-warning");
 	gtk_widget_add_css_class(self->warning, "warning");
-	gtk_widget_set_tooltip_text(
-	    self->warning,
-	    _("Some files have no graphical signature")
-	);
-	gtk_box_append(GTK_BOX(footer), self->warning);
+	gtk_box_append(GTK_BOX(actions), self->warning);
 	self->sign_button = gtk_button_new_with_label(_("Sign"));
 	gtk_widget_set_name(self->sign_button, "sign-run");
 	gtk_widget_add_css_class(self->sign_button, "suggested-action");
@@ -1733,7 +2443,57 @@ static void sign_signing_init(SignSigning* self) {
 	    G_CALLBACK(sign_clicked),
 	    self
 	);
-	gtk_box_append(GTK_BOX(footer), self->sign_button);
+	gtk_box_append(GTK_BOX(actions), self->sign_button);
+	gtk_box_append(GTK_BOX(footer), actions);
+	GtkWidget* output_row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+	gtk_widget_set_halign(output_row, GTK_ALIGN_END);
+	self->output_location = gtk_label_new(NULL);
+	gtk_widget_set_name(self->output_location, "sign-output-location");
+	gtk_widget_add_css_class(self->output_location, "dim-label");
+	gtk_label_set_ellipsize(
+	    GTK_LABEL(self->output_location),
+	    PANGO_ELLIPSIZE_MIDDLE
+	);
+	gtk_label_set_max_width_chars(GTK_LABEL(self->output_location), 48);
+	gtk_label_set_xalign(GTK_LABEL(self->output_location), 1);
+	gtk_box_append(GTK_BOX(output_row), self->output_location);
+	self->output_options = gtk_menu_button_new();
+	gtk_widget_set_name(self->output_options, "sign-output-options");
+	gtk_menu_button_set_icon_name(
+	    GTK_MENU_BUTTON(self->output_options),
+	    "view-more-symbolic"
+	);
+	gtk_widget_add_css_class(self->output_options, "flat");
+	gtk_widget_set_tooltip_text(self->output_options, _("Output file options"));
+	GtkWidget* options = gtk_popover_new();
+	GtkWidget* options_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
+	gtk_widget_set_margin_start(options_box, 12);
+	gtk_widget_set_margin_end(options_box, 12);
+	gtk_widget_set_margin_top(options_box, 12);
+	gtk_widget_set_margin_bottom(options_box, 12);
+	GtkWidget* folder = gtk_button_new_with_label(
+	    _("Choose an output folder for all files")
+	);
+	gtk_widget_set_name(folder, "sign-output-folder");
+	gtk_widget_add_css_class(folder, "flat");
+	GtkWidget* names = gtk_button_new_with_label(
+	    _("Choose the output name for each file")
+	);
+	gtk_widget_set_name(names, "sign-output-names");
+	gtk_widget_add_css_class(names, "flat");
+	g_signal_connect(
+	    folder,
+	    "clicked",
+	    G_CALLBACK(output_folder_clicked),
+	    self
+	);
+	g_signal_connect(names, "clicked", G_CALLBACK(output_names_clicked), self);
+	gtk_box_append(GTK_BOX(options_box), folder);
+	gtk_box_append(GTK_BOX(options_box), names);
+	gtk_popover_set_child(GTK_POPOVER(options), options_box);
+	gtk_menu_button_set_popover(GTK_MENU_BUTTON(self->output_options), options);
+	gtk_box_append(GTK_BOX(output_row), self->output_options);
+	gtk_box_append(GTK_BOX(footer), output_row);
 	gtk_box_append(GTK_BOX(queue), footer);
 	gtk_stack_add_named(self->modes, queue, "queue");
 	GtkWidget* reader = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);

@@ -35,6 +35,15 @@ bool file_save(
     size_t               error_size
 );
 
+/* Replace an existing output after explicit user confirmation. */
+bool file_save_replace(
+    const char*          path,
+    const unsigned char* data,
+    size_t               len,
+    char*                error,
+    size_t               error_size
+);
+
 bool file_write(const char* path, const unsigned char* data, size_t len);
 
 #endif

@@ -10,7 +10,7 @@ typedef struct {
 	const char *input, *output, *uri, *id, *authority;
 	const char *ca_file, *intermediates, *tsa_ca_file, *tsa_intermediates;
 	const char* mime_type;
-	bool        detached, format_explicit, no_bundled_certs;
+	bool        detached, format_explicit, no_bundled_certs, overwrite;
 	libssig_string_list    modules;
 	libssig_pdf_appearance appearance;
 	const char*            appearance_file;

@@ -95,7 +95,7 @@ bool sign_document_execute(
 		);
 	}
 	if (ok) {
-		ok = file_save(
+		ok = (resolved.overwrite ? file_save_replace : file_save)(
 		    resolved.output,
 		    signature.data,
 		    signature.len,

@@ -232,6 +232,12 @@ sign_flow* sign_flow_from_items(
 		return NULL;
 	}
 	sign_flow* flow = sign_flow_parse_json(text, strlen(text), NULL, error);
+	if (flow) {
+		/* Overwrite is an execution-time confirmation, not flow data. */
+		for (size_t n = 0; n < flow->count; ++n) {
+			flow->documents[n].options.overwrite = items[n].options.overwrite;
+		}
+	}
 	free(text);
 	return flow;
 }

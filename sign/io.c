@@ -118,19 +118,33 @@ bool file_read(const char* path, sign_buffer* bytes) {
 	return true;
 }
 
-bool file_save(
+static bool save_file(
     const char*          path,
     const unsigned char* data,
     size_t               len,
     char*                detail,
-    size_t               detail_size
+    size_t               detail_size,
+    bool                 replace
 ) {
 	GError* error = NULL;
 	GFile*  file = g_file_new_for_path(path);
-	/* Exclusive creation: never replace an existing file or follow its link. */
-	GFileOutputStream*
-	     stream = g_file_create(file, G_FILE_CREATE_PRIVATE, NULL, &error);
-	bool ok = stream != NULL;
+	/* Exclusive creation never replaces an existing file or follows its link.
+	 * Replacement is reserved for an explicit overwrite confirmation. */
+	GFileOutputStream* stream = replace ? g_file_replace(
+	                                          file,
+	                                          NULL,
+	                                          FALSE,
+	                                          G_FILE_CREATE_PRIVATE,
+	                                          NULL,
+	                                          &error
+	                                      )
+	                                    : g_file_create(
+	                                          file,
+	                                          G_FILE_CREATE_PRIVATE,
+	                                          NULL,
+	                                          &error
+	                                      );
+	bool               ok = stream != NULL;
 	if (stream) {
 		ok = g_output_stream_write_all(
 		    G_OUTPUT_STREAM(stream),
@@ -148,7 +162,7 @@ bool file_save(
 			ok = false;
 		}
 		g_object_unref(stream);
-		if (!ok) {
+		if (!ok && !replace) {
 			g_file_delete(file, NULL, NULL);
 		}
 	}
@@ -164,6 +178,26 @@ bool file_save(
 	g_clear_error(&error);
 	g_object_unref(file);
 	return ok;
+}
+
+bool file_save(
+    const char*          path,
+    const unsigned char* data,
+    size_t               len,
+    char*                detail,
+    size_t               detail_size
+) {
+	return save_file(path, data, len, detail, detail_size, false);
+}
+
+bool file_save_replace(
+    const char*          path,
+    const unsigned char* data,
+    size_t               len,
+    char*                detail,
+    size_t               detail_size
+) {
+	return save_file(path, data, len, detail, detail_size, true);
 }
 
 bool file_write(const char* path, const unsigned char* data, size_t len) {
