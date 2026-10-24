@@ -45,7 +45,7 @@ static void settings_test(GtkWidget* window, const char* directory) {
 	        adw_combo_row_get_selected_item(global_mode)
 	    ),
 	    ==,
-	    "Automático"
+	    "Auto"
 	);
 	g_assert_cmpuint(
 	    adw_combo_row_get_selected(ADW_COMBO_ROW(named(view, "modules-mode"))),

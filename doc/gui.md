@@ -235,8 +235,8 @@ Cada ajuste distingue los estados siguientes:
 
 - **Global**: omite el campo en el perfil y hereda el ajuste global. Es el estado
   inicial de los perfiles. No aparece al editar los ajustes globales; allí el
-  estado predeterminado es Automático.
-- **Automático**: usa la selección automática o el valor predeterminado del
+  estado predeterminado es Auto.
+- **Auto**: usa la selección automática o el valor predeterminado del
   motor. En perfiles escribe un valor vacío explícito para ignorar el global;
   en los ajustes globales elimina el campo, porque allí no hay nada que heredar.
 - **Personalizado**: permite escribir un valor o elegir una opción concreta.

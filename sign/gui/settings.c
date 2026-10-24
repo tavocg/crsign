@@ -34,7 +34,7 @@ static sign_preferences_section* selected(SignSettings* self) {
 }
 static void refresh_scopes(SignSettings* self, guint index) {
 	GtkStringList* list = gtk_string_list_new(NULL);
-	gtk_string_list_append(list, _("Global settings"));
+	gtk_string_list_append(list, _("Global"));
 	for (size_t i = 0; i < preferences_count(self->preferences); ++i) {
 		sign_preferences_section* profile = preferences_profile(
 		    self->preferences,
@@ -466,7 +466,7 @@ static void entry(
 	input->key = key;
 	input->kind = kind;
 	if (strcmp(key, "name") && strcmp(key, "label")) {
-		const char* modes[] = {_("Global"), _("Automatic"), _("Custom"), NULL};
+		const char* modes[] = {_("Global"), _("Auto"), _("Custom"), NULL};
 		input->mode = ADW_COMBO_ROW(combo(title, modes));
 		input->choices = g_object_ref(
 		    GTK_STRING_LIST(adw_combo_row_get_model(input->mode))
@@ -525,7 +525,7 @@ static void choice(
 ) {
 	GtkStringList* list = gtk_string_list_new(NULL);
 	gtk_string_list_append(list, _("Global"));
-	gtk_string_list_append(list, _("Automatic"));
+	gtk_string_list_append(list, _("Auto"));
 	if (boolean) {
 		gtk_string_list_append(list, _("No"));
 		gtk_string_list_append(list, _("Yes"));
@@ -627,7 +627,7 @@ static void sign_settings_init(SignSettings* self) {
 	AdwPreferencesGroup* signing = group(
 	    self,
 	    _("Signing defaults"),
-	    _("Global inherits the global value. Automatic uses the engine "
+	    _("Global inherits the global value. Auto uses the engine "
 	      "default.")
 	);
 	entry(self, signing, "token", _("Token URI"), ENTRY);
@@ -694,7 +694,7 @@ static void sign_settings_init(SignSettings* self) {
 	AdwPreferencesGroup* modules = group(
 	    self,
 	    _("PKCS#11 modules"),
-	    _("Automatic uses modules registered with p11-kit.")
+	    _("Auto uses modules registered with p11-kit.")
 	);
 	entry(self, modules, "modules", _("Module paths"), MODULES);
 	AdwPreferencesGroup* pin = group(

@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: CRSign 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/tavocg/crsign/issues\n"
-"POT-Creation-Date: 2026-10-23 22:34-0600\n"
+"POT-Creation-Date: 2026-10-23 22:50-0600\n"
 "PO-Revision-Date: 2026-10-23 00:00-0600\n"
 "Last-Translator: Gustavo Calvo <tavo@tavo.cr>\n"
 "Language-Team: Spanish\n"
@@ -19,7 +19,7 @@ msgstr ""
 msgid "Home"
 msgstr "Inicio"
 
-#: sign/gui/window.c:20 sign/gui/signing.c:170 sign/gui/signing.c:1719
+#: sign/gui/window.c:20 sign/gui/signing.c:170 sign/gui/signing.c:1720
 msgid "Sign"
 msgstr "Firmar"
 
@@ -59,9 +59,10 @@ msgstr "No se pudieron validar los documentos firmados"
 msgid "Toggle menu"
 msgstr "Mostrar u ocultar el menú"
 
-#: sign/gui/settings.c:37
-msgid "Global settings"
-msgstr "Ajustes globales"
+#: sign/gui/settings.c:37 sign/gui/settings.c:469 sign/gui/settings.c:527
+#: sign/gui/signing.c:958
+msgid "Global"
+msgstr "Global"
 
 #: sign/gui/settings.c:48
 msgid "New profile"
@@ -80,13 +81,9 @@ msgstr "Ruta del módulo"
 msgid "Remove module"
 msgstr "Eliminar módulo"
 
-#: sign/gui/settings.c:469 sign/gui/settings.c:527 sign/gui/signing.c:958
-msgid "Global"
-msgstr "Global"
-
 #: sign/gui/settings.c:469 sign/gui/settings.c:528
-msgid "Automatic"
-msgstr "Automático"
+msgid "Auto"
+msgstr "Auto"
 
 #: sign/gui/settings.c:469
 msgid "Custom"
@@ -145,10 +142,8 @@ msgid "Signing defaults"
 msgstr "Valores de firmado"
 
 #: sign/gui/settings.c:630
-msgid "Global inherits the global value. Automatic uses the engine default."
-msgstr ""
-"Global hereda el valor global. Automático usa el valor predeterminado del "
-"motor."
+msgid "Global inherits the global value. Auto uses the engine default."
+msgstr "Global hereda el valor global. Auto usa el valor predeterminado del motor."
 
 #: sign/gui/settings.c:633 sign/gui/devices.c:323
 msgid "Token URI"
@@ -227,8 +222,8 @@ msgid "PKCS#11 modules"
 msgstr "Módulos PKCS#11"
 
 #: sign/gui/settings.c:697
-msgid "Automatic uses modules registered with p11-kit."
-msgstr "Automático usa los módulos registrados en p11-kit."
+msgid "Auto uses modules registered with p11-kit."
+msgstr "Auto usa los módulos registrados en p11-kit."
 
 #: sign/gui/settings.c:699
 msgid "Module paths"
@@ -741,7 +736,7 @@ msgstr "Total: %u"
 msgid "Continue"
 msgstr "Continuar"
 
-#: sign/gui/signing.c:166 sign/gui/signing.c:1826
+#: sign/gui/signing.c:166 sign/gui/signing.c:1827
 msgid "Continue without graphical signature"
 msgstr "Continuar sin firma gráfica"
 
@@ -800,7 +795,7 @@ msgstr "Seleccionar documentos para firmar"
 msgid "Only local images are supported"
 msgstr "Solo se admiten imágenes locales"
 
-#: sign/gui/signing.c:875 sign/gui/signing.c:1744
+#: sign/gui/signing.c:875 sign/gui/signing.c:1745
 msgid "Choose signature image"
 msgstr "Seleccionar imagen de firma"
 
@@ -857,27 +852,27 @@ msgstr "Arrastra aquí los archivos para firmar"
 msgid "Clear all"
 msgstr "Limpiar todo"
 
-#: sign/gui/signing.c:1716
+#: sign/gui/signing.c:1717
 msgid "Some files have no graphical signature"
 msgstr "Hay archivos sin representación gráfica de la firma"
 
-#: sign/gui/signing.c:1735
+#: sign/gui/signing.c:1736
 msgid "Document queue"
 msgstr "Cola de documentos"
 
-#: sign/gui/signing.c:1757
+#: sign/gui/signing.c:1758
 msgid "Signature image options"
 msgstr "Opciones de imagen de firma"
 
-#: sign/gui/signing.c:1761
+#: sign/gui/signing.c:1762
 msgid "Use profile signature image"
 msgstr "Usar la imagen de firma del perfil"
 
-#: sign/gui/signing.c:1769
+#: sign/gui/signing.c:1770
 msgid "Add signing information"
 msgstr "Añadir información de firma"
 
-#: sign/gui/signing.c:1812
+#: sign/gui/signing.c:1813
 msgid "Page"
 msgstr "Página"
 
@@ -1216,6 +1211,9 @@ msgstr "Abrir ubicación del archivo"
 #: sign/gui/file_actions.c:150 sign/gui/file_actions.c:254
 msgid "Favorite"
 msgstr "Favorito"
+
+#~ msgid "Global settings"
+#~ msgstr "Ajustes globales"
 
 #, c-format
 #~ msgid "Signed: %s"

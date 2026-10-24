@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: CRSign 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/tavocg/crsign/issues\n"
-"POT-Creation-Date: 2026-10-23 22:34-0600\n"
+"POT-Creation-Date: 2026-10-23 22:50-0600\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -21,7 +21,7 @@ msgstr ""
 msgid "Home"
 msgstr ""
 
-#: sign/gui/window.c:20 sign/gui/signing.c:170 sign/gui/signing.c:1719
+#: sign/gui/window.c:20 sign/gui/signing.c:170 sign/gui/signing.c:1720
 msgid "Sign"
 msgstr ""
 
@@ -61,8 +61,9 @@ msgstr ""
 msgid "Toggle menu"
 msgstr ""
 
-#: sign/gui/settings.c:37
-msgid "Global settings"
+#: sign/gui/settings.c:37 sign/gui/settings.c:469 sign/gui/settings.c:527
+#: sign/gui/signing.c:958
+msgid "Global"
 msgstr ""
 
 #: sign/gui/settings.c:48
@@ -82,12 +83,8 @@ msgstr ""
 msgid "Remove module"
 msgstr ""
 
-#: sign/gui/settings.c:469 sign/gui/settings.c:527 sign/gui/signing.c:958
-msgid "Global"
-msgstr ""
-
 #: sign/gui/settings.c:469 sign/gui/settings.c:528
-msgid "Automatic"
+msgid "Auto"
 msgstr ""
 
 #: sign/gui/settings.c:469
@@ -147,7 +144,7 @@ msgid "Signing defaults"
 msgstr ""
 
 #: sign/gui/settings.c:630
-msgid "Global inherits the global value. Automatic uses the engine default."
+msgid "Global inherits the global value. Auto uses the engine default."
 msgstr ""
 
 #: sign/gui/settings.c:633 sign/gui/devices.c:323
@@ -227,7 +224,7 @@ msgid "PKCS#11 modules"
 msgstr ""
 
 #: sign/gui/settings.c:697
-msgid "Automatic uses modules registered with p11-kit."
+msgid "Auto uses modules registered with p11-kit."
 msgstr ""
 
 #: sign/gui/settings.c:699
@@ -737,7 +734,7 @@ msgstr ""
 msgid "Continue"
 msgstr ""
 
-#: sign/gui/signing.c:166 sign/gui/signing.c:1826
+#: sign/gui/signing.c:166 sign/gui/signing.c:1827
 msgid "Continue without graphical signature"
 msgstr ""
 
@@ -795,7 +792,7 @@ msgstr ""
 msgid "Only local images are supported"
 msgstr ""
 
-#: sign/gui/signing.c:875 sign/gui/signing.c:1744
+#: sign/gui/signing.c:875 sign/gui/signing.c:1745
 msgid "Choose signature image"
 msgstr ""
 
@@ -852,27 +849,27 @@ msgstr ""
 msgid "Clear all"
 msgstr ""
 
-#: sign/gui/signing.c:1716
+#: sign/gui/signing.c:1717
 msgid "Some files have no graphical signature"
 msgstr ""
 
-#: sign/gui/signing.c:1735
+#: sign/gui/signing.c:1736
 msgid "Document queue"
 msgstr ""
 
-#: sign/gui/signing.c:1757
+#: sign/gui/signing.c:1758
 msgid "Signature image options"
 msgstr ""
 
-#: sign/gui/signing.c:1761
+#: sign/gui/signing.c:1762
 msgid "Use profile signature image"
 msgstr ""
 
-#: sign/gui/signing.c:1769
+#: sign/gui/signing.c:1770
 msgid "Add signing information"
 msgstr ""
 
-#: sign/gui/signing.c:1812
+#: sign/gui/signing.c:1813
 msgid "Page"
 msgstr ""
 
