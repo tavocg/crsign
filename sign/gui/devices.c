@@ -60,6 +60,62 @@ static AdwExpanderRow* expander(const char* title, const char* icon) {
 	adw_expander_row_add_prefix(row, gtk_image_new_from_icon_name(icon));
 	return row;
 }
+/* Keep collapsed rows cheap, retaining only their immutable scan snapshot. */
+typedef void (*populate_details)(
+    AdwExpanderRow*,
+    gpointer,
+    sign_device_inventory*
+);
+typedef struct {
+	populate_details       populate;
+	gpointer               object;
+	sign_device_inventory* inventory;
+	GtkWidget*             placeholder;
+	bool                   populated;
+} lazy_details;
+static void lazy_details_free(gpointer data, GClosure* closure) {
+	(void)closure;
+	lazy_details* details = data;
+	sign_device_inventory_free(details->inventory);
+	g_free(details);
+}
+static void expand_details(
+    AdwExpanderRow* row,
+    GParamSpec*     pspec,
+    gpointer        data
+) {
+	(void)pspec;
+	lazy_details* details = data;
+	if (details->populated || !adw_expander_row_get_expanded(row)) {
+		return;
+	}
+	details->populated = true;
+	details->populate(row, details->object, details->inventory);
+	adw_expander_row_remove(row, details->placeholder);
+	details->placeholder = NULL;
+}
+static void defer_details(
+    AdwExpanderRow*        row,
+    gpointer               object,
+    sign_device_inventory* inventory,
+    populate_details       populate
+) {
+	lazy_details* details = g_new0(lazy_details, 1);
+	details->object = object;
+	details->inventory = sign_device_inventory_ref(inventory);
+	details->populate = populate;
+	/* An empty child keeps the expander enabled before its details exist. */
+	details->placeholder = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+	adw_expander_row_add_row(row, details->placeholder);
+	g_signal_connect_data(
+	    row,
+	    "notify::expanded",
+	    G_CALLBACK(expand_details),
+	    details,
+	    lazy_details_free,
+	    0
+	);
+}
 static const char* object_kind(CK_OBJECT_CLASS kind) {
 	switch (kind) {
 	case CKO_CERTIFICATE:
@@ -129,23 +185,13 @@ static void render_key(AdwExpanderRow* parent, libssig_device_key* key) {
 	    key->sign_known ? yes_no(key->can_sign) : _("Unavailable")
 	);
 }
-static void render_certificate(
-    AdwExpanderRow*        parent,
-    libssig_certificate*   object,
+static void certificate_details(
+    AdwExpanderRow*        row,
+    gpointer               data,
     sign_device_inventory* inventory
 ) {
-	char* label = sign_device_text(
-	    (const unsigned char*)object->label,
-	    object->label_len
-	);
-	AdwExpanderRow* row = expander(
-	    *label ? label : _("Certificate"),
-	    "application-certificate-symbolic"
-	);
-	g_free(label);
-	adw_expander_row_set_subtitle(row, _("Certificate"));
-	adw_expander_row_add_row(parent, GTK_WIDGET(row));
-	char* id = hex_id(object->id, object->id_len);
+	libssig_certificate* object = data;
+	char*                id = hex_id(object->id, object->id_len);
 	field(row, _("ID"), id);
 	g_free(id);
 	char* size = object->public_key_bits
@@ -214,6 +260,26 @@ static void render_certificate(
 	);
 }
 
+static void render_certificate(
+    AdwExpanderRow*        parent,
+    libssig_certificate*   object,
+    sign_device_inventory* inventory
+) {
+	char* label = sign_device_text(
+	    (const unsigned char*)object->label,
+	    object->label_len
+	);
+	AdwExpanderRow* row = expander(
+	    *label ? label : _("Certificate"),
+	    "application-certificate-symbolic"
+	);
+	g_free(label);
+	adw_expander_row_set_subtitle(row, _("Certificate"));
+	adw_expander_row_add_row(parent, GTK_WIDGET(row));
+	gtk_widget_set_name(GTK_WIDGET(row), "devices-certificate");
+	defer_details(row, object, inventory, certificate_details);
+}
+
 static void copy_token_uri(GtkButton* button, gpointer data) {
 	(void)data;
 	const char* uri = g_object_get_data(G_OBJECT(button), "token-uri");
@@ -224,23 +290,12 @@ static void copy_token_uri(GtkButton* button, gpointer data) {
 		);
 	}
 }
-static void render_slot(
-    AdwExpanderRow*        parent,
-    libssig_device_slot*   slot,
+static void slot_details(
+    AdwExpanderRow*        row,
+    gpointer               data,
     sign_device_inventory* inventory
 ) {
-	char*           title = g_strdup_printf(_("Slot %lu"), slot->id);
-	AdwExpanderRow* row = expander(title, "media-flash-symbolic");
-	g_free(title);
-	char* label = slot->token_valid ? g_utf8_make_valid(slot->token.label, -1)
-	                                : NULL;
-	adw_expander_row_set_subtitle(
-	    row,
-	    slot->token_present ? (label && *label ? label : _("Token present"))
-	                        : _("No token inserted")
-	);
-	g_free(label);
-	adw_expander_row_add_row(parent, GTK_WIDGET(row));
+	libssig_device_slot* slot = data;
 	number(row, _("Slot ID"), slot->id);
 	field(row, _("Hardware slot"), yes_no((slot->flags & CKF_HW_SLOT) != 0));
 	field(
@@ -325,6 +380,26 @@ static void render_slot(
 	for (size_t k = 0; k < slot->key_count; ++k) {
 		render_key(row, &slot->keys[k]);
 	}
+}
+static void render_slot(
+    AdwExpanderRow*        parent,
+    libssig_device_slot*   slot,
+    sign_device_inventory* inventory
+) {
+	char*           title = g_strdup_printf(_("Slot %lu"), slot->id);
+	AdwExpanderRow* row = expander(title, "media-flash-symbolic");
+	g_free(title);
+	char* label = slot->token_valid ? g_utf8_make_valid(slot->token.label, -1)
+	                                : NULL;
+	adw_expander_row_set_subtitle(
+	    row,
+	    slot->token_present ? (label && *label ? label : _("Token present"))
+	                        : _("No token inserted")
+	);
+	g_free(label);
+	adw_expander_row_add_row(parent, GTK_WIDGET(row));
+	gtk_widget_set_name(GTK_WIDGET(row), "devices-slot");
+	defer_details(row, slot, inventory, slot_details);
 }
 static void clear_content(SignDevices* self) {
 	GtkWidget* child;

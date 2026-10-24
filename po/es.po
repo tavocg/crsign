@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: CRSign 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/tavocg/crsign/issues\n"
-"POT-Creation-Date: 2026-10-23 18:50-0600\n"
+"POT-Creation-Date: 2026-10-23 20:45-0600\n"
 "PO-Revision-Date: 2026-10-23 00:00-0600\n"
 "Last-Translator: Gustavo Calvo <tavo@tavo.cr>\n"
 "Language-Team: Spanish\n"
@@ -72,7 +72,7 @@ msgstr "Nuevo perfil"
 msgid "Changes not saved: %s"
 msgstr "Cambios sin guardar: %s"
 
-#: sign/gui/settings.c:437 sign/gui/devices.c:388
+#: sign/gui/settings.c:437 sign/gui/devices.c:463
 msgid "Module path"
 msgstr "Ruta del módulo"
 
@@ -150,7 +150,7 @@ msgstr ""
 "Global hereda el valor global. Automático usa el valor predeterminado del "
 "motor."
 
-#: sign/gui/settings.c:633 sign/gui/devices.c:259
+#: sign/gui/settings.c:633 sign/gui/devices.c:314
 msgid "Token URI"
 msgstr "URI del token"
 
@@ -315,23 +315,23 @@ msgstr "Archivo sin firma o formato no admitido"
 msgid "Validation failed"
 msgstr "Validación fallida"
 
-#: sign/gui/validation.c:170 sign/gui/devices.c:180
+#: sign/gui/validation.c:170 sign/gui/devices.c:226
 msgid "Certificate subject"
 msgstr "Titular del certificado"
 
-#: sign/gui/validation.c:171 sign/gui/devices.c:181
+#: sign/gui/validation.c:171 sign/gui/devices.c:227
 msgid "Certificate issuer"
 msgstr "Emisor del certificado"
 
-#: sign/gui/validation.c:172 sign/gui/devices.c:182
+#: sign/gui/validation.c:172 sign/gui/devices.c:228
 msgid "Valid from"
 msgstr "Válido desde"
 
-#: sign/gui/validation.c:173 sign/gui/devices.c:183
+#: sign/gui/validation.c:173 sign/gui/devices.c:229
 msgid "Valid until"
 msgstr "Válido hasta"
 
-#: sign/gui/validation.c:185 sign/gui/devices.c:195
+#: sign/gui/validation.c:185 sign/gui/devices.c:241
 msgid "Certificate SHA-256"
 msgstr "SHA-256 del certificado"
 
@@ -363,7 +363,7 @@ msgstr "Contenido original"
 msgid "Details"
 msgstr "Detalles"
 
-#: sign/gui/validation.c:263 sign/gui/devices.c:86
+#: sign/gui/validation.c:263 sign/gui/devices.c:142
 msgid "Unknown"
 msgstr "Desconocido"
 
@@ -452,250 +452,250 @@ msgstr "Haz clic para elegir uno o varios archivos"
 msgid "Clear results"
 msgstr "Limpiar resultados"
 
-#: sign/gui/devices.c:37 sign/gui/devices.c:51 sign/gui/devices.c:129
+#: sign/gui/devices.c:37 sign/gui/devices.c:51 sign/gui/devices.c:185
 msgid "Unavailable"
 msgstr "No disponible"
 
-#: sign/gui/devices.c:66 sign/gui/devices.c:142 sign/gui/devices.c:146
+#: sign/gui/devices.c:122 sign/gui/devices.c:273 sign/gui/devices.c:277
 msgid "Certificate"
 msgstr "Certificado"
 
-#: sign/gui/devices.c:68
+#: sign/gui/devices.c:124
 msgid "Public key"
 msgstr "Llave pública"
 
-#: sign/gui/devices.c:70
+#: sign/gui/devices.c:126
 msgid "Private key"
 msgstr "Llave privada"
 
-#: sign/gui/devices.c:72
+#: sign/gui/devices.c:128
 msgid "Secret key"
 msgstr "Llave secreta"
 
-#: sign/gui/devices.c:109
+#: sign/gui/devices.c:165
 msgid "Object type"
 msgstr "Tipo de objeto"
 
-#: sign/gui/devices.c:111 sign/gui/devices.c:149
+#: sign/gui/devices.c:167 sign/gui/devices.c:195
 msgid "ID"
 msgstr "ID"
 
-#: sign/gui/devices.c:113 sign/gui/devices.c:152
+#: sign/gui/devices.c:169 sign/gui/devices.c:198
 #, c-format
 msgid "%lu bits"
 msgstr "%lu bits"
 
-#: sign/gui/devices.c:116
+#: sign/gui/devices.c:172
 msgid "Key size (associated certificate)"
 msgstr "Tamaño de llave (certificado asociado)"
 
-#: sign/gui/devices.c:117 sign/gui/devices.c:154
+#: sign/gui/devices.c:173 sign/gui/devices.c:200
 msgid "Key size"
 msgstr "Tamaño de llave"
 
-#: sign/gui/devices.c:121
+#: sign/gui/devices.c:177
 msgid "Key type"
 msgstr "Tipo de llave"
 
-#: sign/gui/devices.c:124
+#: sign/gui/devices.c:180
 msgid "PKCS#11 key type"
 msgstr "Tipo de llave PKCS#11"
 
-#: sign/gui/devices.c:128
+#: sign/gui/devices.c:184
 msgid "Signing attribute"
 msgstr "Atributo de firmado"
 
-#: sign/gui/devices.c:164
+#: sign/gui/devices.c:210
 msgid "Certificate data"
 msgstr "Datos del certificado"
 
-#: sign/gui/devices.c:165
+#: sign/gui/devices.c:211
 msgid "Unavailable or invalid X.509 certificate"
 msgstr "Certificado X.509 no disponible o inválido"
 
-#: sign/gui/devices.c:172
+#: sign/gui/devices.c:218
 msgid "Public key algorithm"
 msgstr "Algoritmo de llave pública"
 
-#: sign/gui/devices.c:201
+#: sign/gui/devices.c:247
 msgid "Content commitment key usage"
 msgstr "Uso de llave de compromiso de contenido"
 
-#: sign/gui/devices.c:202
+#: sign/gui/devices.c:248
 msgid "Not specified"
 msgstr "Sin especificar"
 
-#: sign/gui/devices.c:207
+#: sign/gui/devices.c:253
 msgid "System certificates"
 msgstr "Certificados del sistema"
 
-#: sign/gui/devices.c:212
+#: sign/gui/devices.c:258
 msgid "CRSign certificates (embedded / configured)"
 msgstr "Certificados de CRSign (incorporados / configurados)"
 
-#: sign/gui/devices.c:232
+#: sign/gui/devices.c:299
+msgid "Slot ID"
+msgstr "ID del slot"
+
+#: sign/gui/devices.c:300
+msgid "Hardware slot"
+msgstr "Slot de hardware"
+
+#: sign/gui/devices.c:303
+msgid "Removable device"
+msgstr "Dispositivo extraíble"
+
+#: sign/gui/devices.c:307
+msgid "Device error"
+msgstr "Error del dispositivo"
+
+#: sign/gui/devices.c:313
+msgid "Token label"
+msgstr "Etiqueta del token"
+
+#: sign/gui/devices.c:317
+msgid "Copy Token URI"
+msgstr "Copiar URI del token"
+
+#: sign/gui/devices.c:329 sign/gui/devices.c:461
+msgid "Manufacturer"
+msgstr "Fabricante"
+
+#: sign/gui/devices.c:330
+msgid "Model"
+msgstr "Modelo"
+
+#: sign/gui/devices.c:331
+msgid "Serial number"
+msgstr "Número de serie"
+
+#: sign/gui/devices.c:337
+msgid "Hardware version"
+msgstr "Versión de hardware"
+
+#: sign/gui/devices.c:344
+msgid "Firmware version"
+msgstr "Versión de firmware"
+
+#: sign/gui/devices.c:348
+msgid "Login required"
+msgstr "Requiere iniciar sesión"
+
+#: sign/gui/devices.c:353
+msgid "Protected PIN entry"
+msgstr "Entrada protegida del PIN"
+
+#: sign/gui/devices.c:358
+msgid "PIN locked"
+msgstr "PIN bloqueado"
+
+#: sign/gui/devices.c:363
+msgid "PIN final attempt"
+msgstr "Último intento de PIN"
+
+#: sign/gui/devices.c:366
+msgid "Minimum PIN length"
+msgstr "Longitud mínima del PIN"
+
+#: sign/gui/devices.c:367
+msgid "Maximum PIN length"
+msgstr "Longitud máxima del PIN"
+
+#: sign/gui/devices.c:368
+msgid "Public memory (bytes)"
+msgstr "Memoria pública (bytes)"
+
+#: sign/gui/devices.c:369
+msgid "Free public memory (bytes)"
+msgstr "Memoria pública libre (bytes)"
+
+#: sign/gui/devices.c:370
+msgid "Private memory (bytes)"
+msgstr "Memoria privada (bytes)"
+
+#: sign/gui/devices.c:371
+msgid "Free private memory (bytes)"
+msgstr "Memoria privada libre (bytes)"
+
+#: sign/gui/devices.c:374
+msgid "Visible objects"
+msgstr "Objetos visibles"
+
+#: sign/gui/devices.c:389
 #, c-format
 msgid "Slot %lu"
 msgstr "Slot %lu"
 
-#: sign/gui/devices.c:239
+#: sign/gui/devices.c:396
 msgid "Token present"
 msgstr "Token presente"
 
-#: sign/gui/devices.c:240
+#: sign/gui/devices.c:397
 msgid "No token inserted"
 msgstr "Sin tarjeta insertada"
 
-#: sign/gui/devices.c:244
-msgid "Slot ID"
-msgstr "ID del slot"
-
-#: sign/gui/devices.c:245
-msgid "Hardware slot"
-msgstr "Slot de hardware"
-
-#: sign/gui/devices.c:248
-msgid "Removable device"
-msgstr "Dispositivo extraíble"
-
-#: sign/gui/devices.c:252
-msgid "Device error"
-msgstr "Error del dispositivo"
-
-#: sign/gui/devices.c:258
-msgid "Token label"
-msgstr "Etiqueta del token"
-
-#: sign/gui/devices.c:262
-msgid "Copy Token URI"
-msgstr "Copiar URI del token"
-
-#: sign/gui/devices.c:274 sign/gui/devices.c:386
-msgid "Manufacturer"
-msgstr "Fabricante"
-
-#: sign/gui/devices.c:275
-msgid "Model"
-msgstr "Modelo"
-
-#: sign/gui/devices.c:276
-msgid "Serial number"
-msgstr "Número de serie"
-
-#: sign/gui/devices.c:282
-msgid "Hardware version"
-msgstr "Versión de hardware"
-
-#: sign/gui/devices.c:289
-msgid "Firmware version"
-msgstr "Versión de firmware"
-
-#: sign/gui/devices.c:293
-msgid "Login required"
-msgstr "Requiere iniciar sesión"
-
-#: sign/gui/devices.c:298
-msgid "Protected PIN entry"
-msgstr "Entrada protegida del PIN"
-
-#: sign/gui/devices.c:303
-msgid "PIN locked"
-msgstr "PIN bloqueado"
-
-#: sign/gui/devices.c:308
-msgid "PIN final attempt"
-msgstr "Último intento de PIN"
-
-#: sign/gui/devices.c:311
-msgid "Minimum PIN length"
-msgstr "Longitud mínima del PIN"
-
-#: sign/gui/devices.c:312
-msgid "Maximum PIN length"
-msgstr "Longitud máxima del PIN"
-
-#: sign/gui/devices.c:313
-msgid "Public memory (bytes)"
-msgstr "Memoria pública (bytes)"
-
-#: sign/gui/devices.c:314
-msgid "Free public memory (bytes)"
-msgstr "Memoria pública libre (bytes)"
-
-#: sign/gui/devices.c:315
-msgid "Private memory (bytes)"
-msgstr "Memoria privada (bytes)"
-
-#: sign/gui/devices.c:316
-msgid "Free private memory (bytes)"
-msgstr "Memoria privada libre (bytes)"
-
-#: sign/gui/devices.c:319
-msgid "Visible objects"
-msgstr "Objetos visibles"
-
-#: sign/gui/devices.c:343 sign/gui/devices.c:387
+#: sign/gui/devices.c:418 sign/gui/devices.c:462
 msgid "PKCS#11 module"
 msgstr "Módulo PKCS#11"
 
-#: sign/gui/devices.c:369
+#: sign/gui/devices.c:444
 msgid "Unnamed reader"
 msgstr "Lector sin nombre"
 
-#: sign/gui/devices.c:389
+#: sign/gui/devices.c:464
 msgid "Library"
 msgstr "Biblioteca"
 
-#: sign/gui/devices.c:395
+#: sign/gui/devices.c:470
 msgid "Library version"
 msgstr "Versión de la biblioteca"
 
-#: sign/gui/devices.c:402
+#: sign/gui/devices.c:477
 msgid "PKCS#11 version"
 msgstr "Versión de PKCS#11"
 
-#: sign/gui/devices.c:415
+#: sign/gui/devices.c:490
 #, c-format
 msgid "Readers: %zu · Slots: %zu · Certificates: %zu · Keys: %zu"
 msgstr "Lectores: %zu · Slots: %zu · Certificados: %zu · Llaves: %zu"
 
-#: sign/gui/devices.c:422
+#: sign/gui/devices.c:497
 msgid "No readers found"
 msgstr "No se encontraron lectores"
 
-#: sign/gui/devices.c:460 sign/gui/devices.c:756
+#: sign/gui/devices.c:535 sign/gui/devices.c:831
 msgid "Scanning devices…"
 msgstr "Buscando dispositivos…"
 
-#: sign/gui/devices.c:544
+#: sign/gui/devices.c:619
 msgid "Cannot load the PKCS#11 modules"
 msgstr "No se pueden cargar los módulos PKCS#11"
 
-#: sign/gui/devices.c:565
+#: sign/gui/devices.c:640
 msgid "Cannot monitor devices"
 msgstr "No se pueden detectar cambios en los dispositivos"
 
-#: sign/gui/devices.c:721
+#: sign/gui/devices.c:796
 msgid "Device options"
 msgstr "Opciones de dispositivos"
 
-#: sign/gui/devices.c:723
+#: sign/gui/devices.c:798
 msgid "Hardware only"
 msgstr "Solo hardware"
 
-#: sign/gui/devices.c:768
+#: sign/gui/devices.c:843
 msgid "Refresh"
 msgstr "Actualizar"
 
-#: sign/gui/inventory.c:138
+#: sign/gui/inventory.c:144
 msgid "Cannot read configured certificates"
 msgstr "No se pueden leer los certificados configurados"
 
-#: sign/gui/inventory.c:146
+#: sign/gui/inventory.c:152
 msgid "Cannot read system certificates"
 msgstr "No se pueden leer los certificados del sistema"
 
-#: sign/gui/inventory.c:239
+#: sign/gui/inventory.c:246
 #, c-format
 msgid "Cannot inspect devices (status %d)"
 msgstr "No se pueden consultar los dispositivos (estado %d)"

@@ -22,8 +22,14 @@ static void certificate_free(gpointer data) {
 	X509_free(cert->certificate);
 	g_free(cert);
 }
+sign_device_inventory* sign_device_inventory_ref(
+    sign_device_inventory* inventory
+) {
+	g_atomic_int_inc(&inventory->references);
+	return inventory;
+}
 void sign_device_inventory_free(sign_device_inventory* inventory) {
-	if (!inventory) {
+	if (!inventory || !g_atomic_int_dec_and_test(&inventory->references)) {
 		return;
 	}
 	g_hash_table_unref(inventory->certificates);
@@ -219,6 +225,7 @@ sign_device_inventory* sign_device_inventory_scan(
     GError**               error
 ) {
 	sign_device_inventory* inventory = g_new0(sign_device_inventory, 1);
+	inventory->references = 1;
 	inventory->issues = g_ptr_array_new_with_free_func(g_free);
 	inventory->certificates = g_hash_table_new_full(
 	    g_direct_hash,

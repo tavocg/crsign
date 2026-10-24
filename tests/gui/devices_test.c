@@ -5,6 +5,14 @@
 #include <sign/gui/inventory.h>
 #include <sign/gui/window.h>
 
+static guint widget_count(GtkWidget* widget) {
+	guint count = 1;
+	for (GtkWidget* child = gtk_widget_get_first_child(widget); child;
+	     child = gtk_widget_get_next_sibling(child)) {
+		count += widget_count(child);
+	}
+	return count;
+}
 static void clipboard_read(
     GObject*      source,
     GAsyncResult* result,
@@ -46,6 +54,23 @@ static void wait_text(GtkWidget* view, const char* text, bool present) {
 	}
 	g_assert_cmpint(contains(view, text), ==, present);
 	g_assert_false(sign_devices_is_busy(SIGN_DEVICES(view)));
+}
+static void wait_card(GtkWidget* view, const char* serial) {
+	gint64 deadline = g_get_monotonic_time() + 10 * G_TIME_SPAN_SECOND;
+	do {
+		while (g_main_context_iteration(NULL, FALSE)) {
+		}
+		GtkWidget* slot = named(view, "devices-slot");
+		if (slot) {
+			adw_expander_row_set_expanded(ADW_EXPANDER_ROW(slot), TRUE);
+		}
+		if (contains(view, serial) &&
+		    !sign_devices_is_busy(SIGN_DEVICES(view))) {
+			return;
+		}
+		g_usleep(1000);
+	} while (g_get_monotonic_time() < deadline);
+	g_error("Card serial did not appear: %s", serial);
 }
 static void phase(const char* root, const char* value) {
 	char* path = g_build_filename(root, "phase", NULL);
@@ -122,9 +147,9 @@ int main(int argc, char** argv) {
 	    GTK_SPINNER(named(window, "devices-nav-spinner"))
 	));
 	gtk_window_present(GTK_WINDOW(window));
-	wait_text(view, "2048 bits", true);
-	g_assert_true(contains(view, "3072 bits"));
-	g_assert_true(contains(view, "256 bits"));
+	wait_text(view, "Signing card <&>", true);
+	g_assert_false(contains(view, "2048 bits"));
+	g_assert_null(named(view, "devices-certificate"));
 	g_assert_false(contains(view, "Software fixture"));
 	g_assert_false(gtk_spinner_get_spinning(
 	    GTK_SPINNER(named(window, "devices-nav-spinner"))
@@ -139,7 +164,7 @@ int main(int argc, char** argv) {
 	    navigation,
 	    gtk_list_box_get_row_at_index(navigation, 3)
 	);
-	wait_text(view, "2048 bits", true);
+	wait_text(view, "Signing card <&>", true);
 	snapshot(window, argv[2], "devices-collapsed.png");
 	graphene_rect_t options, title;
 	g_assert_true(gtk_widget_compute_bounds(
@@ -157,6 +182,28 @@ int main(int argc, char** argv) {
 	reader = ADW_EXPANDER_ROW(find_widget(content, ADW_TYPE_EXPANDER_ROW));
 	adw_expander_row_set_expanded(reader, TRUE);
 	snapshot(window, argv[2], "devices-expanded.png");
+	AdwExpanderRow* slot = ADW_EXPANDER_ROW(named(view, "devices-slot"));
+	guint           collapsed = widget_count(content);
+	g_assert_false(adw_expander_row_get_expanded(slot));
+	adw_expander_row_set_expanded(slot, TRUE);
+	g_assert_true(adw_expander_row_get_expanded(slot));
+	g_assert_true(contains(view, "2048 bits"));
+	g_assert_true(contains(view, "3072 bits"));
+	g_assert_true(contains(view, "256 bits"));
+	g_assert_cmpuint(widget_count(content), >, collapsed);
+	AdwExpanderRow* certificate = ADW_EXPANDER_ROW(
+	    named(view, "devices-certificate")
+	);
+	g_assert_nonnull(certificate);
+	g_assert_false(contains(view, "CN=Device fixture signer"));
+	guint before = widget_count(content);
+	adw_expander_row_set_expanded(certificate, TRUE);
+	g_assert_true(contains(view, "CN=Device fixture signer"));
+	g_assert_cmpuint(widget_count(content), >, before);
+	guint expanded = widget_count(content);
+	adw_expander_row_set_expanded(certificate, FALSE);
+	adw_expander_row_set_expanded(certificate, TRUE);
+	g_assert_cmpuint(widget_count(content), ==, expanded);
 	GtkWidget* copy = named(view, "devices-copy-token-uri");
 	g_assert_nonnull(copy);
 	g_signal_emit_by_name(copy, "clicked");
@@ -191,7 +238,7 @@ int main(int argc, char** argv) {
 	gtk_check_button_set_active(hardware, TRUE);
 	wait_text(view, "Software fixture", false);
 	phase(argv[1], "2");
-	wait_text(view, "card-two", true);
+	wait_card(view, "card-two");
 	phase(argv[1], "1");
 	wait_text(view, "Certificate <&>", false);
 	phase(argv[1], "3");
@@ -208,9 +255,9 @@ int main(int argc, char** argv) {
 	);
 	snapshot(window, argv[2], "devices-empty.png");
 	phase(argv[1], "0");
-	wait_text(view, "card-one", true);
+	wait_text(view, "Signing card <&>", true);
 	g_signal_emit_by_name(named(view, "devices-refresh"), "clicked");
-	wait_text(view, "2048 bits", true);
+	wait_text(view, "Signing card <&>", true);
 	gpointer weak = view;
 	g_object_add_weak_pointer(G_OBJECT(view), &weak);
 	gtk_window_destroy(GTK_WINDOW(window));

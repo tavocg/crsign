@@ -144,7 +144,9 @@ sigue realizándose mediante libssig.
 La búsqueda comienza al abrir la aplicación, en segundo plano. Mientras se
 explora, el icono de Dispositivos en el menú se sustituye por un spinner.
 Los lectores aparecen colapsados y agrupan los slots informados por el módulo
-PKCS#11. Dentro de cada slot se pueden desplegar certificados y llaves, con sus
+PKCS#11. Los detalles de slots y certificados se construyen únicamente al
+desplegarlos, para evitar cargar miles de controles durante el escaneo.
+Dentro de cada slot se pueden desplegar certificados y llaves, con sus
 identificadores, algoritmos, tamaños en bits y los atributos públicos disponibles.
 El URI del token dispone de un botón para copiarlo al portapapeles.
 También se muestran el fabricante, modelo, número de serie, versiones, memoria
