@@ -152,7 +152,6 @@ static void thumbnail_finished(
 static GtkWidget* file_widget(
     SignHome*                 self,
     const sign_history_entry* entry,
-    bool                      recent,
     bool                      grid
 ) {
 	GFile*     file = g_file_new_for_path(entry->path);
@@ -176,7 +175,7 @@ static GtkWidget* file_widget(
 	sign_file_actions_attach(
 	    item,
 	    file,
-	    recent,
+	    true,
 	    entry->favorite,
 	    favorite_changed,
 	    self
@@ -236,16 +235,10 @@ static GtkWidget* file_widget(
 			g_date_time_unref(local);
 		}
 		gtk_box_append(GTK_BOX(box), stamp);
-		if (recent) {
-			gtk_box_append(
-			    GTK_BOX(box),
-			    sign_file_favorite_button(entry->favorite)
-			);
-		} else {
-			GtkWidget* spacer = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-			gtk_widget_set_size_request(spacer, 34, 34);
-			gtk_box_append(GTK_BOX(box), spacer);
-		}
+		gtk_box_append(
+		    GTK_BOX(box),
+		    sign_file_favorite_button(entry->favorite)
+		);
 	}
 	return item;
 }
@@ -319,7 +312,7 @@ static void render_section(SignHome* self, bool favorites, size_t start) {
 		if (count++ >= limit || count <= start) {
 			continue;
 		}
-		GtkWidget* widget = file_widget(self, entry, !favorites, self->grid);
+		GtkWidget* widget = file_widget(self, entry, self->grid);
 		if (self->grid) {
 			gtk_flow_box_insert(GTK_FLOW_BOX(list), widget, -1);
 		} else {

@@ -288,7 +288,7 @@ int main(int argc, char** argv) {
 	g_assert_false(
 	    gtk_widget_get_visible(named(GTK_WIDGET(self), "home-recents-more"))
 	);
-	/* Only Recent exposes the favorite action; it persists across reloads. */
+	/* Favorite changes persist across both Home sections. */
 	GtkWidget* favorite = gtk_flow_box_child_get_child(
 	    gtk_flow_box_get_child_at_index(
 	        GTK_FLOW_BOX(flow(GTK_WIDGET(self), "home-favorites")),
@@ -396,9 +396,20 @@ int main(int argc, char** argv) {
 	}
 	g_assert_cmpuint(manager.calls, ==, 3);
 	/* The favorite control must not also activate the surrounding file row. */
-	g_signal_emit_by_name(named(row, "document-favorite"), "clicked");
+	g_signal_emit_by_name(named(favorite_row, "document-favorite"), "clicked");
 	settle();
 	g_assert_cmpuint(manager.calls, ==, 3);
+	g_assert_false(contains(
+	    named(GTK_WIDGET(self), "home-favorites"),
+	    "Documento firmado número 56.pdf"
+	));
+	g_assert_true(contains(
+	    named(GTK_WIDGET(self), "home-recents"),
+	    "Documento firmado número 56.pdf"
+	));
+	sign_history* unfavorited = history_load(NULL);
+	g_assert_false(history_get(unfavorited, 0)->favorite);
+	history_free(unfavorited);
 	gtk_menu_button_popup(GTK_MENU_BUTTON(sign_home_search_button(self)));
 	settle();
 	GtkWidget* popover = GTK_WIDGET(gtk_menu_button_get_popover(
