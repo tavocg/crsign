@@ -196,6 +196,13 @@ int main(int argc, char** argv) {
 	));
 	gtk_window_present(GTK_WINDOW(window));
 	wait_text(view, "Signing card <&>", true);
+	/* Re-entering the section must not restart the scan; only Refresh does. */
+	GtkListBox* navigation = GTK_LIST_BOX(named(window, "navigation"));
+	gtk_list_box_select_row(
+	    navigation,
+	    gtk_list_box_get_row_at_index(navigation, 3)
+	);
+	g_assert_false(sign_devices_is_busy(SIGN_DEVICES(view)));
 	g_assert_false(contains(view, "2048 bits"));
 	g_assert_null(named(view, "devices-certificate"));
 	g_assert_false(contains(view, "Software fixture"));
@@ -207,7 +214,7 @@ int main(int argc, char** argv) {
 	    find_widget(content, ADW_TYPE_EXPANDER_ROW)
 	);
 	g_assert_false(adw_expander_row_get_expanded(reader));
-	GtkListBox* navigation = GTK_LIST_BOX(named(window, "navigation"));
+	navigation = GTK_LIST_BOX(named(window, "navigation"));
 	gtk_list_box_select_row(
 	    navigation,
 	    gtk_list_box_get_row_at_index(navigation, 3)

@@ -86,11 +86,8 @@ static void section_selected(
 		}
 	}
 	gtk_stack_set_visible_child_name(self->pages, sections[index].id);
-	if (!strcmp(sections[index].id, "devices")) {
-		sign_devices_refresh(
-		    SIGN_DEVICES(gtk_stack_get_child_by_name(self->pages, "devices"))
-		);
-	}
+	/* Device polling runs continuously. Selecting the section only reveals the
+	 * current snapshot; an explicit Refresh rebuilds it. */
 	gtk_widget_set_visible(self->view_toggle, index == 0);
 	gtk_widget_set_visible(self->devices_menu, index == 3);
 	bool signing = !strcmp(sections[index].id, "sign");
