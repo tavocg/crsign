@@ -420,15 +420,6 @@ static void render(SignDevices* self, sign_device_inventory* inventory) {
 	                              keys
 	                          )
 	                        : g_strdup(_("No readers found"));
-	gtk_widget_set_valign(
-	    self->body,
-	    readers ? GTK_ALIGN_START : GTK_ALIGN_CENTER
-	);
-	if (readers) {
-		gtk_widget_add_css_class(GTK_WIDGET(self->status), "dim-label");
-	} else {
-		gtk_widget_remove_css_class(GTK_WIDGET(self->status), "dim-label");
-	}
 	gtk_label_set_text(self->status, summary);
 	g_free(summary);
 	for (guint n = 0; n < inventory->issues->len; ++n) {
@@ -754,30 +745,36 @@ static void sign_devices_init(SignDevices* self) {
 	);
 	self->body = gtk_box_new(GTK_ORIENTATION_VERTICAL, 12);
 	gtk_widget_set_name(self->body, "devices-body");
-	gtk_widget_set_valign(self->body, GTK_ALIGN_CENTER);
+	gtk_widget_set_valign(self->body, GTK_ALIGN_START);
 	gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(scroll), self->body);
 	self->content = gtk_box_new(GTK_ORIENTATION_VERTICAL, 12);
 	gtk_widget_set_name(self->content, "devices-content");
 	gtk_box_append(GTK_BOX(self->body), self->content);
+	GtkWidget* bar = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
+	gtk_widget_set_name(bar, "devices-controls");
+	gtk_box_append(GTK_BOX(self), bar);
 	self->status = GTK_LABEL(gtk_label_new(_("Scanning devices…")));
 	gtk_widget_set_name(GTK_WIDGET(self->status), "devices-status");
 	gtk_label_set_wrap(self->status, TRUE);
-	gtk_label_set_justify(self->status, GTK_JUSTIFY_CENTER);
-	gtk_box_append(GTK_BOX(self->body), GTK_WIDGET(self->status));
+	gtk_label_set_justify(self->status, GTK_JUSTIFY_LEFT);
+	gtk_label_set_xalign(self->status, 0);
+	gtk_widget_set_hexpand(GTK_WIDGET(self->status), TRUE);
+	gtk_widget_add_css_class(GTK_WIDGET(self->status), "dim-label");
+	gtk_box_append(GTK_BOX(bar), GTK_WIDGET(self->status));
 	self->spinner = gtk_spinner_new();
 	gtk_widget_set_halign(self->spinner, GTK_ALIGN_CENTER);
 	gtk_widget_set_visible(self->spinner, FALSE);
-	gtk_box_append(GTK_BOX(self->body), self->spinner);
+	gtk_box_append(GTK_BOX(bar), self->spinner);
 	self->refresh = gtk_button_new_with_label(_("Refresh"));
 	gtk_widget_set_name(self->refresh, "devices-refresh");
-	gtk_widget_set_halign(self->refresh, GTK_ALIGN_CENTER);
+	gtk_widget_set_halign(self->refresh, GTK_ALIGN_END);
 	g_signal_connect(
 	    self->refresh,
 	    "clicked",
 	    G_CALLBACK(refresh_clicked),
 	    self
 	);
-	gtk_box_append(GTK_BOX(self->body), self->refresh);
+	gtk_box_append(GTK_BOX(bar), self->refresh);
 	gtk_box_append(GTK_BOX(self), scroll);
 }
 GtkWidget* sign_devices_new(void) {

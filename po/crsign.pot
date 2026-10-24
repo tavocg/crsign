@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: CRSign 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/tavocg/crsign/issues\n"
-"POT-Creation-Date: 2026-10-23 18:35-0600\n"
+"POT-Creation-Date: 2026-10-23 18:40-0600\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -438,7 +438,7 @@ msgstr ""
 msgid "Click to choose one or more files"
 msgstr ""
 
-#: sign/gui/validation.c:774
+#: sign/gui/validation.c:775
 msgid "Clear results"
 msgstr ""
 
@@ -653,27 +653,27 @@ msgstr ""
 msgid "No readers found"
 msgstr ""
 
-#: sign/gui/devices.c:469 sign/gui/devices.c:762
+#: sign/gui/devices.c:460 sign/gui/devices.c:756
 msgid "Scanning devices…"
 msgstr ""
 
-#: sign/gui/devices.c:553
+#: sign/gui/devices.c:544
 msgid "Cannot load the PKCS#11 modules"
 msgstr ""
 
-#: sign/gui/devices.c:574
+#: sign/gui/devices.c:565
 msgid "Cannot monitor devices"
 msgstr ""
 
-#: sign/gui/devices.c:730
+#: sign/gui/devices.c:721
 msgid "Device options"
 msgstr ""
 
-#: sign/gui/devices.c:732
+#: sign/gui/devices.c:723
 msgid "Hardware only"
 msgstr ""
 
-#: sign/gui/devices.c:771
+#: sign/gui/devices.c:768
 msgid "Refresh"
 msgstr ""
 

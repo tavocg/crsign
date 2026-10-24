@@ -150,12 +150,13 @@ se conserva durante la sesión y no modifica `crsign.toml`.
 La aplicación comprueba cambios aproximadamente cada segundo mediante eventos
 no bloqueantes del módulo y los metadatos de slots y tarjetas. Al retirar,
 insertar o cambiar una tarjeta vuelve a cargar la información. Se conserva el
-botón «Actualizar», centrado debajo del resumen, que además vuelve a leer la configuración global de
+botón «Actualizar», a la derecha del resumen, que además vuelve a leer la configuración global de
 módulos y certificados. Si no se especifican módulos, se usa p11-kit.
 
-Sin lectores, el mensaje «No se encontraron lectores» aparece centrado con el
-botón «Actualizar» debajo. Con lectores, se conservan los paneles y al final se
-muestra el resumen con texto atenuado y el mismo botón de actualización.
+La barra superior muestra siempre el estado con texto atenuado a la izquierda
+y «Actualizar» a la derecha. Sin lectores indica «No se encontraron lectores»;
+con lectores muestra los totales de lectores, slots, certificados y llaves.
+El resumen de Validar usa el mismo tono atenuado.
 
 La identidad y agrupación de lectores dependen de lo que publique el módulo
 PKCS#11; no se enumeran dispositivos USB que no estén expuestos por un módulo.

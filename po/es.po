@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: CRSign 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/tavocg/crsign/issues\n"
-"POT-Creation-Date: 2026-10-23 18:35-0600\n"
+"POT-Creation-Date: 2026-10-23 18:40-0600\n"
 "PO-Revision-Date: 2026-10-23 00:00-0600\n"
 "Last-Translator: Gustavo Calvo <tavo@tavo.cr>\n"
 "Language-Team: Spanish\n"
@@ -440,7 +440,7 @@ msgstr "Arrastra aquí los archivos firmados"
 msgid "Click to choose one or more files"
 msgstr "Haz clic para elegir uno o varios archivos"
 
-#: sign/gui/validation.c:774
+#: sign/gui/validation.c:775
 msgid "Clear results"
 msgstr "Limpiar resultados"
 
@@ -655,27 +655,27 @@ msgstr "Lectores: %zu · Slots: %zu · Certificados: %zu · Llaves: %zu"
 msgid "No readers found"
 msgstr "No se encontraron lectores"
 
-#: sign/gui/devices.c:469 sign/gui/devices.c:762
+#: sign/gui/devices.c:460 sign/gui/devices.c:756
 msgid "Scanning devices…"
 msgstr "Buscando dispositivos…"
 
-#: sign/gui/devices.c:553
+#: sign/gui/devices.c:544
 msgid "Cannot load the PKCS#11 modules"
 msgstr "No se pueden cargar los módulos PKCS#11"
 
-#: sign/gui/devices.c:574
+#: sign/gui/devices.c:565
 msgid "Cannot monitor devices"
 msgstr "No se pueden detectar cambios en los dispositivos"
 
-#: sign/gui/devices.c:730
+#: sign/gui/devices.c:721
 msgid "Device options"
 msgstr "Opciones de dispositivos"
 
-#: sign/gui/devices.c:732
+#: sign/gui/devices.c:723
 msgid "Hardware only"
 msgstr "Solo hardware"
 
-#: sign/gui/devices.c:771
+#: sign/gui/devices.c:768
 msgid "Refresh"
 msgstr "Actualizar"
 

@@ -199,7 +199,7 @@ int main(int argc, char** argv) {
 	g_assert_cmpint(
 	    gtk_widget_get_valign(named(view, "devices-body")),
 	    ==,
-	    GTK_ALIGN_CENTER
+	    GTK_ALIGN_START
 	);
 	g_assert_cmpstr(
 	    gtk_button_get_label(GTK_BUTTON(named(view, "devices-refresh"))),

@@ -767,6 +767,7 @@ static void sign_validation_init(SignValidation* self) {
 	);
 	self->controls = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
 	self->summary = GTK_LABEL(gtk_label_new(NULL));
+	gtk_widget_add_css_class(GTK_WIDGET(self->summary), "dim-label");
 	gtk_label_set_wrap(self->summary, TRUE);
 	gtk_label_set_xalign(self->summary, 0);
 	gtk_widget_set_hexpand(GTK_WIDGET(self->summary), TRUE);
