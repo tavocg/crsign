@@ -405,7 +405,28 @@ int main(int argc, char** argv) {
 	g_assert_no_error(error);
 	const libssig_pdf_appearance* a = sign_signing_appearance(self, 0);
 	g_assert_cmpfloat(a->width, ==, 144);
+	GtkWidget* information = named(GTK_WIDGET(self), "sign-information");
+	g_assert_true(gtk_widget_get_visible(information));
+	g_assert_true(gtk_check_button_get_active(GTK_CHECK_BUTTON(information)));
+	g_assert_cmpfloat(fabs(a->height - 123.84), <, .01);
+	sign_flow* combined = sign_signing_build_flow(self, &error);
+	g_assert_no_error(error);
+	g_assert_true(sign_flow_document(combined, 0)->appearance_information);
+	sign_flow_free(combined);
+	snapshot(window, argv[2], "sign-reader-combined.png");
+	gtk_check_button_set_active(GTK_CHECK_BUTTON(information), FALSE);
+	wait_done(self);
 	g_assert_cmpfloat(a->height, ==, 72);
+	/* Expanding beyond the page keeps both the old choice and rectangle. */
+	g_assert_true(sign_signing_place(self, 30, 700, 144, 72, &error));
+	g_assert_no_error(error);
+	gtk_check_button_set_active(GTK_CHECK_BUTTON(information), TRUE);
+	wait_done(self);
+	g_assert_false(gtk_check_button_get_active(GTK_CHECK_BUTTON(information)));
+	g_assert_cmpfloat(a->height, ==, 72);
+	g_assert_cmpfloat(a->y, ==, 700);
+	g_assert_true(sign_signing_place(self, 30, 40, 144, 72, &error));
+	g_assert_no_error(error);
 	move_stamp(window, self);
 	g_assert_true(sign_signing_place(self, 30, 40, 1, 1, &error));
 	g_assert_cmpfloat(a->width, ==, 24);
@@ -520,10 +541,18 @@ int main(int argc, char** argv) {
 	);
 	GtkDropDown* profiles = GTK_DROP_DOWN(sign_signing_profile_selector(self));
 	gtk_drop_down_set_selected(profiles, 1);
+	sign_signing_open_document(self, 0);
+	wait_done(self);
+	gtk_check_button_set_active(GTK_CHECK_BUTTON(information), TRUE);
+	wait_done(self);
+	g_assert_cmpfloat(fabs(a->height - 123.84), <, .01);
+	sign_signing_show_queue(self);
+
 	sign_flow* flow = sign_signing_build_flow(self, &error);
 	g_assert_no_error(error);
 	g_assert_nonnull(flow);
 	g_assert_cmpuint(sign_flow_count(flow), ==, 2);
+	g_assert_true(sign_flow_document(flow, 0)->appearance_information);
 	g_assert_cmpuint(
 	    sign_flow_document(flow, 0)->appearance.page_number,
 	    ==,

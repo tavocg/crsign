@@ -18,7 +18,7 @@
 typedef struct {
 	gint                   references;
 	char *                 path, *image, *profile_image;
-	bool                   image_set, checked;
+	bool                   image_set, checked, information;
 	sign_pdf_document*     pdf;
 	libssig_pdf_appearance appearance;
 	GtkWidget *            row, *warning;
@@ -29,7 +29,7 @@ struct _SignSigning {
 	GtkDropDown*   profiles;
 	GtkStack*      modes;
 	GtkListBox*    list;
-	GtkWidget *    canvas, *image_button, *default_button;
+	GtkWidget *    canvas, *image_button, *default_button, *information;
 	SignPdfReader* reader;
 	GtkWidget *continue_button, *sign_button, *warning, *add, *back, *spinner;
 	GtkLabel * notice, *filename, *page_count, *total;
@@ -130,6 +130,22 @@ static void controls(SignSigning* self) {
 	    self->default_button,
 	    !self->loading && !self->busy && self->surface
 	);
+	gtk_widget_set_visible(
+	    self->information,
+	    self->current && self->current->image
+	);
+	gtk_widget_set_sensitive(
+	    self->information,
+	    !self->loading && !self->busy && self->surface
+	);
+	if (!self->loading) {
+		self->updating = true;
+		gtk_check_button_set_active(
+		    GTK_CHECK_BUTTON(self->information),
+		    self->current ? self->current->information : true
+		);
+		self->updating = false;
+	}
 	gtk_widget_set_sensitive(
 	    self->continue_button,
 	    !self->loading && !self->busy
@@ -245,13 +261,13 @@ static void remove_appearance(SignPdfReader* button, gpointer data) {
 }
 
 typedef struct {
-	signing_item*          item;
-	sign_pdf_document*     pdf;
-	char *                 profile, *image, *profile_image;
-	bool                   image_set, override;
-	unsigned int           page, revision;
-	cairo_surface_t *      surface, *stamp;
-	double                 ratio;
+	signing_item*      item;
+	sign_pdf_document* pdf;
+	char *             profile, *image, *profile_image;
+	bool               image_set, override, information, information_changed;
+	unsigned int       page, revision;
+	cairo_surface_t *  surface, *stamp;
+	double             ratio;
 	libssig_pdf_appearance appearance;
 } preview_job;
 static void preview_free(gpointer data) {
@@ -316,7 +332,7 @@ static void preview_worker(
 	}
 	sign_identity identity = {0};
 	char*         svg = NULL;
-	if (!job->image &&
+	if ((!job->image || job->information) &&
 	    sign_identity_open(&settings.options, &identity, NULL) == LIBSSIG_OK) {
 		svg = appearance_default_svg(identity.certificate);
 	}
@@ -326,7 +342,8 @@ static void preview_worker(
 	}
 	sign_options options = {
 	    .appearance = {.page_number = 1},
-	    .appearance_file = job->image
+	    .appearance_file = job->image,
+	    .appearance_information = job->information
 	};
 	libssig_pdf_appearance pixels = {0};
 	unsigned char*         bytes = NULL;
@@ -339,6 +356,7 @@ static void preview_worker(
 		ok = job->stamp != NULL;
 	}
 	g_free(bytes);
+	double width = job->appearance.width;
 	if (ok && job->appearance.page_number) {
 		double w, h;
 		ok = sign_pdf_size(job->pdf, job->appearance.page_number, &w, &h) &&
@@ -353,6 +371,16 @@ static void preview_worker(
 		         &job->appearance,
 		         &error
 		     );
+	}
+	if (ok && job->appearance.page_number && job->information_changed &&
+	    fabs(job->appearance.width - width) > 0.001) {
+		ok = false;
+		g_set_error_literal(
+		    &error,
+		    SIGN_GUI_ERROR,
+		    G_IO_ERROR_INVALID_ARGUMENT,
+		    _("The signature image cannot fit at this position")
+		);
 	}
 	if (!error && g_cancellable_set_error_if_cancelled(cancellable, &error)) {
 		ok = false;
@@ -407,6 +435,7 @@ static void preview_finished(
 		g_free(item->profile_image);
 		item->profile_image = g_strdup(job->profile_image);
 		item->image_set = true;
+		item->information = job->information;
 		item->appearance = job->appearance;
 		if (self->surface) {
 			cairo_surface_destroy(self->surface);
@@ -446,7 +475,8 @@ static void load_preview(
     SignSigning* self,
     unsigned int page,
     const char*  image,
-    bool         override
+    bool         override,
+    bool         information
 ) {
 	if (!self->current || self->busy || self->closing) {
 		return;
@@ -467,6 +497,8 @@ static void load_preview(
 	job->image = g_strdup(override ? image : self->current->image);
 	job->image_set = override || self->current->image_set;
 	job->override = override;
+	job->information = information;
+	job->information_changed = information != self->current->information;
 	job->appearance = self->current->appearance;
 	message(self, NULL);
 	redraw(self);
@@ -533,7 +565,8 @@ void sign_signing_open_document(SignSigning* self, size_t index) {
 	    self,
 	    item->appearance.page_number ? item->appearance.page_number : 1,
 	    NULL,
-	    false
+	    false,
+	    item->information
 	);
 }
 void sign_signing_show_queue(SignSigning* self) {
@@ -553,7 +586,25 @@ void sign_signing_set_page(SignSigning* self, unsigned int page) {
 }
 void sign_signing_set_image(SignSigning* self, const char* file) {
 	if (self->current) {
-		load_preview(self, self->page_number, file, true);
+		load_preview(
+		    self,
+		    self->page_number,
+		    file,
+		    true,
+		    self->current->information
+		);
+	}
+}
+static void information_toggled(GtkCheckButton* button, gpointer data) {
+	SignSigning* self = data;
+	if (!self->updating && self->current && !self->busy && !self->loading) {
+		load_preview(
+		    self,
+		    self->page_number,
+		    NULL,
+		    false,
+		    gtk_check_button_get_active(button)
+		);
 	}
 }
 static void page_changed(GtkSpinButton* spin, gpointer data) {
@@ -574,7 +625,13 @@ static void reset_image(GtkButton* button, gpointer data) {
 	SignSigning* self = data;
 	if (self->current) {
 		self->current->image_set = false;
-		load_preview(self, self->page_number, NULL, false);
+		load_preview(
+		    self,
+		    self->page_number,
+		    NULL,
+		    false,
+		    self->current->information
+		);
 	}
 }
 void sign_signing_clear(SignSigning* self) {
@@ -677,6 +734,7 @@ void sign_signing_add_files(SignSigning* self, GListModel* files) {
 		}
 		signing_item* item = g_new0(signing_item, 1);
 		item->references = 1;
+		item->information = true;
 		item->path = path;
 		item->row = adw_action_row_new();
 		adw_preferences_row_set_use_markup(
@@ -868,7 +926,8 @@ static void profile_changed(GObject* object, GParamSpec* pspec, gpointer data) {
 			    self,
 			    self->page_number ? self->page_number : 1,
 			    NULL,
-			    false
+			    false,
+			    self->current->information
 			);
 		}
 	}
@@ -970,6 +1029,7 @@ static sign_flow* build_items(
 		sign_options* options = &documents[n].options;
 		options->input = item->path;
 		options->appearance = item->appearance;
+		options->appearance_information = item->information;
 		options->appearance_file = item->appearance.page_number ? item->image
 		                                                        : NULL;
 		options->appearance_options = item->appearance.page_number
@@ -1687,6 +1747,19 @@ static void sign_signing_init(SignSigning* self) {
 	gtk_widget_set_name(self->default_button, "sign-profile-image");
 	gtk_box_append(GTK_BOX(reader_tools), self->default_button);
 	gtk_box_append(GTK_BOX(reader), reader_tools);
+	self->information = gtk_check_button_new_with_label(
+	    _("Add signing information")
+	);
+	gtk_widget_set_name(self->information, "sign-information");
+	gtk_widget_set_halign(self->information, GTK_ALIGN_END);
+	gtk_check_button_set_active(GTK_CHECK_BUTTON(self->information), TRUE);
+	g_signal_connect(
+	    self->information,
+	    "toggled",
+	    G_CALLBACK(information_toggled),
+	    self
+	);
+	gtk_box_append(GTK_BOX(reader), self->information);
 	self->reader = SIGN_PDF_READER(sign_pdf_reader_new());
 	gtk_widget_set_vexpand(GTK_WIDGET(self->reader), TRUE);
 	self->canvas = sign_pdf_reader_canvas(self->reader);

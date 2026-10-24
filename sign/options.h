@@ -14,6 +14,7 @@ typedef struct {
 	libssig_string_list    modules;
 	libssig_pdf_appearance appearance;
 	const char*            appearance_file;
+	bool                   appearance_information;
 	unsigned int           appearance_options;
 	libssig_algo           algo;
 	libssig_hash           hash;
@@ -49,6 +50,7 @@ typedef enum {
 	SIGN_OPTION_WIDTH,
 	SIGN_OPTION_HEIGHT,
 	SIGN_OPTION_IMAGE,
+	SIGN_OPTION_APPEARANCE_INFORMATION,
 	SIGN_OPTION_CA_FILE,
 	SIGN_OPTION_INTERMEDIATES,
 	SIGN_OPTION_TSA_CA_FILE,

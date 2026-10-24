@@ -147,6 +147,10 @@
               "enabled": {
                 "type": "boolean"
               },
+              "information": {
+                "type": "boolean",
+                "default": false
+              },
               "image": {
                 "type": "string",
                 "minLength": 1,

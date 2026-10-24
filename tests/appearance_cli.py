@@ -55,6 +55,8 @@ with tempfile.TemporaryDirectory(prefix='crsign-appearance-') as directory:
     output = root / 'signed.pdf'
     def run(*arguments, success=True, program=sign):
         output.unlink(missing_ok=True)
+        if 'SIGN_APPEARANCE_TEST_RGBA' in env:
+            Path(env['SIGN_APPEARANCE_TEST_RGBA']).unlink(missing_ok=True)
         result = subprocess.run([program, *map(str, arguments)], env=env, capture_output=True, timeout=15)
         assert (result.returncode == 0) == success, (arguments, result.stdout, result.stderr)
         if program == sign:
@@ -96,6 +98,34 @@ with tempfile.TemporaryDirectory(prefix='crsign-appearance-') as directory:
     rotated.write_bytes(jpeg.read_bytes()[:2] + b'\xff\xe1' + struct.pack('>H', len(exif) + 2) + exif + jpeg.read_bytes()[2:])
     run(*common, '-i', rotated)
     assert rect_size() == (144, 288)
+    # The compositor shares the production decoder and signs its final pixels.
+    env['SIGN_APPEARANCE_TEST_INFORMATION']='1'
+    env['SIGN_APPEARANCE_TEST_PREVIEW']=str(root/'combined.png')
+    env['SIGN_APPEARANCE_TEST_RGBA']=str(root/'combined.rgba')
+    for asset in (image,svg,jpeg,rotated):
+        run(*common,'-i',asset)
+        width,height=struct.unpack('>II',(root/'combined.png').read_bytes()[16:24])
+        rgba=(root/'combined.rgba').read_bytes()
+        assert len(rgba)==width*height*4
+        w,h=rect_size()
+        assert abs(w-144)<.01 and abs(h-123.84)<.01,(asset,w,h)
+        # The lower panel contains actual dark text, not just blank padding.
+        lower=rgba[int(height*.7)*width*4:]
+        assert sum(1 for n in range(0,len(lower),4)
+                   if lower[n+3]>200 and max(lower[n:n+3])<120)>100
+        if asset in (image,svg):
+            pixel=(int(height*.15)*width+width//4)*4
+            assert rgba[pixel:pixel+4]==bytes((255,0,0,255)),(asset,rgba[pixel:pixel+4])
+        if asset==image:
+            pixel=(int(height*300/516*.75)*width+width*3//4)*4
+            assert 127<=rgba[pixel+3]<=129 and max(rgba[pixel:pixel+3])==0
+
+    run(*common,'-i',svg,'-h','80')
+    w,h=rect_size()
+    assert abs(h-80)<.01 and abs(w-80*600/516)<.01
+    run(*common,'-i',image,'-w','12',success=False)
+    for key in ('SIGN_APPEARANCE_TEST_INFORMATION','SIGN_APPEARANCE_TEST_PREVIEW','SIGN_APPEARANCE_TEST_RGBA'):
+        del env[key]
     for rotation in (90, 180, 270):
         source.write_bytes(pdf(rotation))
         run(*common, '-i', image)

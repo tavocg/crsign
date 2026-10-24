@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: CRSign 0.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/tavocg/crsign/issues\n"
-"POT-Creation-Date: 2026-10-23 21:29-0600\n"
+"POT-Creation-Date: 2026-10-23 21:47-0600\n"
 "PO-Revision-Date: 2026-10-23 00:00-0600\n"
 "Last-Translator: Gustavo Calvo <tavo@tavo.cr>\n"
 "Language-Team: Spanish\n"
@@ -19,7 +19,7 @@ msgstr ""
 msgid "Home"
 msgstr "Inicio"
 
-#: sign/gui/window.c:20 sign/gui/signing.c:145 sign/gui/signing.c:1650
+#: sign/gui/window.c:20 sign/gui/signing.c:161 sign/gui/signing.c:1710
 msgid "Sign"
 msgstr "Firmar"
 
@@ -51,7 +51,7 @@ msgstr "Mostrar lista"
 msgid "Show grid"
 msgstr "Mostrar cuadrícula"
 
-#: sign/gui/window.c:216 sign/gui/signing.c:1385
+#: sign/gui/window.c:216 sign/gui/signing.c:1445
 msgid "Could not validate signed documents"
 msgstr "No se pudieron validar los documentos firmados"
 
@@ -80,7 +80,7 @@ msgstr "Ruta del módulo"
 msgid "Remove module"
 msgstr "Eliminar módulo"
 
-#: sign/gui/settings.c:469 sign/gui/settings.c:527 sign/gui/signing.c:890
+#: sign/gui/settings.c:469 sign/gui/settings.c:527 sign/gui/signing.c:949
 msgid "Global"
 msgstr "Global"
 
@@ -444,7 +444,7 @@ msgstr "Elegir contenido original"
 msgid "Drop signed files here"
 msgstr "Arrastra aquí los archivos firmados"
 
-#: sign/gui/validation.c:822 sign/gui/signing.c:1588
+#: sign/gui/validation.c:822 sign/gui/signing.c:1648
 msgid "Click to choose one or more files"
 msgstr "Haz clic para elegir uno o varios archivos"
 
@@ -728,7 +728,7 @@ msgstr "Número de página no válido"
 msgid "Cannot render this PDF page"
 msgstr "No se puede mostrar esta página del PDF"
 
-#: sign/gui/pdf_view.c:256
+#: sign/gui/pdf_view.c:256 sign/gui/signing.c:382
 msgid "The signature image cannot fit at this position"
 msgstr "La imagen de firma no cabe en esta posición"
 
@@ -737,139 +737,143 @@ msgstr "La imagen de firma no cabe en esta posición"
 msgid "Total: %u"
 msgstr "Total: %u"
 
-#: sign/gui/signing.c:140 sign/gui/signing.c:1115
+#: sign/gui/signing.c:156 sign/gui/signing.c:1175
 msgid "Continue"
 msgstr "Continuar"
 
-#: sign/gui/signing.c:141 sign/gui/signing.c:1727
+#: sign/gui/signing.c:157 sign/gui/signing.c:1800
 msgid "Continue without graphical signature"
 msgstr "Continuar sin firma gráfica"
 
-#: sign/gui/signing.c:145
+#: sign/gui/signing.c:161
 msgid "Signing…"
 msgstr "Firmando…"
 
-#: sign/gui/signing.c:196
+#: sign/gui/signing.c:212
 msgid "Wait for the PDF preview to finish loading"
 msgstr "Espera a que termine de cargar la previsualización del PDF"
 
-#: sign/gui/signing.c:307 sign/gui/signing.c:960
+#: sign/gui/signing.c:323 sign/gui/signing.c:1019
 msgid ""
 "The signing profile could not be loaded. Check the configuration in Settings."
 msgstr ""
 "No se pudo cargar el perfil de firmado. Revisa la configuración en Ajustes."
 
-#: sign/gui/signing.c:325
+#: sign/gui/signing.c:341
 msgid "Certificate holder"
 msgstr "Titular del certificado"
 
-#: sign/gui/signing.c:365
+#: sign/gui/signing.c:393
 msgid "Cannot preview this signature image"
 msgstr "No se puede previsualizar esta imagen de firma"
 
-#: sign/gui/signing.c:399 sign/gui/signing.c:505
+#: sign/gui/signing.c:427 sign/gui/signing.c:537
 msgid "Graphical signatures are available for PDF files"
 msgstr "Las firmas gráficas están disponibles para archivos PDF"
 
-#: sign/gui/signing.c:433
+#: sign/gui/signing.c:462
 #, c-format
 msgid "of %u"
 msgstr "de %u"
 
-#: sign/gui/signing.c:657
+#: sign/gui/signing.c:714
 msgid "Only local files can be signed"
 msgstr "Solo se pueden firmar archivos locales"
 
-#: sign/gui/signing.c:675
+#: sign/gui/signing.c:732
 msgid "The document queue is full"
 msgstr "La cola de documentos está llena"
 
-#: sign/gui/signing.c:695
+#: sign/gui/signing.c:753
 msgid "No graphical signature"
 msgstr "Sin representación gráfica de la firma"
 
-#: sign/gui/signing.c:703
+#: sign/gui/signing.c:761
 msgid "Remove document"
 msgstr "Eliminar documento"
 
-#: sign/gui/signing.c:759
+#: sign/gui/signing.c:817
 msgid "Choose documents to sign"
 msgstr "Seleccionar documentos para firmar"
 
-#: sign/gui/signing.c:786
+#: sign/gui/signing.c:844
 msgid "Only local images are supported"
 msgstr "Solo se admiten imágenes locales"
 
-#: sign/gui/signing.c:808 sign/gui/signing.c:1675
+#: sign/gui/signing.c:866 sign/gui/signing.c:1735
 msgid "Choose signature image"
 msgstr "Seleccionar imagen de firma"
 
-#: sign/gui/signing.c:810
+#: sign/gui/signing.c:868
 msgid "Signature images"
 msgstr "Imágenes de firma"
 
-#: sign/gui/signing.c:1090
+#: sign/gui/signing.c:1150
 msgid "Token PIN"
 msgstr "PIN del token"
 
-#: sign/gui/signing.c:1097
+#: sign/gui/signing.c:1157
 msgid "Enter the PIN to sign"
 msgstr "Introduce el PIN para firmar"
 
-#: sign/gui/signing.c:1110
+#: sign/gui/signing.c:1170
 msgid "PIN"
 msgstr "PIN"
 
-#: sign/gui/signing.c:1114
+#: sign/gui/signing.c:1174
 msgid "Cancel"
 msgstr "Cancelar"
 
-#: sign/gui/signing.c:1242
+#: sign/gui/signing.c:1302
 msgid "PIN entry was cancelled or unavailable"
 msgstr "Se canceló la solicitud del PIN o no está disponible"
 
-#: sign/gui/signing.c:1284
+#: sign/gui/signing.c:1344
 #, c-format
 msgid "Output already exists: %s"
 msgstr "El archivo de salida ya existe: %s"
 
-#: sign/gui/signing.c:1309 sign/gui/signing.c:1346
+#: sign/gui/signing.c:1369 sign/gui/signing.c:1406
 msgid "Signing failed"
 msgstr "No se pudo firmar"
 
-#: sign/gui/signing.c:1346
+#: sign/gui/signing.c:1406
 msgid "Not started"
 msgstr "Sin iniciar"
 
-#: sign/gui/signing.c:1359
+#: sign/gui/signing.c:1419
 msgid "Could not sign documents"
 msgstr "No se pudieron firmar los documentos"
 
-#: sign/gui/signing.c:1534
+#: sign/gui/signing.c:1594
 msgid "Signing profile"
 msgstr "Perfil de firmado"
 
-#: sign/gui/signing.c:1584
+#: sign/gui/signing.c:1644
 msgid "Drop files here to sign"
 msgstr "Arrastra aquí los archivos para firmar"
 
-#: sign/gui/signing.c:1613
+#: sign/gui/signing.c:1673
 msgid "Clear all"
 msgstr "Limpiar todo"
 
-#: sign/gui/signing.c:1647
+#: sign/gui/signing.c:1707
 msgid "Some files have no graphical signature"
 msgstr "Hay archivos sin representación gráfica de la firma"
 
-#: sign/gui/signing.c:1666
+#: sign/gui/signing.c:1726
 msgid "Document queue"
 msgstr "Cola de documentos"
 
-#: sign/gui/signing.c:1683
+#: sign/gui/signing.c:1743
 msgid "Use profile signature image"
 msgstr "Usar la imagen de firma del perfil"
 
-#: sign/gui/signing.c:1713
+#: sign/gui/signing.c:1751
+msgid "Add signing information"
+msgstr "Añadir información de firma"
+
+#: sign/gui/signing.c:1786
 msgid "Page"
 msgstr "Página"
 

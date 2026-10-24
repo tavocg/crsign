@@ -93,10 +93,15 @@ with tempfile.TemporaryDirectory(prefix='crsign-flow-') as directory:
                         {'enabled':False,'width':20,'height':20},
                         {'enabled':False,'width':11}, {'enabled':False,'height':721},
                         {'enabled':False,'x':-1}, {'enabled':False,'page_number':True},
-                        {'enabled':False,'page_number':1.5}, {'enabled':False,'pin':'DO-NOT-LOG'}):
+                        {'enabled':False,'page_number':1.5}, {'enabled':True,'information':'true'}, {'enabled':False,'pin':'DO-NOT-LOG'}):
         call(flow(dict(basic, appearance=appearance)), success=False)
     visible = {'enabled':True,'page_number':1,'x':0,'y':0}
     call(flow(dict(basic, appearance=visible)))
+    for enabled in (True,False):
+        combined=dict(visible,information=enabled,image='signature.svg')
+        parsed,_=call(flow(dict(basic,appearance=combined)),mode='build')
+        assert parsed['documents'][0]['appearance']['information'] is enabled
+
     call(flow(dict(basic, format='cades', appearance=visible)), success=False)
     call(flow(dict(basic, detached=True, appearance=visible)), success=False)
     call(flow(dict(basic, appearance=visible)), mode='run', success=False)

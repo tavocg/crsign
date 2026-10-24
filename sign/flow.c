@@ -58,6 +58,7 @@ static const field tsa_fields[] = {
 };
 static const field appearance_fields[] = {
     {"image", SIGN_OPTION_IMAGE, PATH},
+    {"information", SIGN_OPTION_APPEARANCE_INFORMATION, BOOLEAN},
     {"page_number", SIGN_OPTION_PAGE_NUMBER, NUMBER},
     {"x", SIGN_OPTION_X, NUMBER},
     {"y", SIGN_OPTION_Y, NUMBER},
@@ -210,6 +211,11 @@ sign_flow* sign_flow_from_items(
 				);
 			}
 			json_text_set(appearance, "image", o->appearance_file);
+			json_object_set_new(
+			    appearance,
+			    "information",
+			    json_boolean(o->appearance_information)
+			);
 		}
 	}
 	json_t* root = json_pack(

@@ -18,6 +18,9 @@ libssig_status document_fixture_sign_pdf(
 );
 int main(int argc, char** argv) {
 	sign_args args = arg_parse(argc, argv);
+	args.options.appearance_information = g_getenv(
+	                                          "SIGN_APPEARANCE_TEST_INFORMATION"
+	                                      ) != NULL;
 	EVP_PKEY* key = EVP_PKEY_Q_keygen(NULL, NULL, "RSA", 2048);
 	X509*     cert = X509_new();
 	bool      ok = key && cert && X509_set_version(cert, 2) &&
@@ -46,6 +49,14 @@ int main(int argc, char** argv) {
 	unsigned char*         pixels = NULL;
 	ok = ok && len > 0 &&
 	     appearance_prepare(&args.options, &certificate, &appearance, &pixels);
+	const char* raw = g_getenv("SIGN_APPEARANCE_TEST_RGBA");
+	if (ok && raw && pixels) {
+		ok = file_write(
+		    raw,
+		    pixels,
+		    appearance.row_stride * appearance.pixel_height
+		);
+	}
 	const char* preview = g_getenv("SIGN_APPEARANCE_TEST_PREVIEW");
 	if (ok && preview && g_str_has_suffix(preview, ".svg")) {
 		char* svg = appearance_default_svg(&certificate);
@@ -102,7 +113,8 @@ int main(int argc, char** argv) {
 		     result.signature_valid;
 		libssig_verify_free(&result);
 	}
-	ok = ok && args.options.output && file_write(args.options.output, output.data, output.len);
+	ok = ok && args.options.output &&
+	     file_write(args.options.output, output.data, output.len);
 	if (!ok) {
 		fprintf(stderr, "appearance fixture failed: %d\n", status);
 	}

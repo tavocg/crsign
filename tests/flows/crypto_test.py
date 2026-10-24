@@ -30,12 +30,18 @@ with tempfile.TemporaryDirectory(prefix='crsign-flow-crypto-') as directory:
     contents = bytes(range(256)) + b'\0 arbitrary non-PDF bytes\xff'
     (root/'payload.bin').write_bytes(contents)
     (root/'page.pdf').write_bytes(pdf())
+    (root/'image.svg').write_text('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100"><rect width="200" height="100" fill="red"/></svg>')
     documents = [dict(input='payload.bin', output='binary.p7m', level='B-B', mime_type='application/octet-stream'),
                  dict(input='payload.bin', output='binary.xml', format='xades', level='B-B'),
                  dict(input='payload.bin', output='binary.json', format='jades', level='B-B'),
                  dict(input='page.pdf', output='visible.pdf', level='B-B',
                       appearance=dict(enabled=True, page_number=1, x=36, y=48)),
                  dict(input='page.pdf', output='invisible.pdf', level='B-B', appearance=dict(enabled=False))]
+    documents.extend([
+        dict(input='page.pdf',output='combined.pdf',level='B-B',
+             appearance=dict(enabled=True,page_number=1,x=36,y=48,image='image.svg',information=True)),
+        dict(input='page.pdf',output='image-only.pdf',level='B-B',
+             appearance=dict(enabled=True,page_number=1,x=36,y=48,image='image.svg',information=False))])
     path = root/'flow.json'
     path.write_text(json.dumps(dict(version=1, documents=documents)))
     result = subprocess.run([flow_driver, 'run', str(path), str(root)], env=env,

@@ -89,6 +89,13 @@ dimensiones deben quedar entre 12 y 720 puntos y caber en la página. Con `false
 se pueden conservar ajustes para una futura edición, pero no se carga la imagen
 ni se solicita un PDF para aplicar esa representación.
 
+`appearance.information` es un booleano opcional. Con `true` y una `image`, se
+compone la imagen con el sello de información del certificado debajo. Las medidas
+se aplican al conjunto, manteniendo la proporción de la imagen. La GUI activa
+esta opción inicialmente y guarda la elección de cada documento. Si se omite,
+se conserva el comportamiento de imagen sola de los flows anteriores. Sin
+`image`, se genera la marca predeterminada con su información habitual.
+
 ## Validación en lote
 
 ```json

@@ -206,6 +206,9 @@ bool sign_options_set(
 	case SIGN_OPTION_TSA_INTERMEDIATES:
 		args->tsa_intermediates = value;
 		return true;
+	case SIGN_OPTION_APPEARANCE_INFORMATION:
+		args->appearance_information = !strcmp(value, "true");
+		return true;
 	case SIGN_OPTION_NO_BUNDLED_CERTS:
 		args->no_bundled_certs = !strcmp(value, "true");
 		return true;
