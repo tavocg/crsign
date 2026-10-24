@@ -4,6 +4,7 @@
 #include <sign/gui/devices.h>
 #include <sign/gui/inventory.h>
 #include <sign/gui/window.h>
+#include <sign/ui_preferences.h>
 
 static guint widget_count(GtkWidget* widget) {
 	guint count = 1;
@@ -293,6 +294,16 @@ int main(int argc, char** argv) {
 	wait_text(view, "Software fixture", false);
 	gtk_check_button_set_active(hardware, FALSE);
 	wait_text(view, "Software fixture", true);
+	bool saved_hardware = true;
+	g_assert_true(ui_preferences_hardware_only(&saved_hardware, NULL));
+	g_assert_false(saved_hardware);
+	GtkWidget* restored = g_object_ref_sink(sign_devices_new());
+	g_assert_false(gtk_check_button_get_active(GTK_CHECK_BUTTON(named(
+	    sign_devices_header_menu(SIGN_DEVICES(restored)),
+	    "devices-hardware-only"
+	))));
+	g_object_unref(restored);
+
 	gtk_check_button_set_active(hardware, TRUE);
 	wait_text(view, "Software fixture", false);
 	phase(argv[1], "2");

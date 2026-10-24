@@ -17,6 +17,14 @@ int main(int argc, char** argv) {
 		}
 	} else if (!strcmp(argv[1], "set-view") && argc == 3) {
 		ok = ui_preferences_set_grid(!strcmp(argv[2], "grid"), &error);
+	} else if (!strcmp(argv[1], "hardware-only")) {
+		bool hardware_only = true;
+		ok = ui_preferences_hardware_only(&hardware_only, &error);
+		if (ok) {
+			puts(hardware_only ? "true" : "false");
+		}
+	} else if (!strcmp(argv[1], "set-hardware-only") && argc == 3) {
+		ok = ui_preferences_set_hardware_only(!strcmp(argv[2], "true"), &error);
 	} else if (!strcmp(argv[1], "record") && argc == 3) {
 		ok = history_record(argv[2], &error);
 	} else if (!strcmp(argv[1], "favorite") && argc == 4) {

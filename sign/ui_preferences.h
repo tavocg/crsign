@@ -5,4 +5,6 @@
 #include <stdbool.h>
 bool ui_preferences_grid(bool* grid, GError**);
 bool ui_preferences_set_grid(bool grid, GError**);
+bool ui_preferences_hardware_only(bool* hardware_only, GError**);
+bool ui_preferences_set_hardware_only(bool hardware_only, GError**);
 #endif

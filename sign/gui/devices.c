@@ -8,6 +8,7 @@
 #include <sign/gui/i18n.h>
 #include <sign/gui/inventory.h>
 #include <sign/modules.h>
+#include <sign/ui_preferences.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -723,10 +724,19 @@ static void refresh_clicked(GtkButton* button, gpointer data) {
 }
 static void hardware_toggled(GtkCheckButton* button, gpointer data) {
 	SignDevices* self = data;
-	g_atomic_int_set(
-	    &self->include_software,
-	    !gtk_check_button_get_active(button)
-	);
+	bool         hardware_only = gtk_check_button_get_active(button);
+	g_atomic_int_set(&self->include_software, !hardware_only);
+	GError* error = NULL;
+	if (!ui_preferences_set_hardware_only(hardware_only, &error)) {
+		GtkRoot* root = gtk_widget_get_root(GTK_WIDGET(self));
+		gui_error_dialog(
+		    GTK_IS_WINDOW(root) ? GTK_WINDOW(root) : NULL,
+		    _("Could not save display preference"),
+		    _("The display preference could not be saved. Check the "
+		      "application data file and its permissions.")
+		);
+		g_clear_error(&error);
+	}
 	sign_devices_refresh(self);
 }
 static void devices_unroot(GtkWidget* widget) {
@@ -805,7 +815,10 @@ static void sign_devices_init(SignDevices* self) {
 	GtkWidget* popover = gtk_popover_new();
 	GtkWidget* hardware = gtk_check_button_new_with_label(_("Hardware only"));
 	gtk_widget_set_name(hardware, "devices-hardware-only");
-	gtk_check_button_set_active(GTK_CHECK_BUTTON(hardware), TRUE);
+	bool hardware_only = true;
+	ui_preferences_hardware_only(&hardware_only, NULL);
+	g_atomic_int_set(&self->include_software, !hardware_only);
+	gtk_check_button_set_active(GTK_CHECK_BUTTON(hardware), hardware_only);
 	gtk_widget_set_margin_start(hardware, 12);
 	gtk_widget_set_margin_end(hardware, 12);
 	gtk_widget_set_margin_top(hardware, 12);

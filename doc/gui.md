@@ -55,15 +55,17 @@ limitan a 16 MiB para impedir que crezca accidentalmente sin control. Un archivo
 inválido o demasiado grande se conserva sin sobrescribirlo; un fallo al guardar
 el historial no invalida la firma que ya se guardó.
 
-`preferences.json` tiene su propia versión y conserva la vista de Inicio:
+`preferences.json` tiene su propia versión y conserva las preferencias de la interfaz:
 
 ```json
-{"version":1,"home":{"view":"grid"}}
+{"version":1,"home":{"view":"grid"},"devices":{"hardware_only":true}}
 ```
 
 `view` admite `grid` o `list`. La última selección se restaura al abrir otra
-ventana o reiniciar. La estructura permite añadir otras preferencias y conserva
-los campos desconocidos de la misma versión al modificar la vista. Las versiones
+ventana o reiniciar. `devices.hardware_only` conserva el filtro «Solo hardware»
+y usa `true` cuando aún no se ha configurado. La estructura permite añadir otras
+preferencias y conserva los campos desconocidos de la misma versión al guardar
+cualquier preferencia. Las versiones
 desconocidas se rechazan para evitar sobrescribir datos de una versión futura.
 El archivo de preferencias se limita a 64 KiB.
 

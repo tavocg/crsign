@@ -19,6 +19,8 @@ with tempfile.TemporaryDirectory(prefix='crsign-history-') as directory:
     assert not path.parent.exists()
     assert run('view').stdout.strip()==b'grid'
     assert not path.parent.exists()
+    assert run('hardware-only').stdout.strip()==b'true'
+    assert not path.parent.exists()
     run('set-view','list')
     preferences=path.parent/'preferences.json'
     settings=json.loads(preferences.read_text())
@@ -30,8 +32,26 @@ with tempfile.TemporaryDirectory(prefix='crsign-history-') as directory:
     saved=json.loads(preferences.read_text())
     assert saved['future']==settings['future'] and saved['home']['other']=='retained'
     assert run('view').stdout.strip()==b'grid'
+    run('set-hardware-only','false')
+    assert run('hardware-only').stdout.strip()==b'false'
+    run('set-view','list')
+    settings=json.loads(preferences.read_text())
+    assert settings['devices']['hardware_only'] is False
+    assert settings['home']['view']=='list' and settings['future']==saved['future']
+    settings['devices']['future']='retained'
+    preferences.write_text(json.dumps(settings))
+    run('set-hardware-only','true')
+    assert run('hardware-only').stdout.strip()==b'true'
+    assert json.loads(preferences.read_text())['devices']['future']=='retained'
+    for invalid in ('{"version":1,"devices":[]}',
+                    '{"version":1,"devices":{"hardware_only":"false"}}'):
+        preferences.write_text(invalid)
+        run('hardware-only',ok=False)
+        run('set-hardware-only','false',ok=False)
+        assert preferences.read_text()==invalid
     preferences.write_text('{"version":2}')
     run('set-view','list',ok=False)
+    run('set-hardware-only','false',ok=False)
     assert preferences.read_text()=='{"version":2}'
     preferences.write_text(' '* (64*1024+1))
     run('view',ok=False)
