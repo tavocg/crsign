@@ -322,3 +322,30 @@ disponibles Xvfb, D-Bus y `xdotool` (incluidos en `nix develop`). La prueba usa
 dos procesos GTK y movimientos reales del puntero en un escritorio aislado:
 transfiere varios archivos, negocia copia y comprueba que el origen no reciba
 una orden de borrado y que los archivos permanezcan intactos.
+
+## Diagnosticar fallos en una cola de firma
+
+Cierra primero la instancia abierta de crsign. Ejecuta desde una terminal y
+reproduce el fallo una vez:
+
+```sh
+G_MESSAGES_DEBUG=crsign-signing ./build/sign --gui > /tmp/crsign-signing.log 2>&1
+```
+
+Las líneas `crsign-signing-DEBUG` indican el número de archivo en la cola,
+la etapa, el resultado, el tiempo empleado y el `CK_RV` de firma. Las trazas
+propias de ese dominio no incluyen PIN, rutas de documentos, contenido,
+identificadores del token ni certificados. Otros mensajes de la aplicación o
+del driver pueden aparecer en el mismo archivo.
+
+Compara el último `phase=begin` con su `phase=end`: `modules-open` identifica
+la carga e inicialización del driver; `tokens` y `certificates`, la lectura;
+`pin-provider`, la obtención del PIN; `libssig-sign`, la firma y sus servicios
+de validación; `context-close`, la liberación del contexto; `output-write`,
+el guardado. Un `status` de timestamp/evidencias con `CK_RV=0` no demuestra un
+fallo del driver. Un código PKCS#11 tampoco identifica por sí solo su origen.
+
+Al informar un fallo, indica si ocurre en el primer archivo o en uno posterior,
+si los mismos archivos funcionan individualmente, el perfil/nivel utilizado y
+el modelo y versión del driver. Conserva el registro de esa ejecución para
+comparar las etapas sin repetir firmas a ciegas.

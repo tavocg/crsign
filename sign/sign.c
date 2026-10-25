@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+#define G_LOG_DOMAIN "crsign-signing"
 #include <glib.h>
 #include <p11-kit/pkcs11.h>
 #include <sign/appearance.h>
@@ -126,6 +127,7 @@ static libssig_status token_sign(
     const sign_execution*      execution,
     GError**                   error
 ) {
+	g_debug("stage=appearance phase=begin");
 	libssig_pdf_appearance appearance = {0};
 	unsigned char*         pixels = NULL;
 	if (!appearance_prepare(args, cert, &appearance, &pixels)) {
@@ -137,8 +139,10 @@ static libssig_status token_sign(
 		);
 		return LIBSSIG_ERROR_ARGUMENT;
 	}
+	g_debug("stage=appearance phase=end ok=1");
 	sign_buffer pin = {0};
 	if (pin_required(token)) {
+		g_debug("stage=pin-provider phase=begin");
 		bool ok = execution && execution->request_pin;
 		if (!ok) {
 			g_set_error_literal(
@@ -161,6 +165,7 @@ static libssig_status token_sign(
 			);
 			ok = false;
 		}
+		g_debug("stage=pin-provider phase=end ok=%d", ok);
 		if (!ok) {
 			if (error && !*error) {
 				g_set_error_literal(
@@ -199,10 +204,20 @@ static libssig_status token_sign(
 	    .mime_type = args->mime_type,
 	    .options = args->detached ? LIBSSIG_SIGN_DETACHED : 0,
 	};
+	g_debug(
+	    "stage=libssig-sign phase=begin format=%d level=%d",
+	    (int)args->format,
+	    (int)args->level
+	);
 	libssig_status
 	    status = appearance.page_number
 	                 ? libssig_sign_pdf(ctx, &params, &appearance, signature)
 	                 : libssig_sign(ctx, &params, signature);
+	g_debug(
+	    "stage=libssig-sign phase=end status=%d CK_RV=0x%lx",
+	    (int)status,
+	    signature->ck_rv
+	);
 	g_free(pixels);
 	pin_free(&pin);
 	return status;
@@ -211,7 +226,9 @@ static libssig_status token_sign(
 void sign_identity_close(sign_identity* identity) {
 	libssig_certificates_free(&identity->certificates);
 	libssig_tokens_free(&identity->tokens);
+	g_debug("stage=context-close phase=begin");
 	libssig_context_close(&identity->context);
+	g_debug("stage=context-close phase=end");
 	*identity = (sign_identity){0};
 }
 libssig_status sign_identity_open(
@@ -219,7 +236,9 @@ libssig_status sign_identity_open(
     sign_identity*      identity,
     GError**            error
 ) {
+	g_debug("stage=modules-open phase=begin");
 	libssig_status status = modules_open(options, &identity->context);
+	g_debug("stage=modules-open phase=end status=%d", (int)status);
 	if (status != LIBSSIG_OK) {
 		g_set_error_literal(
 		    error,
@@ -229,7 +248,13 @@ libssig_status sign_identity_open(
 		);
 	}
 	if (status == LIBSSIG_OK) {
+		g_debug("stage=tokens phase=begin");
 		status = libssig_tokens(&identity->context, &identity->tokens, 0);
+		g_debug(
+		    "stage=tokens phase=end status=%d count=%zu",
+		    (int)status,
+		    identity->tokens.count
+		);
 	}
 	if (status == LIBSSIG_OK) {
 		identity->token = token_find(options, &identity->tokens, error);
@@ -238,11 +263,17 @@ libssig_status sign_identity_open(
 		}
 	}
 	if (status == LIBSSIG_OK) {
+		g_debug("stage=certificates phase=begin");
 		status = libssig_certificates(
 		    &identity->context,
 		    identity->token,
 		    &identity->certificates,
 		    0
+		);
+		g_debug(
+		    "stage=certificates phase=end status=%d count=%zu",
+		    (int)status,
+		    identity->certificates.count
 		);
 	}
 	if (status == LIBSSIG_OK) {
@@ -289,7 +320,9 @@ bool sign_create(
 		    .hash = args->hash,
 		    .services = &services
 		};
+		g_debug("stage=libssig-extend phase=begin level=%d", (int)args->level);
 		libssig_status status = libssig_extend(&params, signature);
+		g_debug("stage=libssig-extend phase=end status=%d", (int)status);
 		free(original.data);
 		if (status != LIBSSIG_OK) {
 			g_set_error(
@@ -310,7 +343,9 @@ bool sign_create(
 	if (cert) {
 		char*        authority = NULL;
 		sign_options resolved = *args;
+		g_debug("stage=authority-selection phase=begin");
 		if (timestamp_authority(args, trust, cert, &authority)) {
+			g_debug("stage=authority-selection phase=end ok=1");
 			resolved.authority = authority;
 			status = token_sign(
 			    &resolved,
@@ -325,6 +360,7 @@ bool sign_create(
 			    error
 			);
 		} else {
+			g_debug("stage=authority-selection phase=end ok=0");
 			status = LIBSSIG_ERROR_ARGUMENT;
 		}
 		free(authority);
@@ -370,6 +406,11 @@ bool sign_create(
 		    signature->ck_rv
 		);
 	}
+	g_debug(
+	    "stage=sign-create phase=end status=%d CK_RV=0x%lx",
+	    (int)status,
+	    signature->ck_rv
+	);
 	sign_identity_close(&identity);
 	free(original.data);
 	return ok;

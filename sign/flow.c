@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+#define G_LOG_DOMAIN "crsign-signing"
 #include <jansson.h>
 #include <math.h>
 #include <p11-kit/uri.h>
@@ -831,6 +832,15 @@ bool sign_flow_run(
 		const sign_flow_item*      item = &flow->documents[i];
 		sign_flow_document_result* report = &result->documents[i];
 		report->attempted = true;
+		gint64 started = g_get_monotonic_time();
+		g_debug(
+		    "document=%zu/%zu operation=%s phase=begin",
+		    i + 1,
+		    flow->count,
+		    item->operation == SIGN_FLOW_VERIFY ? "verify"
+		    : item->options.extend              ? "extend"
+		                                        : "sign"
+		);
 		if (execution && execution->cancellable &&
 		    g_cancellable_set_error_if_cancelled(
 		        execution->cancellable,
@@ -854,6 +864,17 @@ bool sign_flow_run(
 			);
 			result->document = report->signing;
 		}
+		g_debug(
+		    "document=%zu/%zu phase=end ok=%d elapsed_ms=%" G_GINT64_FORMAT
+		    " CK_RV=0x%lx error_domain=%s error_code=%d",
+		    i + 1,
+		    flow->count,
+		    ok,
+		    (g_get_monotonic_time() - started) / 1000,
+		    report->signing.ck_rv,
+		    error && *error ? g_quark_to_string((*error)->domain) : "none",
+		    error && *error ? (*error)->code : 0
+		);
 		report->ok = ok;
 		if (ok) {
 			++result->completed;

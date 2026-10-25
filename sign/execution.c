@@ -54,7 +54,14 @@ bool sign_document_execute(
 	sign_buffer       input = {0};
 	sign_trust        trust = {0};
 	libssig_signature signature = {0};
+	g_log("crsign-signing", G_LOG_LEVEL_DEBUG, "stage=input-read phase=begin");
 	bool ok = file_load(resolved.input, &input, detail, sizeof(detail));
+	g_log(
+	    "crsign-signing",
+	    G_LOG_LEVEL_DEBUG,
+	    "stage=input-read phase=end ok=%d",
+	    ok
+	);
 	if (!ok) {
 		g_set_error_literal(error, SIGN_ERROR, SIGN_ERROR_INPUT, detail);
 	}
@@ -83,7 +90,18 @@ bool sign_document_execute(
 		ok = false;
 	}
 	if (ok) {
+		g_log(
+		    "crsign-signing",
+		    G_LOG_LEVEL_DEBUG,
+		    "stage=trust-load phase=begin"
+		);
 		ok = trust_load_full(&resolved, &trust, error);
+		g_log(
+		    "crsign-signing",
+		    G_LOG_LEVEL_DEBUG,
+		    "stage=trust-load phase=end ok=%d",
+		    ok
+		);
 	}
 	if (ok) {
 		ok = sign_create(
@@ -103,12 +121,23 @@ bool sign_document_execute(
 		);
 	}
 	if (ok) {
+		g_log(
+		    "crsign-signing",
+		    G_LOG_LEVEL_DEBUG,
+		    "stage=output-write phase=begin"
+		);
 		ok = (resolved.overwrite ? file_save_replace : file_save)(
 		    resolved.output,
 		    signature.data,
 		    signature.len,
 		    detail,
 		    sizeof(detail)
+		);
+		g_log(
+		    "crsign-signing",
+		    G_LOG_LEVEL_DEBUG,
+		    "stage=output-write phase=end ok=%d",
+		    ok
 		);
 		if (!ok) {
 			g_set_error_literal(error, SIGN_ERROR, SIGN_ERROR_OUTPUT, detail);

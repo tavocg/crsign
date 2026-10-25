@@ -185,4 +185,29 @@ with tempfile.TemporaryDirectory(prefix='crsign-flow-crypto-') as directory:
     assert b'/Subtype /Image' not in (root/'invisible.pdf').read_bytes()
     for filename in ('payload.bin','page.pdf'):
         assert (root/filename).read_bytes() == (contents if filename == 'payload.bin' else pdf())
+    # Opt-in diagnostics identify the failed queue entry without document,
+    # certificate or token identifiers. Later entries must remain unattempted.
+    trace_input = 'private-document-name.bin'
+    (root/trace_input).write_bytes(b'private-document-content-marker')
+    path.write_text(json.dumps(dict(version=1, documents=[
+        dict(input=trace_input, output='trace-first.p7m', level='B-B'),
+        dict(input='private-missing-document.bin', output='trace-second.p7m', level='B-B'),
+        dict(input=trace_input, output='trace-never.p7m', level='B-B')])) )
+    traced = subprocess.run([flow_driver, 'run', str(path), str(root)],
+                            env=dict(env, G_MESSAGES_DEBUG='crsign-signing'),
+                            capture_output=True, text=True, timeout=30)
+    assert traced.returncode != 0
+    trace = '\n'.join(line for line in (traced.stdout + traced.stderr).splitlines()
+                      if 'crsign-signing-DEBUG' in line)
+    assert 'document=1/3 operation=sign phase=begin' in trace, trace
+    assert 'document=1/3 phase=end ok=1' in trace, trace
+    assert 'document=2/3 phase=end ok=0' in trace, trace
+    assert 'document=3/3' not in trace, trace
+    for stage in ('modules-open', 'tokens', 'certificates', 'pin-provider',
+                  'libssig-sign', 'context-close', 'output-write'):
+        assert 'stage=' + stage + ' phase=begin' in trace, (stage, trace)
+    assert 'CK_RV=0x0' in trace, trace
+    for private in (trace_input, 'private-document-content-marker', 'Flow signer',
+                    str(root), 'pin=', 'pkcs11:'):
+        assert private not in trace, (private, trace)
 print('Real flow signing, batch verification and mixed flows passed')
