@@ -31,6 +31,20 @@ def macho(*dependencies, rpath=None, identity=False):
 
 
 class Packaging(unittest.TestCase):
+    def test_opensc_build_copy_normalizes_templates_only(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            original, copied = root / 'checkout', root / 'build-source'
+            original.mkdir()
+            (original / 'configure.ac').write_bytes(b'AC_CHECK_HEADERS([a \\\r\n b])\r\n')
+            (original / 'fixture.der').write_bytes(b'\x00\r\n\xff')
+            (original / '.git').write_text('gitdir: unused\n')
+            opensc.prepare_source(original, copied)
+            self.assertIn(b'\r\n', (original / 'configure.ac').read_bytes())
+            self.assertNotIn(b'\r', (copied / 'configure.ac').read_bytes())
+            self.assertEqual((copied / 'fixture.der').read_bytes(), b'\x00\r\n\xff')
+            self.assertFalse((copied / '.git').exists())
+
     def test_source_archive_includes_vendor_sources(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

@@ -24,6 +24,20 @@ def configure_path(path):
     return path.as_posix()
 
 
+def prepare_source(original, source):
+    if source.exists():
+        shutil.rmtree(source)
+    shutil.copytree(original, source, ignore=shutil.ignore_patterns('.git'))
+    # Git's Windows checkout may use CRLF. Autoconf then misreads continued
+    # macro arguments (e.g. " sys/time.h") and silently misses valid headers.
+    # Normalize only build templates, never binary fixtures or the checkout.
+    for path in source.rglob('*'):
+        if path.is_file() and path.suffix in ('.ac', '.am', '.m4', '.in'):
+            data = path.read_bytes()
+            if b'\r\n' in data:
+                path.write_bytes(data.replace(b'\r\n', b'\n'))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source', type=Path, required=True)
@@ -34,9 +48,7 @@ def main():
     original, workspace, prefix = (p.resolve() for p in (args.source, args.build, args.prefix))
     # Autoreconf generates files: keep the pinned checkout untouched.
     source, build = workspace / 'source', workspace / 'work'
-    if source.exists():
-        shutil.rmtree(source)
-    shutil.copytree(original, source, ignore=shutil.ignore_patterns('.git'))
+    prepare_source(original, source)
     build.mkdir(parents=True, exist_ok=True)
     env = dict(os.environ)
     if os.name == 'nt' and env.get('ACLOCAL_PATH'):
