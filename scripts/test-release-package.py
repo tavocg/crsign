@@ -4,6 +4,7 @@
 import argparse
 import json
 import os
+import ntpath
 from pathlib import Path
 import shutil
 import subprocess
@@ -109,7 +110,9 @@ def main():
                 def convert(path):
                     return subprocess.check_output(['winepath', '-w', str(path)], env=env, text=True).strip()
             else:
-                convert = str
+                # MinGW Python renders paths with forward slashes. Windows
+                # Installer requires native paths for its command-line parser.
+                convert = lambda path: ntpath.normpath(str(path))
                 # Installed application must resolve its own DLLs.
                 system = Path(env.get('SystemRoot', env.get('SYSTEMROOT', 'C:/Windows')))
                 env['PATH'] = os.pathsep.join(map(str, [system / 'System32', system]))
@@ -117,7 +120,8 @@ def main():
             install_path = convert(install)
             def installer(action):
                 log = directory / ('install.log' if action == '/i' else 'uninstall.log')
-                command = [*prefix, 'msiexec', action, convert(package), '/qn', '/norestart',
+                executable = 'msiexec' if args.wine else convert(system / 'System32/msiexec.exe')
+                command = [*prefix, executable, action, convert(package), '/qn', '/norestart',
                            '/l*v', convert(log), 'INSTALLFOLDER=' + install_path]
                 try:
                     result = subprocess.run(command, env=env, timeout=600)
