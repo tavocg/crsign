@@ -87,7 +87,7 @@ jobs:
           msystem: UCRT64
           update: true
           install: >-
-            autoconf automake libtool make
+            git autoconf automake libtool make
             mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake
             mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-pkgconf
             mingw-w64-ucrt-x86_64-python mingw-w64-ucrt-x86_64-openssl
@@ -125,10 +125,11 @@ jobs:
           & $python scripts/test-release-package.py build/dist/CRSign-windows-x86_64.msi --openssl "$env:RUNNER_TEMP/msys64/ucrt64/bin/openssl.exe"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: windows-x86_64
           path: build/dist/*.msi
-          if-no-files-found: error
+          if-no-files-found: ignore
           compression-level: 0
           retention-days: 7
 

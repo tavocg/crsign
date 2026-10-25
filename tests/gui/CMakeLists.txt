@@ -66,7 +66,7 @@ if(UNIX AND NOT APPLE)
             LC_ALL=en_US.UTF-8 LANGUAGE=es GDK_BACKEND=x11 GSK_RENDERER=cairo GTK_A11Y=none
             ADW_DISABLE_PORTAL=1 GIO_USE_VFS=local GSETTINGS_BACKEND=memory G_DEBUG=fatal-criticals
             "${DBUS_RUN_SESSION_EXECUTABLE}" --config-file "${CMAKE_CURRENT_SOURCE_DIR}/session.conf"
-            -- "${XVFB_RUN_EXECUTABLE}" -a "--server-args=-screen 0 1280x1024x24")
+            -- "${XVFB_RUN_EXECUTABLE}" -a "--server-args=-screen 0 1280x1024x24 -noreset")
         add_test(NAME gui_navigation COMMAND ${GUI_TEST_COMMAND}
             $<TARGET_FILE:gui_navigation_test> "${CMAKE_CURRENT_BINARY_DIR}/snapshots")
         if(EXISTS "${PROJECT_SOURCE_DIR}/vendor/libssig/tests/document_sign_fixture.c")
