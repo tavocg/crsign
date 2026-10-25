@@ -17,8 +17,8 @@ else:
     imports = re.findall(r'\(NEEDED\).*?\[(.*?)\]', output)
 
 assert imports, f'No dynamic imports found in {binary}: {output}'
-# Only libssig is required to be static. Other libraries follow their packages.
+# libssig and the embedded OpenSC provider must have no dynamic imports.
 for dependency in imports:
     name = Path(dependency).name.lower()
-    assert not re.match(r'(lib)?(ssig)([-.\d]|$)', name), dependency
-print('Static libssig verified; other direct imports:', ', '.join(imports))
+    assert not re.match(r'(lib)?(ssig|opensc|crsign-opensc)([-.\d]|$)', name), dependency
+print('Static libssig and OpenSC verified; other direct imports:', ', '.join(imports))

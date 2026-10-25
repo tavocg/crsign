@@ -1,6 +1,6 @@
 # Construcción
 
-Requiere CMake, un compilador C99, argp, libssig >= 0.2.0, libcurl >= 7.85,
+Requiere CMake, un compilador C99, argp, libssig >= 0.2.1, libcurl >= 7.85,
 pkg-config, GLib >= 2.40/GIO, Jansson >= 2.11, p11-kit, librsvg >= 2.52, GdkPixbuf, Cairo/PangoCairo y tomlc17 (API con `toml_get`, por ejemplo 20260501).
 La interfaz gráfica también requiere GTK >= 4.10, libadwaita >= 1.4, Poppler GLib >= 0.82, QPDF (API C) y GNU gettext
 (herramientas `msgfmt`, `msgmerge` y `xgettext`, además de libintl cuando no forma parte de libc). GLib/GIO y tomlc17 se usan igualmente
@@ -15,6 +15,14 @@ si no está, busca el encabezado y la biblioteca externos. Se pueden indicar
 explícitamente con `-DARGP_INCLUDE_DIR=/ruta/include`
 y `-DARGP_LIBRARY=/ruta/lib/libargp.a` (o la biblioteca equivalente del sistema).
 No se descargan dependencias durante la configuración.
+
+OpenSC se enlaza estáticamente desde un commit de `master` fijado en
+`packaging/opensc.json`. `nix develop` prepara `libcrsign-opensc.a`; en Windows y
+macOS lo prepara `scripts/bootstrap-native.py`. Para otros entornos, usa ese
+bootstrap con Autoconf, Automake, Libtool, Make y los encabezados de PC/SC
+instalados, y añade su prefijo a `CMAKE_PREFIX_PATH`. El bootstrap es el paso
+explícito que descarga fuentes y verifica su SHA-256; CMake permanece offline.
+El servicio PC/SC y los controladores del lector siguen siendo del sistema.
 
 En Windows, la CLI obtiene los argumentos desde la línea de comandos Unicode y
 los convierte a UTF-8 para las rutas, perfiles y opciones, conservando la sintaxis
@@ -31,7 +39,7 @@ se rechazan; no se truncan. El búfer se borra antes de liberarlo tras el intent
 Los tokens con teclado propio no solicitan un PIN en la CLI.
 
 La CI compila y prueba la aplicación completa con GTK (`HEADLESS=OFF`) en Linux,
-Windows UCRT64 y macOS con una sola configuración: libssig estática y
+Windows UCRT64 y macOS con una sola configuración: libssig y OpenSC estáticos y
 dependencias del sistema. Los workflows no generan ni suben paquetes
 distribuibles.
 El firmado con un token físico se comprueba por separado con el controlador del

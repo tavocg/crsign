@@ -9,7 +9,7 @@ import subprocess
 import sys
 import tempfile
 
-sign, driver, mock, first, second, broken = map(lambda x: str(Path(x).resolve()), sys.argv[1:])
+sign, driver, mock, first, second, broken, embedded = map(lambda x: str(Path(x).resolve()), sys.argv[1:])
 with tempfile.TemporaryDirectory(prefix='sign-modules-') as temporary:
     root = Path(temporary)
     env = dict(os.environ, HOME=str(root / 'home'), XDG_CONFIG_HOME=str(root / 'config'))
@@ -52,6 +52,7 @@ with tempfile.TemporaryDirectory(prefix='sign-modules-') as temporary:
         return [str(Path(path)) for path in json.loads(run(driver, source, *args).stdout)['modules']]
 
     # No configuration, omitted modules and [] preserve registered discovery.
+    run(embedded)
     assert labels() == {'Sign-first'}
     assert labels('-m', second) == {'Sign-second'}
     assert options('-m', second) == [second]

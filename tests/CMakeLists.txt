@@ -4,6 +4,8 @@
 # library symbols. Static archives may pull the real symbols into the same link
 # through other library APIs (for example device inventory).
 function(sign_test_token_api target)
+    # Token doubles own their synthetic contexts and never touch real readers.
+    target_compile_definitions(${target} PRIVATE SIGN_TEST_EXTERNAL_MODULES)
     foreach(symbol context_open context_open_modules context_close
                    tokens tokens_free certificates certificates_free)
         target_compile_definitions(${target} PRIVATE
@@ -66,7 +68,7 @@ set_tests_properties(trust_cli PROPERTIES TIMEOUT 90)
 add_executable(sign_mock ${SIGN_SOURCES} token_mock.c)
 sign_test_signing_api(sign_mock)
 target_include_directories(sign_mock PRIVATE "${PROJECT_SOURCE_DIR}")
-target_link_libraries(sign_mock PRIVATE Argp::Argp libssig::ssig CURL::libcurl OpenSSL::Crypto sign_config_deps PkgConfig::GIO sign_image_deps PkgConfig::JANSSON PkgConfig::P11_KIT)
+target_link_libraries(sign_mock PRIVATE Argp::Argp libssig::ssig CURL::libcurl OpenSSL::Crypto sign_config_deps PkgConfig::GIO sign_image_deps PkgConfig::JANSSON PkgConfig::P11_KIT sign_opensc_deps)
 target_compile_definitions(sign_mock PRIVATE SIGN_VERSION="${PROJECT_VERSION}")
 target_compile_options(sign_mock PRIVATE "$<$<COMPILE_LANGUAGE:C>:-Wall;-Wextra;-Wpedantic;-Werror>")
 if(NOT HEADLESS)
@@ -110,7 +112,7 @@ target_include_directories(bundle_catalog PRIVATE "${PROJECT_SOURCE_DIR}")
 target_link_libraries(bundle_catalog PRIVATE libssig::ssig PkgConfig::GLIB)
 add_executable(sign_bundles ${BUNDLE_SOURCES} $<TARGET_OBJECTS:bundle_catalog>)
 target_include_directories(sign_bundles PRIVATE "${PROJECT_SOURCE_DIR}")
-target_link_libraries(sign_bundles PRIVATE Argp::Argp libssig::ssig CURL::libcurl OpenSSL::Crypto sign_config_deps PkgConfig::GIO sign_image_deps PkgConfig::JANSSON PkgConfig::P11_KIT)
+target_link_libraries(sign_bundles PRIVATE Argp::Argp libssig::ssig CURL::libcurl OpenSSL::Crypto sign_config_deps PkgConfig::GIO sign_image_deps PkgConfig::JANSSON PkgConfig::P11_KIT sign_opensc_deps)
 target_compile_definitions(sign_bundles PRIVATE SIGN_VERSION="${PROJECT_VERSION}")
 target_compile_options(sign_bundles PRIVATE "$<$<COMPILE_LANGUAGE:C>:-Wall;-Wextra;-Wpedantic;-Werror>")
 if(NOT HEADLESS)
@@ -188,10 +190,15 @@ foreach(module IN ITEMS first second broken)
     target_compile_options(pkcs11_${module} PRIVATE -Wall -Wextra -Wpedantic -Werror)
 endforeach()
 target_compile_definitions(pkcs11_broken PRIVATE MODULE_FAIL)
+add_executable(embedded_opensc_test embedded_opensc.c ../sign/modules.c)
+target_include_directories(embedded_opensc_test PRIVATE "${PROJECT_SOURCE_DIR}")
+target_link_libraries(embedded_opensc_test PRIVATE libssig::ssig PkgConfig::GLIB PkgConfig::P11_KIT sign_opensc_deps)
+target_compile_options(embedded_opensc_test PRIVATE -UNDEBUG -Wall -Wextra -Wpedantic -Werror)
 add_test(NAME modules_cli COMMAND "${Python3_EXECUTABLE}"
     "${CMAKE_CURRENT_SOURCE_DIR}/modules_cli.py" $<TARGET_FILE:sign>
     $<TARGET_FILE:args_driver> $<TARGET_FILE:sign_mock>
-    $<TARGET_FILE:pkcs11_first> $<TARGET_FILE:pkcs11_second> $<TARGET_FILE:pkcs11_broken>)
+    $<TARGET_FILE:pkcs11_first> $<TARGET_FILE:pkcs11_second> $<TARGET_FILE:pkcs11_broken>
+    $<TARGET_FILE:embedded_opensc_test>)
 set_tests_properties(modules_cli PROPERTIES TIMEOUT 30)
 
 add_test(NAME native_packaging COMMAND "${Python3_EXECUTABLE}"

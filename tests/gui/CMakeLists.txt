@@ -54,7 +54,7 @@ foreach(target IN LISTS GUI_TEST_TARGETS)
     target_include_directories(${target} PRIVATE "${PROJECT_SOURCE_DIR}")
     target_link_libraries(${target} PRIVATE sign_gui_deps sign_config_deps
         Argp::Argp libssig::ssig OpenSSL::Crypto PkgConfig::GIO
-        CURL::libcurl sign_image_deps PkgConfig::JANSSON PkgConfig::P11_KIT)
+        CURL::libcurl sign_image_deps PkgConfig::JANSSON PkgConfig::P11_KIT sign_opensc_deps)
     target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic -Werror)
 endforeach()
 # Native builds compile the test; Linux can exercise real allocations in Xvfb.

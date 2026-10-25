@@ -44,6 +44,7 @@ endif()
 find_path(TOMLC17_INCLUDE_DIR tomlc17.h REQUIRED)
 find_library(TOMLC17_LIBRARY NAMES tomlc17 REQUIRED)
 include(Libssig)
+include(OpenSC)
 
 add_library(sign_config_deps INTERFACE)
 target_include_directories(sign_config_deps INTERFACE "${TOMLC17_INCLUDE_DIR}")
@@ -119,7 +120,7 @@ endif()
 
 add_executable(sign ${SIGN_SOURCES})
 
-target_link_libraries(sign PRIVATE Argp::Argp libssig::ssig CURL::libcurl OpenSSL::Crypto sign_config_deps PkgConfig::GIO sign_image_deps PkgConfig::JANSSON PkgConfig::P11_KIT)
+target_link_libraries(sign PRIVATE Argp::Argp libssig::ssig CURL::libcurl OpenSSL::Crypto sign_config_deps PkgConfig::GIO sign_image_deps PkgConfig::JANSSON PkgConfig::P11_KIT sign_opensc_deps)
 
 target_include_directories(sign PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"

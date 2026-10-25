@@ -744,9 +744,9 @@ static void monitor_worker(
 				    detail
 				);
 			} else {
-				libssig_status status = libssig_context_open_modules(
-				    &context,
-				    &settings.options.modules
+				libssig_status status = modules_open(
+				    &settings.options,
+				    &context
 				);
 				if (status != LIBSSIG_OK) {
 					g_set_error_literal(

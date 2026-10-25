@@ -13,9 +13,12 @@ jobs:
         with:
           submodules: true
       - name: Install dependencies
-        run: brew install cmake pkgconf openssl@3 argp-standalone p11-kit libmagic qpdf jansson libxml2 poppler glib gtk4 librsvg libadwaita gettext
-      - name: Build TOML parser
-        run: python3 scripts/bootstrap-native.py --prefix "$PWD/build/native-prefix"
+        run: brew install cmake pkgconf openssl@3 argp-standalone p11-kit libmagic qpdf jansson libxml2 poppler glib gtk4 librsvg libadwaita gettext autoconf automake libtool
+      - name: Build TOML parser and embedded OpenSC
+        run: |
+          export PKG_CONFIG_PATH="$(brew --prefix openssl@3)/lib/pkgconfig"
+          export CFLAGS="-O2 -mmacosx-version-min=14.0"
+          python3 scripts/bootstrap-native.py --prefix "$PWD/build/native-prefix"
       - name: Configure and build CRSign
         run: |
           export PKG_CONFIG_PATH="$(brew --prefix libxml2)/lib/pkgconfig:$(brew --prefix openssl@3)/lib/pkgconfig:$(brew --prefix libmagic)/lib/pkgconfig"
@@ -50,6 +53,7 @@ jobs:
           msystem: UCRT64
           update: true
           install: >-
+            autoconf automake libtool make
             mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake
             mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-pkgconf
             mingw-w64-ucrt-x86_64-python mingw-w64-ucrt-x86_64-openssl
@@ -61,7 +65,7 @@ jobs:
             mingw-w64-ucrt-x86_64-gtk4 mingw-w64-ucrt-x86_64-curl-winssl
             mingw-w64-ucrt-x86_64-librsvg mingw-w64-ucrt-x86_64-libadwaita
             mingw-w64-ucrt-x86_64-gettext-tools
-      - name: Build TOML parser and argp
+      - name: Build TOML parser, argp and embedded OpenSC
         run: python scripts/bootstrap-native.py --prefix "$PWD/build/native-prefix" --with-argp
       - name: Configure and build CRSign
         run: |

@@ -180,7 +180,8 @@ La aplicación comprueba cambios aproximadamente cada segundo mediante eventos
 no bloqueantes del módulo y los metadatos de slots y tarjetas. Al retirar,
 insertar o cambiar una tarjeta vuelve a cargar la información. Se conserva el
 botón «Actualizar», a la derecha del resumen, que además vuelve a leer la configuración global de
-módulos y certificados. Si no se especifican módulos, se usa p11-kit.
+módulos y certificados. Si no se especifican módulos, se usa OpenSC embebido
+junto con los módulos descubiertos por p11-kit.
 
 La barra superior muestra siempre el estado con texto atenuado a la izquierda
 y «Actualizar» a la derecha. Sin lectores indica «No se encontraron lectores»;
@@ -246,7 +247,7 @@ Cada ajuste distingue los estados siguientes:
 Las cadenas vacías (`token = ""`, `hash = ""`, etc.) restauran los valores
 predeterminados correspondientes. Las opciones booleanas también admiten `""`
 para ese estado, además de `true` y `false`. En listas, el valor vacío es `[]`:
-`modules = []` usa p11-kit y `pincmd = []` solicita el PIN interactivamente.
+`modules = []` usa OpenSC embebido y p11-kit; `pincmd = []` solicita el PIN interactivamente.
 La ausencia del campo en un perfil conserva su herencia global.
 
 La lista personalizada de módulos tiene un botón para agregar rutas y otro para

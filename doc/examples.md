@@ -88,7 +88,12 @@ La CLI permite repetir `-m PATH` o `--module PATH` para indicar los módulos:
 sign tokens -m /ruta/modulo1.so -m /ruta/modulo2.so
 ```
 
-Sin `modules`, se conserva la detección de módulos registrados en p11-kit.
+Sin `modules` (o con `modules = []`), se usa OpenSC embebido junto con los
+módulos registrados en p11-kit, incluidos los de
+`~/.config/pkcs11/modules/vendor.module`. No hace falta instalar el módulo
+PKCS#11 de OpenSC. Una lista explícita o `-m` selecciona únicamente esos módulos;
+no añade OpenSC ni los descubiertos automáticamente. Si varios proveedores
+exponen la misma tarjeta, utiliza `-m` para seleccionar el proveedor deseado.
 Para cargar una o varias bibliotecas directamente, configura una lista global o
 por perfil:
 

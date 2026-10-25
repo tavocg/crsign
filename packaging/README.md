@@ -21,14 +21,17 @@ las bibliotecas de Homebrew pueden elevar el mínimo efectivo del paquete.
 No se genera un binario universal a partir de bibliotecas de una sola arquitectura.
 
 El workflow contiene la lista exacta de paquetes de cada gestor. libssig se
-incorpora estáticamente; las otras bibliotecas se toman de Homebrew/MSYS2.
+incorpora estáticamente junto con OpenSC; las otras bibliotecas se toman de Homebrew/MSYS2.
 Windows usa `curl-winssl` (Schannel); macOS usa libcurl del SDK/sistema para
 conservar la confianza TLS nativa. Las actualizaciones de los paquetes no
 requieren cambiar fuentes o hashes de OpenSSL, JSON, XML o PDF en CRSign.
 
-`bootstrap-native.py` solo compila tomlc17 **R20260501** y, con `--with-argp`,
-argp-standalone **1.2.0** para MinGW. macOS usa argp de Homebrew. Estos dos
-fallbacks producen archivos estáticos; no son una segunda variante de CRSign.
+`bootstrap-native.py` compila tomlc17 **R20260501**, OpenSC desde el commit de
+`master` fijado en `opensc.json` y, con `--with-argp`, argp-standalone **1.2.0**
+para MinGW. macOS usa argp de Homebrew. Todos producen archivos estáticos.
+OpenSC requiere Autoconf, Automake, Libtool y Make durante la construcción.
+Para actualizarlo, fija un nuevo commit de `master` y el SHA-256 de su archivo
+fuente en `opensc.json`, y verifica el CI de los tres sistemas.
 Las descargas tienen SHA-256 fijado y se verifican también al reutilizar la caché.
 CMake no descarga dependencias durante la configuración.
 
@@ -65,7 +68,8 @@ permite indicar la base que corresponde a la versión de libmagic enlazada.
 
 El paquete Windows es portable: el ZIP contiene `bin/sign.exe`, sus DLL y los
 recursos necesarios. Se extrae y se ejecuta sin instalar esas bibliotecas por
-separado. El controlador PKCS#11 del proveedor sigue siendo externo.
+separado. OpenSC está integrado; otros módulos PKCS#11 y los controladores de
+lectores siguen siendo externos.
 En macOS, el script genera una carpeta reubicable y un `.tar.gz`; todavía no
 crea un bundle `.app` ni realiza notarización.
 

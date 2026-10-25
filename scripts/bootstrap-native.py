@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Build only tomlc17 and optional argp when native packages are unavailable.
+"""Build tomlc17, embedded OpenSC and optional argp from pinned sources.
 
 Network access is explicit here; application/library CMake configure stays offline.
 Cached archives are always verified, including when --offline is used.
@@ -8,9 +8,11 @@ Cached archives are always verified, including when --offline is used.
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tarfile
 import urllib.request
 
@@ -20,6 +22,8 @@ SOURCES = {
     'argp': ('1.2.0', 'https://codeload.github.com/tom42/argp-standalone/tar.gz/refs/tags/v1.2.0',
              '0c298d55c5df1fd5510308b7b5b2617d2346489127a798d0c9999b7843d3eb33'),
 }
+OPENSC_PIN = json.loads((Path(__file__).resolve().parents[1] / 'packaging/opensc.json').read_text())
+SOURCES['opensc'] = (OPENSC_PIN['revision'], OPENSC_PIN['url'], OPENSC_PIN['sha256'])
 
 
 def fetch(name, cache, offline):
@@ -50,6 +54,10 @@ def fetch(name, cache, offline):
                 target.parent.mkdir(parents=True, exist_ok=True)
                 with source.extractfile(member) as inp, target.open('wb') as out:
                     shutil.copyfileobj(inp, out)
+            elif member.issym():
+                # OpenSC's README alias is not needed to compile. Do not follow
+                # or create archive symlinks, including on Windows.
+                continue
             else:
                 raise RuntimeError(f'Unsupported archive member: {member.name}')
     return directory, archive
@@ -64,7 +72,7 @@ def main():
     args = parser.parse_args()
     cache, prefix = args.cache.resolve(), args.prefix.resolve()
     cache.mkdir(parents=True, exist_ok=True)
-    names = ['tomlc17', 'argp'] if args.with_argp else ['tomlc17']
+    names = ['tomlc17', 'opensc', 'argp'] if args.with_argp else ['tomlc17', 'opensc']
     inputs = {name: fetch(name, cache, args.offline) for name in names}
     project = cache / 'project'
     project.mkdir(exist_ok=True)
@@ -89,6 +97,10 @@ install(FILES "{argp}/include/argp-standalone/argp.h" DESTINATION include)
                     '-DCMAKE_BUILD_TYPE=Release', f'-DCMAKE_INSTALL_PREFIX={prefix}'], check=True)
     subprocess.run(['cmake', '--build', str(cache / 'build'), '--config', 'Release', '--parallel', '4'], check=True)
     subprocess.run(['cmake', '--install', str(cache / 'build'), '--config', 'Release'], check=True)
+    subprocess.run([sys.executable,
+                    str(Path(__file__).with_name('build-opensc.py')),
+                    '--source', str(inputs['opensc'][0]), '--build', str(cache / 'opensc-build'),
+                    '--prefix', str(prefix)], check=True)
     notices = prefix / 'share/crsign-deps'
     notices.mkdir(parents=True, exist_ok=True)
     for name, (source, archive) in inputs.items():
