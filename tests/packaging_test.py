@@ -19,6 +19,8 @@ def module(name, file):
 package = module('package_native', 'scripts/package-native.py')
 bootstrap = module('bootstrap_native', 'scripts/bootstrap-native.py')
 opensc = module('build_opensc', 'scripts/build-opensc.py')
+msi = module('package_msi', 'scripts/package-msi.py')
+release = module('release_version', 'scripts/release-version.py')
 
 
 def macho(*dependencies, rpath=None, identity=False):
@@ -31,6 +33,23 @@ def macho(*dependencies, rpath=None, identity=False):
 
 
 class Packaging(unittest.TestCase):
+    def test_release_versions_and_msi_component_stability(self):
+        self.assertEqual(release.version('v1.2.3-beta.1', 9), '1.2.3')
+        self.assertEqual(release.version('staging', 9), '0.0.9')
+        with self.assertRaises(ValueError):
+            release.version('v1.2.65536', 1)
+        with tempfile.TemporaryDirectory() as temporary:
+            payload = Path(temporary)
+            (payload / 'bin').mkdir()
+            (payload / 'bin/sign.exe').write_bytes(b'exe')
+            one, two = msi.author(payload, '1.2.3'), msi.author(payload, '1.2.4')
+            ns = {'w': msi.NS}
+            first = [e.attrib['Guid'] for e in one.findall('.//w:Component', ns)]
+            second = [e.attrib['Guid'] for e in two.findall('.//w:Component', ns)]
+            self.assertEqual(first, second)
+            self.assertEqual(one.find('.//w:Package', ns).attrib['Scope'], 'perUser')
+            self.assertEqual(one.find('.//w:Shortcut', ns).attrib['Arguments'], '--gui')
+
     def test_opensc_build_copy_normalizes_templates_only(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

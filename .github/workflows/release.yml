@@ -1,0 +1,177 @@
+name: Release packages
+
+on:
+  push:
+    tags: ['**']
+    # Preflight packaging changes without creating tags or publishing releases.
+    branches: [staging]
+    paths:
+      - '.github/workflows/release.yml'
+      - 'packaging/release/**'
+      - 'scripts/package-*.py'
+      - 'scripts/test-release-package.py'
+      - 'scripts/build-release-linux.sh'
+      - 'scripts/release-version.py'
+      - 'scripts/windows-icon.py'
+      - 'packaging/icon-rounded.svg'
+      - 'packaging/windows.rc.in'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  RELEASE_REF: ${{ github.ref_name }}
+  RELEASE_BUILD: ${{ github.run_number }}
+
+jobs:
+  linux:
+    name: AppImage (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: x86_64
+          - runner: ubuntu-24.04-arm
+            arch: aarch64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Prepare build environment
+        run: |
+          test "$(uname -m)" = '${{ matrix.arch }}'
+          echo "RELEASE_VERSION=$(python3 scripts/release-version.py --tag "$RELEASE_REF" --build "$RELEASE_BUILD")" >> "$GITHUB_ENV"
+          docker build -f packaging/release/linux-build.Dockerfile -t crsign-release-build .
+      - name: Build, test and bundle AppImage
+        run: |
+          docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -e RELEASE_VERSION \
+            -v "$PWD:/work" crsign-release-build bash scripts/build-release-linux.sh
+      - name: Test AppImage without developer libraries
+        run: |
+          docker build -f packaging/release/linux-test.Dockerfile -t crsign-release-test .
+          docker run --rm --init -v "$PWD:/src:ro" -v "$PWD/build/dist:/packages:ro" \
+            crsign-release-test xvfb-run -a dbus-run-session -- \
+            python3 /src/scripts/test-release-package.py '/packages/CRSign-linux-${{ matrix.arch }}.AppImage'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-${{ matrix.arch }}
+          path: build/dist/*.AppImage
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
+
+  windows:
+    name: MSI (x86_64)
+    runs-on: windows-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: msys2 {0}
+    env:
+      PYTHONUTF8: '1'
+      DOTNET_ROLL_FORWARD: Major
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            autoconf automake libtool make
+            mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-pkgconf
+            mingw-w64-ucrt-x86_64-python mingw-w64-ucrt-x86_64-openssl
+            mingw-w64-ucrt-x86_64-p11-kit mingw-w64-ucrt-x86_64-file
+            mingw-w64-ucrt-x86_64-qpdf mingw-w64-ucrt-x86_64-jansson
+            mingw-w64-ucrt-x86_64-libxml2 mingw-w64-ucrt-x86_64-poppler
+            mingw-w64-ucrt-x86_64-glib2 mingw-w64-ucrt-x86_64-gtk4
+            mingw-w64-ucrt-x86_64-curl-winssl mingw-w64-ucrt-x86_64-librsvg
+            mingw-w64-ucrt-x86_64-libadwaita mingw-w64-ucrt-x86_64-gettext-tools
+      - name: Build and test
+        run: |
+          test "$(uname -m)" = x86_64
+          release_version=$(python scripts/release-version.py --tag "$RELEASE_REF" --build "$RELEASE_BUILD")
+          echo "RELEASE_VERSION=$release_version" >> "$GITHUB_ENV"
+          python scripts/bootstrap-native.py --prefix "$PWD/build/native-prefix" --with-argp
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DHEADLESS=OFF \
+            -DBUILD_TESTING=ON -DSIGN_TEST_LIBSSIG=OFF -DSIGN_EMBED_OPENSC=ON \
+            -DSIGN_VERSION="$release_version" \
+            -DCMAKE_PREFIX_PATH="$(cygpath -m "$PWD/build/native-prefix");$(cygpath -m "$MINGW_PREFIX")"
+          cmake --build build --parallel 4
+          ctest --test-dir build --parallel 4 --output-on-failure
+      - name: Stage and test bundled dependencies
+        run: |
+          python scripts/package-native.py --build build --library-prefix build/native-prefix \
+            --dependency-prefix "$MINGW_PREFIX" --destination build/stage/CRSign
+          python scripts/test-native-package.py build/stage/CRSign --openssl "$MINGW_PREFIX/bin/openssl.exe" --gui
+      - name: Build and test MSI installation and removal
+        shell: pwsh
+        run: |
+          dotnet tool install --global wix --version 4.0.6
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $python = Join-Path $env:RUNNER_TEMP 'msys64/ucrt64/bin/python.exe'
+          & $python scripts/package-msi.py --payload build/stage/CRSign --version $env:RELEASE_VERSION --output build/dist/CRSign-windows-x86_64.msi
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $python scripts/test-release-package.py build/dist/CRSign-windows-x86_64.msi --openssl "$env:RUNNER_TEMP/msys64/ucrt64/bin/openssl.exe"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-x86_64
+          path: build/dist/*.msi
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
+
+  wine:
+    name: MSI installation in Wine/Docker
+    needs: windows
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-x86_64
+          path: build/dist
+      - name: Install, exercise and uninstall MSI in Wine
+        run: |
+          docker build -f packaging/release/wine-test.Dockerfile -t crsign-release-wine .
+          docker run --rm --init -v "$PWD:/src:ro" -v "$PWD/build/dist:/packages:ro" \
+            crsign-release-wine xvfb-run -a python3 /src/scripts/test-release-package.py \
+            /packages/CRSign-windows-x86_64.msi --wine
+
+  publish:
+    name: Publish tagged release
+    needs: [linux, windows, wine]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: build/release
+          merge-multiple: true
+      - name: Publish assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          cd build/release
+          sha256sum CRSign-*.AppImage CRSign-*.msi > SHA256SUMS
+          if gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" CRSign-*.AppImage CRSign-*.msi SHA256SUMS --clobber
+          else
+            gh release create "$RELEASE_TAG" CRSign-*.AppImage CRSign-*.msi SHA256SUMS --verify-tag --generate-notes
+          fi

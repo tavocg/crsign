@@ -1,8 +1,9 @@
 #include <winver.h>
 1 24 "@PROJECT_SOURCE_DIR@/packaging/windows.manifest"
+2 ICON "@SIGN_WINDOWS_ICON@"
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION @PROJECT_VERSION_MAJOR@,@PROJECT_VERSION_MINOR@,@PROJECT_VERSION_PATCH@,0
- PRODUCTVERSION @PROJECT_VERSION_MAJOR@,@PROJECT_VERSION_MINOR@,@PROJECT_VERSION_PATCH@,0
+ FILEVERSION @SIGN_RESOURCE_VERSION@,0
+ PRODUCTVERSION @SIGN_RESOURCE_VERSION@,0
  FILETYPE VFT_APP
 BEGIN
   BLOCK "StringFileInfo"
@@ -11,9 +12,9 @@ BEGIN
     BEGIN
       VALUE "CompanyName", "CRSign"
       VALUE "FileDescription", "Sign digital signing and verification"
-      VALUE "FileVersion", "@PROJECT_VERSION@"
+      VALUE "FileVersion", "@SIGN_VERSION@"
       VALUE "ProductName", "CRSign"
-      VALUE "ProductVersion", "@PROJECT_VERSION@"
+      VALUE "ProductVersion", "@SIGN_VERSION@"
     END
   END
   BLOCK "VarFileInfo"

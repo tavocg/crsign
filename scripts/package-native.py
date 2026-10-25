@@ -159,10 +159,12 @@ def stage_gui_resources(bundle, prefixes):
 def configure_gui_resources(bundle):
     root = bundle.root
     environment = os.environ.copy()
-    if not bundle.windows:
+    if bundle.platform == 'darwin':
         # Query tools and relocated modules must use the same GLib/GObject
         # libraries, rather than loading another copy from Homebrew.
         environment['DYLD_LIBRARY_PATH'] = str(root / 'lib')
+    elif bundle.platform == 'linux':
+        environment['LD_LIBRARY_PATH'] = str(root / 'lib')
     schemas = root / 'share/glib-2.0/schemas'
     if not list(schemas.glob('*.gschema.xml')):
         raise RuntimeError('Missing GTK GSettings schemas')
@@ -173,6 +175,10 @@ def configure_gui_resources(bundle):
     loaders = sorted((root / 'lib/gdk-pixbuf-loaders').glob('*'))
     if loaders:
         tool = shutil.which('gdk-pixbuf-query-loaders')
+        if not tool:
+            candidate = command('pkg-config', '--variable=gdk_pixbuf_query_loaders', 'gdk-pixbuf-2.0').strip()
+            if candidate and Path(candidate).is_file():
+                tool = candidate
         if not tool:
             raise RuntimeError('Missing gdk-pixbuf-query-loaders')
         output = command(tool, *loaders, env=environment)
@@ -193,7 +199,9 @@ def configure_gui_resources(bundle):
         (templates / 'loaders.cache.in').write_text('\n'.join(lines) + '\n', encoding='utf-8')
     fonts = root / 'etc/fonts'
     fonts.mkdir(parents=True)
-    directories = ['WINDOWSFONTDIR'] if bundle.windows else ['/System/Library/Fonts', '/Library/Fonts', '~/Library/Fonts']
+    directories = (['WINDOWSFONTDIR'] if bundle.windows else
+                   ['/usr/share/fonts', '/usr/local/share/fonts', '~/.fonts'] if bundle.platform == 'linux' else
+                   ['/System/Library/Fonts', '/Library/Fonts', '~/Library/Fonts'])
     config = '<?xml version="1.0"?>\n<!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">\n<fontconfig>\n'
     config += ''.join(f'<dir>{path}</dir>\n' for path in directories)
     config += '<cachedir prefix="xdg">fontconfig</cachedir>\n</fontconfig>\n'

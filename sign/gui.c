@@ -16,6 +16,7 @@ static const char APPLICATION_ID[] = "org.crsign.Sign";
 
 static void activate(GtkApplication* app, gpointer user_data) {
 	(void)user_data;
+	gtk_window_set_default_icon_name(APPLICATION_ID);
 	GtkWindow* window = gtk_application_get_active_window(app);
 	if (!window) {
 		window = GTK_WINDOW(sign_window_new(app));

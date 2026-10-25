@@ -45,8 +45,8 @@ Los tokens con teclado propio no solicitan un PIN en la CLI.
 
 La CI compila y prueba la aplicación completa con GTK (`HEADLESS=OFF`) en Linux,
 Windows UCRT64 y macOS con una sola configuración: libssig y OpenSC estáticos y
-dependencias del sistema. Los workflows no generan ni suben paquetes
-distribuibles.
+dependencias del sistema. `release.yml` genera MSI y AppImage, prueba los paquetes
+y los publica en GitHub Releases al pushear un tag.
 El firmado con un token físico se comprueba por separado con el controlador del
 proveedor. Se conservan [las instrucciones de compilación nativa y empaquetado
 manual](../packaging/README.md) para preparar futuros releases.

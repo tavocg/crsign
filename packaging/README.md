@@ -2,8 +2,8 @@
 
 `native-build.yml` compila y prueba la aplicación completa con GTK
 (`HEADLESS=OFF`) en Windows UCRT64 y macOS. `build.yml` hace lo mismo en Linux.
-La CI ejecuta las pruebas de CLI, almacenes y recursos, sin generar archivos
-distribuibles ni subir artefactos.
+Estos workflows ejecutan las pruebas de CLI, almacenes y recursos.
+`release.yml` añade el empaquetado MSI/AppImage y la publicación por tag.
 
 Los scripts de empaquetado se conservan para ejecutarlos manualmente cuando se
 preparen releases con las fuentes y el programa. Las secciones de empaquetado
@@ -113,3 +113,43 @@ Tras extraer el archivo, usa `bin/sign` (macOS) o `bin/sign.exe` (Windows).
 `--gui` abre GTK en la variante correspondiente. Son paquetes portables, sin
 instalador, certificado de editor o notarización. La firma ad hoc de macOS no
 sustituye una firma Developer ID ni la notarización para distribución pública.
+
+## Releases por tag
+
+`release.yml` construye y publica automáticamente al pushear un tag. Los nombres
+son estables y no incluyen la versión:
+
+- `CRSign-windows-x86_64.msi`
+- `CRSign-linux-x86_64.AppImage`
+- `CRSign-linux-aarch64.AppImage`
+- `SHA256SUMS`
+
+Linux se compila nativamente en Ubuntu 24.04 para cada arquitectura (mínimo glibc
+2.39). El AppImage incluye bibliotecas y recursos GTK; PC/SC y el controlador del
+lector siguen siendo del sistema. Puede extraerse con `--appimage-extract` si el
+entorno no permite FUSE. Las herramientas de AppImage tienen versiones y hashes
+fijados en `release/appimage-tools.json`.
+
+El MSI usa WiX 4.0.6 y se instala por usuario en `%LOCALAPPDATA%\Programs\CRSign`.
+Añade un acceso al menú Inicio, admite actualizaciones y no elimina preferencias
+ni documentos al desinstalar. No requiere una instalación separada de MSYS2 ni
+OpenSC. No se firma con Authenticode. Windows ARM queda fuera: el toolchain
+validado es GCC/UCRT64 para x86_64; ARM requeriría validar Clang y sus dependencias.
+
+Los tags `vMAJOR.MINOR.PATCH` (también con sufijos de prerelease) determinan la
+versión interna del MSI. Otros tags y las pruebas usan `0.0.<run_number>`, dentro
+de los límites de Windows Installer. La versión no aparece en los nombres de
+archivo. Los cambios de empaquetado en `staging` y `workflow_dispatch` ejecutan
+el mismo preflight sin publicar: las releases solo se publican para tags y cuando
+terminan correctamente todos los builds y pruebas.
+
+Las pruebas instalan, ejecutan y desinstalan el MSI en Windows y en Wine dentro
+de Docker. Comprueban CLI, validación de una firma real, arranque GTK y conservación
+de datos del usuario. Cada AppImage se extrae y ejecuta en un contenedor sin GTK
+ni dependencias de desarrollo. Los archivos Docker reproducibles están en
+`packaging/release/`. No se usan tokens, PIN ni documentos personales.
+
+Ambos formatos llevan el icono de CRSign. Windows genera un ICO de 16, 32, 48 y
+256 píxeles desde el SVG original y lo incluye en el EXE, el acceso directo y
+la entrada de desinstalación. Linux incluye el icono y el archivo de escritorio
+con el identificador `org.crsign.Sign`, coherente con la aplicación GTK.

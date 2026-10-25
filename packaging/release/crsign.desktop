@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=CRSign
+Comment=Sign and validate documents
+Exec=sign --gui
+Icon=org.crsign.Sign
+StartupWMClass=org.crsign.Sign
+Terminal=false
+Categories=Office;Security;

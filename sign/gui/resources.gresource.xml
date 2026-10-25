@@ -2,6 +2,7 @@
 <gresources>
   <gresource prefix="/org/crsign/Sign">
     <file alias="icon-rounded.svg">packaging/icon-rounded.svg</file>
+    <file alias="icons/scalable/apps/org.crsign.Sign.svg">packaging/icon-rounded.svg</file>
     <file alias="style.css">sign/gui/style.css</file>
   </gresource>
 </gresources>

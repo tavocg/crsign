@@ -8,6 +8,7 @@
 cmake_minimum_required(VERSION 3.16)
 
 project(CRSign VERSION 0.1.0 LANGUAGES C)
+set(SIGN_VERSION "${PROJECT_VERSION}" CACHE STRING "Application release version")
 
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -112,10 +113,26 @@ list(APPEND SIGN_SOURCES "${SIGN_CERT_CATALOG}")
 
 if(WIN32)
     enable_language(RC)
+    find_program(SIGN_RSVG_CONVERT rsvg-convert REQUIRED)
+    set(SIGN_WINDOWS_ICON "${PROJECT_BINARY_DIR}/generated/windows.ico")
+    add_custom_command(OUTPUT "${SIGN_WINDOWS_ICON}"
+        COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/windows-icon.py"
+            --converter "${SIGN_RSVG_CONVERT}" --source "${PROJECT_SOURCE_DIR}/packaging/icon-rounded.svg"
+            --output "${SIGN_WINDOWS_ICON}"
+        DEPENDS scripts/windows-icon.py packaging/icon-rounded.svg VERBATIM)
+    add_custom_target(sign_windows_icon DEPENDS "${SIGN_WINDOWS_ICON}")
+    add_dependencies(sign_config_deps sign_windows_icon)
+    set(SIGN_RESOURCE_VERSION "${PROJECT_VERSION}")
+    if(SIGN_VERSION MATCHES "^([0-9]+)\\.([0-9]+)\\.([0-9]+)")
+        set(SIGN_RESOURCE_VERSION "${CMAKE_MATCH_1},${CMAKE_MATCH_2},${CMAKE_MATCH_3}")
+    else()
+        string(REPLACE "." "," SIGN_RESOURCE_VERSION "${PROJECT_VERSION}")
+    endif()
     configure_file(packaging/windows.rc.in "${CMAKE_CURRENT_BINARY_DIR}/windows.rc" @ONLY)
     set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/windows.rc" PROPERTIES
-        OBJECT_DEPENDS "${PROJECT_SOURCE_DIR}/packaging/windows.manifest")
+        OBJECT_DEPENDS "${PROJECT_SOURCE_DIR}/packaging/windows.manifest;${SIGN_WINDOWS_ICON}")
     list(APPEND SIGN_SOURCES "${CMAKE_CURRENT_BINARY_DIR}/windows.rc")
+    install(FILES "${SIGN_WINDOWS_ICON}" DESTINATION "${CMAKE_INSTALL_DATADIR}/crsign" RENAME icon.ico)
 endif()
 
 add_executable(sign ${SIGN_SOURCES})
@@ -131,7 +148,7 @@ if(NOT HEADLESS)
 endif()
 
 target_compile_definitions(sign PRIVATE
-    SIGN_VERSION="${PROJECT_VERSION}"
+    SIGN_VERSION="${SIGN_VERSION}"
 )
 
 target_compile_options(sign PRIVATE

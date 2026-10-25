@@ -12,7 +12,7 @@ import tempfile
 sign, driver, mock, first, second, broken, embedded = map(lambda x: str(Path(x).resolve()), sys.argv[1:])
 with tempfile.TemporaryDirectory(prefix='sign-modules-') as temporary:
     root = Path(temporary)
-    env = dict(os.environ, HOME=str(root / 'home'), XDG_CONFIG_HOME=str(root / 'config'))
+    env = dict(os.environ, HOME=str(root / 'home'), XDG_CONFIG_HOME=str(root / 'home/.config'))
     directory = Path(env['XDG_CONFIG_HOME']) / 'crsign'
     directory.mkdir(parents=True)
     config = directory / 'crsign.toml'
