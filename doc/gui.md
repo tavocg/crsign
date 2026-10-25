@@ -356,3 +356,24 @@ consulta de autenticación, `C_SignInit` y las dos llamadas de `C_Sign` para
 consultar longitud y obtener la firma. No registra los argumentos de esas
 llamadas. Permite distinguir un login rechazado de un `C_Login` exitoso seguido
 de `CKR_USER_NOT_LOGGED_IN` al preparar o ejecutar la firma.
+
+Para investigar dentro de una compilación local de OpenSC en Linux, puede
+compilarse por separado el observador de etapas con los encabezados de esa misma
+compilación. No forma parte del build normal ni cambia el driver instalado:
+
+```sh
+nix develop --command cc -std=gnu99 -Wall -Wextra -Werror -shared -fPIC \
+  -I../opensc/src -I../opensc/build scripts/trace-opensc-sign.c \
+  -ldl -o build/trace-opensc-sign.so
+LD_PRELOAD="$PWD/build/trace-opensc-sign.so" \
+  G_MESSAGES_DEBUG=crsign-signing LIBSSIG_PKCS11_TRACE=1 \
+  ./build/sign --gui > /tmp/crsign-signing.log 2>&1
+```
+
+Cierra la instancia previa antes de lanzarlo. Las líneas `opensc-sign` muestran
+entrada y resultado de `sc_pkcs15_compute_signature`, selección de archivo,
+`sc_set_security_env` y `sc_compute_signature`. Solo distinguen selección de
+raíz, aplicación u otro archivo; no imprimen identificadores, claves, PIN,
+APDU, contenido ni firmas. La ausencia de líneas no demuestra ausencia de
+llamadas: una biblioteca enlazada sin interposición puede impedir observarlas.
+Retira `LD_PRELOAD` al terminar el diagnóstico.
