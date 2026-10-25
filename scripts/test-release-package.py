@@ -117,8 +117,16 @@ def main():
             install_path = convert(install)
             def installer(action):
                 log = directory / ('install.log' if action == '/i' else 'uninstall.log')
-                result = subprocess.run([*prefix, 'msiexec', action, convert(package), '/qn', '/norestart',
-                                         '/l*v', convert(log), 'INSTALLFOLDER=' + install_path], env=env, timeout=180)
+                command = [*prefix, 'msiexec', action, convert(package), '/qn', '/norestart',
+                           '/l*v', convert(log), 'INSTALLFOLDER=' + install_path]
+                try:
+                    result = subprocess.run(command, env=env, timeout=600)
+                except subprocess.TimeoutExpired:
+                    if log.exists():
+                        data = log.read_bytes()
+                        encoding = 'utf-16' if data.startswith(b'\xff\xfe') else 'utf-8'
+                        print(data.decode(encoding, errors='replace'), flush=True)
+                    raise
                 if result.returncode not in (0, 3010):
                     raise RuntimeError(f'MSI {action}: exit {result.returncode}\n{log.read_text(errors="replace")}')
             marker = directory / 'config/crsign/preserve.txt'
