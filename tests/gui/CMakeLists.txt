@@ -42,11 +42,11 @@ set(GUI_DEVICE_TEST_SOURCES ${GUI_TEST_SOURCES})
 list(REMOVE_ITEM GUI_DEVICE_TEST_SOURCES "${SIGN_CERT_CATALOG}")
 add_executable(gui_devices_test devices_test.c ${GUI_DEVICE_TEST_SOURCES} $<TARGET_OBJECTS:bundle_catalog>)
 set(GUI_TEST_TARGETS gui_home_test gui_navigation_test gui_validation_test gui_drop_test gui_devices_test)
-if(EXISTS "${PROJECT_SOURCE_DIR}/tests/libssig/tests/document_sign_fixture.c")
+if(EXISTS "${PROJECT_SOURCE_DIR}/vendor/libssig/tests/document_sign_fixture.c")
     add_executable(gui_signing_test signing_test.c ../flows/crypto_module.c ${GUI_TEST_SOURCES})
     sign_test_token_api(gui_signing_test)
     # The PKCS#11 fixture includes private headers that installed libssig omits.
-    target_include_directories(gui_signing_test PRIVATE "${PROJECT_SOURCE_DIR}/tests/libssig")
+    target_include_directories(gui_signing_test PRIVATE "${PROJECT_SOURCE_DIR}/vendor/libssig")
     list(APPEND GUI_TEST_TARGETS gui_signing_test)
 endif()
 foreach(target IN LISTS GUI_TEST_TARGETS)
@@ -69,7 +69,7 @@ if(UNIX AND NOT APPLE)
             -- "${XVFB_RUN_EXECUTABLE}" -a "--server-args=-screen 0 1280x1024x24")
         add_test(NAME gui_navigation COMMAND ${GUI_TEST_COMMAND}
             $<TARGET_FILE:gui_navigation_test> "${CMAKE_CURRENT_BINARY_DIR}/snapshots")
-        if(EXISTS "${PROJECT_SOURCE_DIR}/tests/libssig/tests/document_sign_fixture.c")
+        if(EXISTS "${PROJECT_SOURCE_DIR}/vendor/libssig/tests/document_sign_fixture.c")
             add_test(NAME gui_validation COMMAND ${GUI_TEST_COMMAND}
                 "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/validation_test.py"
                 $<TARGET_FILE:gui_validation_test> $<TARGET_FILE:flow_crypto_driver>

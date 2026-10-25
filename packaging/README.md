@@ -26,12 +26,13 @@ Windows usa `curl-winssl` (Schannel); macOS usa libcurl del SDK/sistema para
 conservar la confianza TLS nativa. Las actualizaciones de los paquetes no
 requieren cambiar fuentes o hashes de OpenSSL, JSON, XML o PDF en CRSign.
 
-`bootstrap-native.py` compila tomlc17 **R20260501**, OpenSC desde el commit de
-`master` fijado en `opensc.json` y, con `--with-argp`, argp-standalone **1.2.0**
-para MinGW. macOS usa argp de Homebrew. Todos producen archivos estáticos.
-OpenSC requiere Autoconf, Automake, Libtool y Make durante la construcción.
-Para actualizarlo, fija un nuevo commit de `master` y el SHA-256 de su archivo
-fuente en `opensc.json`, y verifica el CI de los tres sistemas.
+`bootstrap-native.py` compila tomlc17 **R20260501** y, con `--with-argp`,
+argp-standalone **1.2.0** para MinGW. macOS usa argp de Homebrew.
+CMake compila OpenSC desde `vendor/opensc`, con Autoconf, Automake, Libtool y
+Make, dentro de `build/opensc`. Los paquetes oficiales usan
+`-DSIGN_EMBED_OPENSC=ON`; el modo OFF permite usar solamente módulos externos.
+Para actualizar OpenSC, ejecuta `git submodule update --remote vendor/opensc`,
+verifica el CI de los tres sistemas y registra el nuevo commit del submódulo.
 Las descargas tienen SHA-256 fijado y se verifican también al reutilizar la caché.
 CMake no descarga dependencias durante la configuración.
 

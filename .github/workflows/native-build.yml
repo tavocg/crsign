@@ -14,16 +14,15 @@ jobs:
           submodules: true
       - name: Install dependencies
         run: brew install cmake pkgconf openssl@3 argp-standalone p11-kit libmagic qpdf jansson libxml2 poppler glib gtk4 librsvg libadwaita gettext autoconf automake libtool
-      - name: Build TOML parser and embedded OpenSC
+      - name: Build TOML parser
         run: |
           export PKG_CONFIG_PATH="$(brew --prefix openssl@3)/lib/pkgconfig"
-          export CFLAGS="-O2 -mmacosx-version-min=14.0"
           python3 scripts/bootstrap-native.py --prefix "$PWD/build/native-prefix"
       - name: Configure and build CRSign
         run: |
           export PKG_CONFIG_PATH="$(brew --prefix libxml2)/lib/pkgconfig:$(brew --prefix openssl@3)/lib/pkgconfig:$(brew --prefix libmagic)/lib/pkgconfig"
           sdk="$(xcrun --show-sdk-path)"
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DHEADLESS=OFF -DBUILD_TESTING=ON \
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DHEADLESS=OFF -DBUILD_TESTING=ON -DSIGN_EMBED_OPENSC=ON \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 -DSIGN_TEST_LIBSSIG=OFF \
             -DCMAKE_PREFIX_PATH="$PWD/build/native-prefix;$(brew --prefix argp-standalone);$(brew --prefix openssl@3);$(brew --prefix gettext)" \
             -DCURL_NO_CURL_CMAKE=TRUE -DCURL_LIBRARY="$sdk/usr/lib/libcurl.tbd" -DCURL_INCLUDE_DIR="$sdk/usr/include"
@@ -32,7 +31,7 @@ jobs:
         run: |
           export PATH="$PWD/build/native-prefix/bin:$PATH"
           ctest --test-dir build --parallel 4 --output-on-failure
-          cmake -S tests/libssig/tests/system_trust -B build/system-trust -DCMAKE_BUILD_TYPE=Release -DOPENSSL_ROOT_DIR="$(brew --prefix openssl@3)"
+          cmake -S vendor/libssig/tests/system_trust -B build/system-trust -DCMAKE_BUILD_TYPE=Release -DOPENSSL_ROOT_DIR="$(brew --prefix openssl@3)"
           cmake --build build/system-trust --parallel 4
           ctest --test-dir build/system-trust --output-on-failure
 
@@ -65,21 +64,18 @@ jobs:
             mingw-w64-ucrt-x86_64-gtk4 mingw-w64-ucrt-x86_64-curl-winssl
             mingw-w64-ucrt-x86_64-librsvg mingw-w64-ucrt-x86_64-libadwaita
             mingw-w64-ucrt-x86_64-gettext-tools
-      - name: Build TOML parser, argp and embedded OpenSC
+      - name: Build TOML parser and argp
         run: |
-          # Autotools reads a colon-separated POSIX path list, even when
-          # launched through native UCRT Python. Preserve it across that hop.
-          export MSYS2_ENV_CONV_EXCL="${MSYS2_ENV_CONV_EXCL:+$MSYS2_ENV_CONV_EXCL;}ACLOCAL_PATH"
           python scripts/bootstrap-native.py --prefix "$PWD/build/native-prefix" --with-argp
       - name: Configure and build CRSign
         run: |
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DHEADLESS=OFF -DBUILD_TESTING=ON \
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DHEADLESS=OFF -DBUILD_TESTING=ON -DSIGN_EMBED_OPENSC=ON \
             -DSIGN_TEST_LIBSSIG=OFF -DCMAKE_PREFIX_PATH="$(cygpath -m "$PWD/build/native-prefix");$(cygpath -m "$MINGW_PREFIX")"
           cmake --build build --parallel 4
       - name: Test CLI and native stores
         run: |
           export PATH="$PWD/build/native-prefix/bin:$PATH"
           ctest --test-dir build --parallel 4 --output-on-failure
-          cmake -S tests/libssig/tests/system_trust -B build/system-trust -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake -S vendor/libssig/tests/system_trust -B build/system-trust -G Ninja -DCMAKE_BUILD_TYPE=Release
           cmake --build build/system-trust --parallel 4
           ctest --test-dir build/system-trust --output-on-failure

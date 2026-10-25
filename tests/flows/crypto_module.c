@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 /* Real OpenSSL-backed PKCS#11 signing behind the production flow executor. */
-#include "../libssig/tests/document_sign_fixture.c"
+#include "../../vendor/libssig/tests/document_sign_fixture.c"
 #include <glib.h>
 
 static X509*                       flow_cert;

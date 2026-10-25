@@ -18,7 +18,11 @@ static void inventory(libssig_context* context) {
 			vendor = true;
 		}
 	}
+#ifdef SIGN_EMBED_OPENSC
 	assert(embedded && vendor);
+#else
+	assert(!embedded && vendor);
+#endif
 	libssig_devices_free(&devices);
 }
 

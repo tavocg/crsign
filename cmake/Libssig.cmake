@@ -4,7 +4,7 @@
 if(libssig_DIR)
     find_package(libssig 0.2.1 CONFIG REQUIRED)
 else()
-    if(NOT EXISTS "${PROJECT_SOURCE_DIR}/tests/libssig/CMakeLists.txt")
+    if(NOT EXISTS "${PROJECT_SOURCE_DIR}/vendor/libssig/CMakeLists.txt")
         message(FATAL_ERROR
             "Missing pinned libssig source. Run git submodule update --init --recursive "
             "or set libssig_DIR to an existing static libssig package.")
@@ -15,7 +15,7 @@ else()
         set(BUILD_SHARED_LIBS OFF)
         set(LIBSSIG_BUILD_TESTING OFF)
         set(LIBSSIG_INSTALL OFF)
-        add_subdirectory("${PROJECT_SOURCE_DIR}/tests/libssig"
+        add_subdirectory("${PROJECT_SOURCE_DIR}/vendor/libssig"
             "${PROJECT_BINARY_DIR}/libssig")
     endfunction()
     sign_add_bundled_libssig()

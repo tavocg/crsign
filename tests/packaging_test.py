@@ -31,6 +31,25 @@ def macho(*dependencies, rpath=None, identity=False):
 
 
 class Packaging(unittest.TestCase):
+    def test_source_archive_includes_vendor_sources(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for name in ('libssig', 'opensc'):
+                checkout = root / 'vendor' / name
+                checkout.mkdir(parents=True)
+                (checkout / '.git').write_text('gitdir: unused\n')
+                (checkout / 'COPYING').write_text(name)
+            (root / 'README.md').write_text('CRSign')
+            target = root / 'sources.tar.gz'
+            def tracked(command):
+                return b'README.md\0' if Path(command[2]) == root else b'COPYING\0'
+            with patch.object(package.subprocess, 'check_output', side_effect=tracked):
+                package.sources_archive(root, target)
+            with tarfile.open(target) as archive:
+                self.assertEqual(set(archive.getnames()), {
+                    'crsign/README.md', 'crsign/vendor/libssig/COPYING',
+                    'crsign/vendor/opensc/COPYING'})
+
     def test_opensc_configure_uses_posix_paths_on_windows(self):
         path = Path('source')
         with patch.object(opensc.os, 'name', 'nt'), patch.object(

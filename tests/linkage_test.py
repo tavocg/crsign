@@ -21,4 +21,4 @@ assert imports, f'No dynamic imports found in {binary}: {output}'
 for dependency in imports:
     name = Path(dependency).name.lower()
     assert not re.match(r'(lib)?(ssig|opensc|crsign-opensc)([-.\d]|$)', name), dependency
-print('Static libssig and OpenSC verified; other direct imports:', ', '.join(imports))
+print('No dynamic libssig/OpenSC imports; other direct imports:', ', '.join(imports))

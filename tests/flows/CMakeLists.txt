@@ -14,10 +14,10 @@ add_test(NAME flows COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}
     $<TARGET_FILE:flow_driver> "${PROJECT_SOURCE_DIR}/doc/flow.schema.json")
 set_tests_properties(flows PROPERTIES TIMEOUT 45)
 
-if(EXISTS "${PROJECT_SOURCE_DIR}/tests/libssig/tests/document_sign_fixture.c")
+if(EXISTS "${PROJECT_SOURCE_DIR}/vendor/libssig/tests/document_sign_fixture.c")
     add_executable(flow_crypto_driver driver.c crypto_module.c ${FLOW_ENGINE_SOURCES})
     sign_test_token_api(flow_crypto_driver)
-    target_include_directories(flow_crypto_driver PRIVATE "${PROJECT_SOURCE_DIR}" "${PROJECT_SOURCE_DIR}/tests/libssig")
+    target_include_directories(flow_crypto_driver PRIVATE "${PROJECT_SOURCE_DIR}" "${PROJECT_SOURCE_DIR}/vendor/libssig")
     target_link_libraries(flow_crypto_driver PRIVATE libssig::ssig CURL::libcurl OpenSSL::Crypto
         sign_image_deps PkgConfig::GIO PkgConfig::JANSSON PkgConfig::P11_KIT)
     target_compile_options(flow_crypto_driver PRIVATE -Wall -Wextra -Wpedantic -Werror)

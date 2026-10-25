@@ -202,7 +202,11 @@ def configure_gui_resources(bundle):
 
 def sources_archive(source, target):
     with tarfile.open(target, 'w:gz') as archive:
-        for checkout, prefix in [(source, Path('crsign')), (source / 'tests/libssig', Path('crsign/tests/libssig'))]:
+        for checkout, prefix in [(source, Path('crsign')),
+                                 (source / 'vendor/libssig', Path('crsign/vendor/libssig')),
+                                 (source / 'vendor/opensc', Path('crsign/vendor/opensc'))]:
+            if not checkout.is_dir() or (checkout != source and not (checkout / '.git').exists()):
+                continue
             files = subprocess.check_output(['git', '-C', str(checkout), 'ls-files', '-z']).decode().split('\0')
             for name in filter(None, files):
                 path = checkout / name

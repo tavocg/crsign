@@ -4,7 +4,7 @@
 #include <sign/modules.h>
 #include <stdio.h>
 
-#ifndef SIGN_TEST_EXTERNAL_MODULES
+#if defined(SIGN_EMBED_OPENSC) && !defined(SIGN_TEST_EXTERNAL_MODULES)
 /* OpenSC is process-wide, like the GUI's long-lived inventory worker. Never
  * finalize it when an individual signing context closes: other contexts may
  * still be enumerating or signing. The OS reclaims it at process exit. */
@@ -37,7 +37,7 @@ static CK_FUNCTION_LIST* embedded_provider(void) {
 
 libssig_status modules_open(const sign_options* args, libssig_context* ctx) {
 	if (!args->modules.count) {
-#ifdef SIGN_TEST_EXTERNAL_MODULES
+#if !defined(SIGN_EMBED_OPENSC) || defined(SIGN_TEST_EXTERNAL_MODULES)
 		return libssig_context_open(ctx);
 #else
 		libssig_status status = libssig_context_open(ctx);

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Build a local OpenSC source tree as one static PKCS#11 provider archive.
 
-No downloads. Used by both Nix and the explicit native bootstrap.
+No downloads. Invoked by CMake against the pinned vendor/opensc checkout.
 Requires Autoconf, Automake, Libtool, Make, pkg-config and OpenSSL headers.
 """
 import argparse
@@ -29,20 +29,31 @@ def main():
     parser.add_argument('--source', type=Path, required=True)
     parser.add_argument('--build', type=Path, required=True)
     parser.add_argument('--prefix', type=Path, required=True)
+    parser.add_argument('--deployment-target')
     args = parser.parse_args()
-    source, build, prefix = (p.resolve() for p in (args.source, args.build, args.prefix))
+    original, workspace, prefix = (p.resolve() for p in (args.source, args.build, args.prefix))
+    # Autoreconf generates files: keep the pinned checkout untouched.
+    source, build = workspace / 'source', workspace / 'work'
+    if source.exists():
+        shutil.rmtree(source)
+    shutil.copytree(original, source, ignore=shutil.ignore_patterns('.git'))
     build.mkdir(parents=True, exist_ok=True)
-    run('sh', '-c', 'autoreconf -fi', cwd=source)
     env = dict(os.environ)
+    if os.name == 'nt' and env.get('ACLOCAL_PATH'):
+        env['ACLOCAL_PATH'] = subprocess.check_output(
+            ['cygpath', '-pu', env['ACLOCAL_PATH']], text=True).strip()
+    run('sh', '-c', 'autoreconf -fi', cwd=source, env=env)
     # Namespace the public entry point and hide provider symbols from plugins.
     env['CPPFLAGS'] = env.get('CPPFLAGS', '') + ' -DC_GetFunctionList=crsign_opensc_get_function_list'
     env['CFLAGS'] = env.get('CFLAGS', '-O2') + ' -fvisibility=hidden'
+    if args.deployment_target:
+        env['CFLAGS'] += ' -mmacosx-version-min=' + args.deployment_target
     host = []
     if env.get('PCSC_PROVIDER'):
         host.append('--with-pcsc-provider=' + env['PCSC_PROVIDER'])
     if os.name == 'nt':
         target = subprocess.check_output(['gcc', '-dumpmachine'], text=True).strip()
-        host = ['--host=' + target]
+        host.append('--host=' + target)
     run('sh', configure_path(source / 'configure'), *host, '--disable-shared', '--enable-static',
         '--disable-tests', '--disable-cmocka', '--disable-man', '--disable-doc',
         '--disable-notify', '--disable-readline', '--disable-openpace',

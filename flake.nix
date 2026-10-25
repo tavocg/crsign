@@ -19,31 +19,12 @@
       devShells = forAllSystems (system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
-          openscPin = builtins.fromJSON (builtins.readFile ./packaging/opensc.json);
-          embeddedOpenSC = pkgs.stdenv.mkDerivation {
-            pname = "crsign-opensc";
-            version = openscPin.revision;
-            src = pkgs.fetchurl {
-              inherit (openscPin) url sha256;
-              name = "opensc-${openscPin.revision}.tar.gz";
-            };
-            nativeBuildInputs = with pkgs; [ autoconf automake libtool pkg-config python3 ];
-            buildInputs = with pkgs; [ openssl pcsclite ];
-            dontConfigure = true;
-            PCSC_CFLAGS = "-I${pkgs.lib.getDev pkgs.pcsclite}/include/PCSC";
-            PCSC_PROVIDER = "${pkgs.lib.getLib pkgs.pcsclite}/lib/libpcsclite.so.1";
-            buildPhase = ''
-              python ${./scripts/build-opensc.py} --source "$PWD" \
-                --build "$PWD/provider-build" --prefix "$out"
-              cp "$src" "$out/share/crsign-deps/opensc-${openscPin.revision}.tar.gz"
-              cp ${./packaging/opensc.json} "$out/share/crsign-deps/opensc-source.json"
-            '';
-            dontInstall = true;
-          };
         in
         {
           default = pkgs.mkShell {
             name = "crsign";
+            PCSC_CFLAGS = "-I${pkgs.lib.getDev pkgs.pcsclite}/include/PCSC";
+            PCSC_PROVIDER = "${pkgs.lib.getLib pkgs.pcsclite}/lib/libpcsclite.so.1";
             LOCALE_ARCHIVE = "${pkgs.glibcLocales}/lib/locale/locale-archive";
 
             packages = with pkgs; [
@@ -52,11 +33,11 @@
                 cryptography lxml jsonschema pyhanko
               ]))
             ];
-            nativeBuildInputs = with pkgs; [ pkg-config gettext ];
+            nativeBuildInputs = with pkgs; [ pkg-config gettext autoconf automake libtool ];
             buildInputs = with pkgs; [
               gtk4 libadwaita poppler glib librsvg gdk-pixbuf cairo tomlc17
-              curl openssl p11-kit file qpdf zlib jansson libxml2
-            ] ++ [ embeddedOpenSC ];
+              curl openssl p11-kit file qpdf zlib jansson libxml2 pcsclite
+            ];
 
             shellHook = ''
               # Unwrapped GTK binaries also need the schema paths collected by

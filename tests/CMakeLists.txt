@@ -32,6 +32,9 @@ endfunction()
 
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 find_program(OPENSSL_EXECUTABLE openssl REQUIRED)
+add_test(NAME vendor_configuration COMMAND "${Python3_EXECUTABLE}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/vendor_configuration.py" "${CMAKE_COMMAND}"
+    "${PROJECT_SOURCE_DIR}/cmake/OpenSC.cmake")
 add_test(NAME static_linkage COMMAND "${Python3_EXECUTABLE}"
     "${CMAKE_CURRENT_SOURCE_DIR}/linkage_test.py" $<TARGET_FILE:sign>)
 
@@ -81,12 +84,12 @@ set_tests_properties(commands_cli PROPERTIES TIMEOUT 30)
 # Reuse libssig's pinned suite, including its nested ETSI schema submodules.
 option(SIGN_TEST_LIBSSIG "Run libssig conformance and real Sign fixture tests" ON)
 if(SIGN_TEST_LIBSSIG)
-    if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/libssig/tests/CMakeLists.txt")
+    if(NOT EXISTS "${PROJECT_SOURCE_DIR}/vendor/libssig/tests/CMakeLists.txt")
         message(FATAL_ERROR
-            "Missing tests/libssig. Run git submodule update --init --recursive "
+            "Missing vendor/libssig. Run git submodule update --init --recursive "
             "or explicitly set SIGN_TEST_LIBSSIG=OFF for CLI-only tests.")
     endif()
-    add_subdirectory(libssig/tests libssig)
+    add_subdirectory("${PROJECT_SOURCE_DIR}/vendor/libssig/tests" libssig)
     add_test(NAME signatures_cli COMMAND ${Python3_EXECUTABLE}
         "${CMAKE_CURRENT_SOURCE_DIR}/signatures_cli.py" $<TARGET_FILE:sign>
         "${CMAKE_CURRENT_BINARY_DIR}/libssig/ades-fixtures"
@@ -226,12 +229,12 @@ if(NOT HEADLESS AND UNIX AND NOT APPLE)
     set_tests_properties(portable_runtime_gui PROPERTIES TIMEOUT 30)
 endif()
 
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/libssig/tests/document_sign_fixture.c")
+if(EXISTS "${PROJECT_SOURCE_DIR}/vendor/libssig/tests/document_sign_fixture.c")
     # Both the renderer and the library produce a cryptographically valid PDF here.
     add_executable(appearance_driver appearance_driver.c ../sign/appearance.c
         ../sign/arg.c ../sign/options.c ../sign/config.c ../sign/io.c ../sign/certs/certs.c
-        "${SIGN_CERT_CATALOG}" libssig/tests/document_sign_fixture.c)
-    target_include_directories(appearance_driver PRIVATE "${PROJECT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/libssig")
+        "${SIGN_CERT_CATALOG}" "${PROJECT_SOURCE_DIR}/vendor/libssig/tests/document_sign_fixture.c")
+    target_include_directories(appearance_driver PRIVATE "${PROJECT_SOURCE_DIR}" "${PROJECT_SOURCE_DIR}/vendor/libssig")
     target_link_libraries(appearance_driver PRIVATE Argp::Argp libssig::ssig OpenSSL::Crypto
         sign_config_deps PkgConfig::GIO sign_image_deps PkgConfig::P11_KIT)
     target_compile_definitions(appearance_driver PRIVATE SIGN_VERSION="${PROJECT_VERSION}")

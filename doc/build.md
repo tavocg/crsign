@@ -16,12 +16,17 @@ explícitamente con `-DARGP_INCLUDE_DIR=/ruta/include`
 y `-DARGP_LIBRARY=/ruta/lib/libargp.a` (o la biblioteca equivalente del sistema).
 No se descargan dependencias durante la configuración.
 
-OpenSC se enlaza estáticamente desde un commit de `master` fijado en
-`packaging/opensc.json`. `nix develop` prepara `libcrsign-opensc.a`; en Windows y
-macOS lo prepara `scripts/bootstrap-native.py`. Para otros entornos, usa ese
-bootstrap con Autoconf, Automake, Libtool, Make y los encabezados de PC/SC
-instalados, y añade su prefijo a `CMAKE_PREFIX_PATH`. El bootstrap es el paso
-explícito que descarga fuentes y verifica su SHA-256; CMake permanece offline.
+Los submódulos de producción están en `vendor/libssig` y `vendor/opensc`.
+CMake construye OpenSC estáticamente desde el commit de `master` fijado por Git,
+sin descargas, usando Autoconf, Automake, Libtool, Make y los encabezados de PC/SC.
+`nix develop` proporciona esas herramientas. Los archivos generados permanecen
+en `build/opensc`; el submódulo no se modifica.
+`SIGN_EMBED_OPENSC` está activado por defecto: si falta el submódulo, configura
+después de ejecutar `git submodule update --init --recursive`. Para construir
+únicamente con proveedores externos, usa `-DSIGN_EMBED_OPENSC=OFF`; en ese caso
+no se construye OpenSC ni se requieren sus herramientas. El CI y los paquetes
+oficiales conservan OpenSC embebido. El bootstrap nativo descarga únicamente
+tomlc17 y, cuando se solicita, argp; CMake permanece offline.
 El servicio PC/SC y los controladores del lector siguen siendo del sistema.
 
 En Windows, la CLI obtiene los argumentos desde la línea de comandos Unicode y
@@ -59,7 +64,7 @@ Para compilar sin GTK, añade `-DHEADLESS=ON`.
 
 ## Modelo de dependencias
 
-CRSign compila e incorpora libssig estáticamente desde `tests/libssig`; no necesita
+CRSign compila e incorpora libssig estáticamente desde `vendor/libssig`; no necesita
 una instalación separada. Las demás bibliotecas se descubren con CMake y
 pkg-config, usando las versiones y el tipo de enlace de sus paquetes. No se
 recompilan ni se fuerzan archivos estáticos de OpenSSL, Jansson, zlib, libxml2,

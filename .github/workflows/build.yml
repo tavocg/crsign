@@ -23,6 +23,7 @@ jobs:
           nix develop --command cmake -S . -B build
           -DCMAKE_BUILD_TYPE=Release
           -DHEADLESS=OFF
+          -DSIGN_EMBED_OPENSC=ON
           -DBUILD_TESTING=ON
           -DSIGN_TEST_LIBSSIG=ON
           -DLIBSSIG_TEST_CONFORMANCE=ON

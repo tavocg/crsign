@@ -17,16 +17,18 @@ no static-library overrides. Native bootstrap only builds tomlc17 and optional
 argp when the platform does not provide them.
 
 CI has one GTK build per platform, without a shared/static matrix.
-`static_linkage` checks only that the executable does not import libssig as a
-shared library. `embedded_magic` checks the bundled MIME database and explicit
+`static_linkage` checks that the executable imports neither libssig nor OpenSC
+as a shared library. `vendor_configuration` checks the missing-OpenSC error and
+explicit opt-out. `modules_cli` verifies user-registered p11-kit providers with
+and without embedded OpenSC. `embedded_magic` checks the bundled MIME database and explicit
 `MAGIC` overrides when embedding is enabled. It is skipped for external libssig
 packages or when embedding is disabled.
 
-All registration lives in `tests/CMakeLists.txt`. The `tests/libssig` submodule
+All registration lives in `tests/CMakeLists.txt`. The `vendor/libssig` submodule
 pins the same implementation and reusable tests. It contains the nested official
 ETSI schema submodules; no schemas, packages or repositories are downloaded by
 CMake or CTest. The Nix flake provides Python and native test dependencies. Other
-environments can install `tests/libssig/tests/requirements.txt` and select their
+environments can install `vendor/libssig/tests/requirements.txt` and select their
 interpreter with `Python3_EXECUTABLE`.
 
 - `commands_cli` checks command dispatch and JSON with a hardware substitute.
@@ -125,7 +127,7 @@ The installed Sign binary only includes the reviewed public catalogue.
 The system-trust layer can also be tested without PKCS#11, QPDF or GTK:
 
 ```sh
-cmake -S tests/libssig/tests/system_trust -B build/system-trust -DCMAKE_BUILD_TYPE=Release
+cmake -S vendor/libssig/tests/system_trust -B build/system-trust -DCMAKE_BUILD_TYPE=Release
 cmake --build build/system-trust --parallel
 ctest --test-dir build/system-trust --output-on-failure
 ```

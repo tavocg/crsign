@@ -1,3 +1,7 @@
-[submodule "tests/libssig"]
-	path = tests/libssig
+[submodule "vendor/libssig"]
+	path = vendor/libssig
 	url = https://github.com/tavocg/libssig.git
+[submodule "vendor/opensc"]
+	path = vendor/opensc
+	url = https://github.com/OpenSC/OpenSC.git
+	branch = master
