@@ -55,12 +55,12 @@ char* runtime_install_path(const char* path) {
 	g_free(prefix);
 	return result;
 }
-#ifdef SIGN_WITH_GUI
 static void resource_env(const char* name, const char* path) {
 	if (!g_getenv(name) && g_file_test(path, G_FILE_TEST_EXISTS)) {
 		g_setenv(name, path, true);
 	}
 }
+#ifdef SIGN_WITH_GUI
 static bool pixbuf_cache(const char* prefix) {
 	if (g_getenv("GDK_PIXBUF_MODULE_FILE")) {
 		return true;
@@ -203,6 +203,11 @@ bool runtime_init(void) {
 	bool packaged = g_file_test(marker, G_FILE_TEST_IS_REGULAR);
 	g_free(marker);
 	bool ok = true;
+	if (packaged) {
+		char* crypto = g_build_filename(prefix, "lib", "ossl-modules", NULL);
+		resource_env("OPENSSL_MODULES", crypto);
+		g_free(crypto);
+	}
 #ifdef SIGN_WITH_GUI
 	if (packaged) {
 		char* schemas = g_build_filename(

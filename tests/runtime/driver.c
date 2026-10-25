@@ -11,7 +11,8 @@ int main(void) {
 	    "FONTCONFIG_FILE",
 	    "GIO_EXTRA_MODULES",
 	    "XDG_DATA_DIRS",
-	    "GDK_PIXBUF_MODULE_FILE"
+	    "GDK_PIXBUF_MODULE_FILE",
+	    "OPENSSL_MODULES"
 	};
 	for (size_t i = 0; i < G_N_ELEMENTS(names); ++i) {
 		const char* value = g_getenv(names[i]);

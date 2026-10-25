@@ -99,12 +99,19 @@ def main():
             if args.wine:
                 env.update(WINEPREFIX=str(directory / 'wine'), WINEARCH='win64', WINEDEBUG='-all')
                 subprocess.run(['wineboot', '-u'], env=env, check=True, stdout=subprocess.DEVNULL)
+                # A fresh Wine prefix lacks the empty current-user certificate
+                # stores that Windows normally creates. Keep native trust
+                # evaluation enabled; create the standard empty stores.
+                for store in ('ROOT', 'CA'):
+                    subprocess.run(['wine', 'reg', 'add',
+                                    'HKCU\\Software\\Microsoft\\SystemCertificates\\' + store + '\\Certificates', '/f'],
+                                   env=env, check=True, stdout=subprocess.DEVNULL)
                 def convert(path):
                     return subprocess.check_output(['winepath', '-w', str(path)], env=env, text=True).strip()
             else:
                 convert = str
                 # Installed application must resolve its own DLLs.
-                system = Path(env['SystemRoot'])
+                system = Path(env.get('SystemRoot', env.get('SYSTEMROOT', 'C:/Windows')))
                 env['PATH'] = os.pathsep.join(map(str, [system / 'System32', system]))
             install = directory / 'instalación ñ'
             install_path = convert(install)

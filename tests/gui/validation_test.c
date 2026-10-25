@@ -137,6 +137,11 @@ int main(int argc, char** argv) {
 	);
 	const char* signed_at = valid->verification.signers[0].signing_time;
 	g_assert_nonnull(signed_at);
+	const char* other_time = valid->verification.signers[1].signing_time;
+	g_assert_nonnull(other_time);
+	if (strcmp(other_time, signed_at) > 0) {
+		signed_at = other_time;
+	}
 	g_assert_cmpuint(strlen(signed_at), ==, 20);
 	GDateTime* utc = g_date_time_new_from_iso8601(signed_at, NULL);
 	g_assert_nonnull(utc);

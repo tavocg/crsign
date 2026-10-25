@@ -156,6 +156,13 @@ def stage_gui_resources(bundle, prefixes):
                     bundle.copy(module, Path(destination) / module.name)
 
 
+def stage_crypto_resources(bundle, prefixes):
+    for prefix in prefixes:
+        for module in (prefix / 'lib/ossl-modules').glob('*'):
+            if module.suffix in ('.dll', '.so', '.dylib'):
+                bundle.copy(module, Path('lib/ossl-modules') / module.name)
+
+
 def configure_gui_resources(bundle):
     root = bundle.root
     environment = os.environ.copy()
@@ -248,6 +255,7 @@ def main():
     executable = Path('bin/sign.exe' if sys.platform == 'win32' else 'bin/sign')
     bundle = Bundle(root, search)
     bundle.copy(root / executable, executable)
+    stage_crypto_resources(bundle, prefixes)
     gui = 'HEADLESS:BOOL=OFF' in cache
     if gui:
         stage_gui_resources(bundle, prefixes[1:])
