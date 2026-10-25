@@ -329,7 +329,7 @@ Cierra primero la instancia abierta de crsign. Ejecuta desde una terminal y
 reproduce el fallo una vez:
 
 ```sh
-G_MESSAGES_DEBUG=crsign-signing ./build/sign --gui > /tmp/crsign-signing.log 2>&1
+G_MESSAGES_DEBUG=crsign-signing LIBSSIG_PKCS11_TRACE=1 ./build/sign --gui > /tmp/crsign-signing.log 2>&1
 ```
 
 Las líneas `crsign-signing-DEBUG` indican el número de archivo en la cola,
@@ -349,3 +349,10 @@ Al informar un fallo, indica si ocurre en el primer archivo o en uno posterior,
 si los mismos archivos funcionan individualmente, el perfil/nivel utilizado y
 el modelo y versión del driver. Conserva el registro de esa ejecución para
 comparar las etapas sin repetir firmas a ciegas.
+
+`LIBSSIG_PKCS11_TRACE=1` agrega líneas `libssig-pkcs11` con el nombre de la
+llamada y su retorno: apertura/cierre de sesión, login de usuario y contextual,
+consulta de autenticación, `C_SignInit` y las dos llamadas de `C_Sign` para
+consultar longitud y obtener la firma. No registra los argumentos de esas
+llamadas. Permite distinguir un login rechazado de un `C_Login` exitoso seguido
+de `CKR_USER_NOT_LOGGED_IN` al preparar o ejecutar la firma.

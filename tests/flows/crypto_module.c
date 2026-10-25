@@ -10,6 +10,19 @@ static CK_FUNCTION_LIST            flow_module;
 static CK_FUNCTION_LIST*           flow_modules[] = {&flow_module, NULL};
 static struct libssig_context_impl flow_impl;
 
+static CK_RV flow_sign_init(
+    CK_SESSION_HANDLE session,
+    CK_MECHANISM_PTR  mechanism,
+    CK_OBJECT_HANDLE  key
+) {
+	static unsigned calls;
+	if (!g_strcmp0(g_getenv("SIGN_FLOW_TEST_SECOND_SIGN_NOT_LOGGED_IN"), "1") &&
+	    ++calls > 1) {
+		return CKR_USER_NOT_LOGGED_IN;
+	}
+	return mock_sign_init(session, mechanism, key);
+}
+
 libssig_status libssig_context_open(libssig_context* context) {
 	if (!rsa) {
 		rsa = EVP_PKEY_Q_keygen(NULL, NULL, "RSA", 2048);
@@ -65,7 +78,7 @@ libssig_status libssig_context_open(libssig_context* context) {
 		flow_module.C_FindObjects = mock_objects_find;
 		flow_module.C_FindObjectsFinal = mock_objects_find_final;
 		flow_module.C_GetAttributeValue = mock_attributes_get;
-		flow_module.C_SignInit = mock_sign_init;
+		flow_module.C_SignInit = flow_sign_init;
 		flow_module.C_Sign = document_raw_sign;
 		flow_impl.modules = flow_modules;
 	}

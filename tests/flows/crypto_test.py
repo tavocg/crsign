@@ -191,10 +191,11 @@ with tempfile.TemporaryDirectory(prefix='crsign-flow-crypto-') as directory:
     (root/trace_input).write_bytes(b'private-document-content-marker')
     path.write_text(json.dumps(dict(version=1, documents=[
         dict(input=trace_input, output='trace-first.p7m', level='B-B'),
-        dict(input='private-missing-document.bin', output='trace-second.p7m', level='B-B'),
+        dict(input=trace_input, output='trace-second.p7m', level='B-B'),
         dict(input=trace_input, output='trace-never.p7m', level='B-B')])) )
     traced = subprocess.run([flow_driver, 'run', str(path), str(root)],
-                            env=dict(env, G_MESSAGES_DEBUG='crsign-signing'),
+                            env=dict(env, G_MESSAGES_DEBUG='crsign-signing', LIBSSIG_PKCS11_TRACE='1',
+                                     SIGN_FLOW_TEST_SECOND_SIGN_NOT_LOGGED_IN='1'),
                             capture_output=True, text=True, timeout=30)
     assert traced.returncode != 0
     trace = '\n'.join(line for line in (traced.stdout + traced.stderr).splitlines()
@@ -207,7 +208,13 @@ with tempfile.TemporaryDirectory(prefix='crsign-flow-crypto-') as directory:
                   'libssig-sign', 'context-close', 'output-write'):
         assert 'stage=' + stage + ' phase=begin' in trace, (stage, trace)
     assert 'CK_RV=0x0' in trace, trace
+    assert 'CK_RV=0x101' in trace, trace
+    pkcs11 = '\n'.join(line for line in traced.stderr.splitlines() if line.startswith('libssig-pkcs11:'))
+    assert pkcs11.count('operation=C_Login(CKU_USER) CK_RV=0x0') == 2, pkcs11
+    assert 'operation=C_SignInit CK_RV=0x101' in pkcs11, pkcs11
+    assert pkcs11.count('operation=C_Sign(output) CK_RV=0x0') == 1, pkcs11
+    trace += '\n' + pkcs11
     for private in (trace_input, 'private-document-content-marker', 'Flow signer',
-                    str(root), 'pin=', 'pkcs11:'):
+                    str(root), 'pin=', 'pkcs11:token='):
         assert private not in trace, (private, trace)
 print('Real flow signing, batch verification and mixed flows passed')

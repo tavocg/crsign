@@ -251,9 +251,10 @@ libssig_status sign_identity_open(
 		g_debug("stage=tokens phase=begin");
 		status = libssig_tokens(&identity->context, &identity->tokens, 0);
 		g_debug(
-		    "stage=tokens phase=end status=%d count=%zu",
+		    "stage=tokens phase=end status=%d count=%zu CK_RV=0x%lx",
 		    (int)status,
-		    identity->tokens.count
+		    identity->tokens.count,
+		    identity->tokens.ck_rv
 		);
 	}
 	if (status == LIBSSIG_OK) {
@@ -271,9 +272,10 @@ libssig_status sign_identity_open(
 		    0
 		);
 		g_debug(
-		    "stage=certificates phase=end status=%d count=%zu",
+		    "stage=certificates phase=end status=%d count=%zu CK_RV=0x%lx",
 		    (int)status,
-		    identity->certificates.count
+		    identity->certificates.count,
+		    identity->certificates.ck_rv
 		);
 	}
 	if (status == LIBSSIG_OK) {
@@ -336,9 +338,14 @@ bool sign_create(
 		}
 		return status == LIBSSIG_OK;
 	}
-	sign_identity        identity = {0};
-	libssig_status       status = sign_identity_open(args, &identity, error);
-	const libssig_token* token = identity.token;
+	sign_identity  identity = {0};
+	libssig_status status = sign_identity_open(args, &identity, error);
+	if (status == LIBSSIG_ERROR_PKCS11) {
+		signature->ck_rv = identity.certificates.ck_rv
+		                       ? identity.certificates.ck_rv
+		                       : identity.tokens.ck_rv;
+	}
+	const libssig_token*       token = identity.token;
 	const libssig_certificate* cert = identity.certificate;
 	if (cert) {
 		char*        authority = NULL;
