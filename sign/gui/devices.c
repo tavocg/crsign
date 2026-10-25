@@ -613,7 +613,8 @@ static void render(SignDevices* self, sign_device_inventory* inventory) {
 	                                 self->detail_pages,
 	                                 self->selected_device
 	                             )) {
-		g_clear_pointer(&self->selected_device, g_free);
+		g_free(self->selected_device);
+		self->selected_device = NULL;
 		gtk_stack_set_visible_child(self->detail_pages, self->empty_details);
 		adw_navigation_page_set_title(self->navigation.page, _("Devices"));
 		adw_navigation_split_view_set_show_content(
@@ -894,7 +895,8 @@ static void devices_dispose(GObject* object) {
 		g_object_unref(self->cancellable);
 		self->cancellable = NULL;
 	}
-	g_clear_pointer(&self->selected_device, g_free);
+	g_free(self->selected_device);
+	self->selected_device = NULL;
 	if (self->header_menu) {
 		g_object_unref(self->header_menu);
 		self->header_menu = NULL;
