@@ -987,12 +987,12 @@ msgid "Output file options"
 msgstr "Opciones del archivo de salida"
 
 #: sign/gui/signing.c:2433
-msgid "Choose an output folder for all files"
-msgstr "Elegir una carpeta de salida para todos los archivos"
+msgid "Choose output folder for all"
+msgstr "Elegir carpeta de salida para todos"
 
 #: sign/gui/signing.c:2438
-msgid "Choose the output name for each file"
-msgstr "Elegir el nombre de salida para cada archivo"
+msgid "Choose output individually"
+msgstr "Elegir salida individualmente"
 
 #: sign/gui/signing.c:2461
 msgid "Document queue"
@@ -1424,3 +1424,9 @@ msgstr "firmado"
 
 #~ msgid "Cannot create validation flow"
 #~ msgstr "No se pudo preparar la validación"
+
+msgid "Graphical signature"
+msgstr "Representación gráfica"
+
+msgid "Invalid signature or altered content"
+msgstr "Firma inválida o contenido modificado"

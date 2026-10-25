@@ -812,6 +812,30 @@ int main(int argc, char** argv) {
 		));
 	}
 	GtkListBoxRow* plain = gtk_list_box_get_row_at_index(queue, 1);
+	g_assert_null(named(GTK_WIDGET(plain), "sign-graphical-signature"));
+	GtkWidget* graphical = named(
+	    GTK_WIDGET(gtk_list_box_get_row_at_index(queue, 0)),
+	    "sign-graphical-signature"
+	);
+	g_assert_nonnull(graphical);
+	g_assert_cmpstr(
+	    gtk_button_get_icon_name(GTK_BUTTON(graphical)),
+	    ==,
+	    "insert-image-symbolic"
+	);
+	g_assert_cmpstr(
+	    gtk_button_get_icon_name(
+	        GTK_BUTTON(named(GTK_WIDGET(self), "sign-image"))
+	    ),
+	    ==,
+	    "image-x-generic-symbolic"
+	);
+
+	g_signal_emit_by_name(graphical, "clicked");
+	g_assert_true(sign_signing_is_reader(self));
+	wait_done(self);
+	sign_signing_show_queue(self);
+
 	g_assert_false(gtk_widget_get_visible(
 	    named(GTK_WIDGET(plain), "sign-document-warning")
 	));

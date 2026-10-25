@@ -6,6 +6,7 @@
 #include <sign/gui/details.h>
 #include <sign/gui/device_access.h>
 #include <sign/gui/devices.h>
+#include <sign/gui/dialog.h>
 #include <sign/gui/error.h>
 #include <sign/gui/i18n.h>
 #include <sign/gui/inventory.h>
@@ -33,26 +34,12 @@ static GParamSpec* properties[N_PROPERTIES];
 static const char* yes_no(bool value) {
 	return value ? _("Yes") : _("No");
 }
-static AdwActionRow* field(
-    gpointer    parent,
-    const char* name,
-    const char* value
-) {
-	AdwActionRow* row = ADW_ACTION_ROW(adw_action_row_new());
-	adw_preferences_row_set_use_markup(ADW_PREFERENCES_ROW(row), FALSE);
-	adw_preferences_row_set_title(ADW_PREFERENCES_ROW(row), name);
-	char* safe = value && *value ? g_utf8_make_valid(value, -1)
-	                             : g_strdup(_("Unavailable"));
-	adw_action_row_set_subtitle(row, safe);
-	g_free(safe);
-	adw_action_row_set_subtitle_lines(row, 0);
-	adw_preferences_row_set_title_selectable(ADW_PREFERENCES_ROW(row), TRUE);
-	if (ADW_IS_EXPANDER_ROW(parent)) {
-		adw_expander_row_add_row(parent, GTK_WIDGET(row));
-	} else {
-		gtk_list_box_append(GTK_LIST_BOX(parent), GTK_WIDGET(row));
-	}
-	return row;
+static GtkWidget* field(gpointer parent, const char* name, const char* value) {
+	return sign_detail_field(
+	    GTK_WIDGET(parent),
+	    name,
+	    value && *value ? value : _("Unavailable")
+	);
 }
 static void number(gpointer parent, const char* name, unsigned long value) {
 	char* text = value == CK_UNAVAILABLE_INFORMATION
@@ -165,16 +152,24 @@ static char* hex_id(const unsigned char* bytes, size_t size) {
 	}
 	return g_string_free(hex, FALSE);
 }
-static void render_key(AdwExpanderRow* parent, libssig_device_key* key) {
-	const char* kind = object_kind(key->object_class);
-	char*       label = sign_device_text(
-        (const unsigned char*)key->label,
-        key->label_len
-    );
-	AdwExpanderRow* row = parent;
-	AdwActionRow*   heading = field(row, *label ? label : kind, kind);
-	gtk_widget_add_css_class(GTK_WIDGET(heading), "heading");
-	g_free(label);
+/* Use the same standard libadwaita list for navigable and expandable rows. */
+static GtkListBox* row_group(GtkBox* parent) {
+	GtkWidget* list = gtk_list_box_new();
+	gtk_list_box_set_selection_mode(GTK_LIST_BOX(list), GTK_SELECTION_NONE);
+	gtk_widget_add_css_class(list, "boxed-list");
+	gtk_widget_set_margin_top(list, 6);
+	gtk_widget_set_margin_bottom(list, 6);
+	gtk_box_append(parent, list);
+	return GTK_LIST_BOX(list);
+}
+static void key_details(
+    AdwExpanderRow*        row,
+    gpointer               data,
+    sign_device_inventory* inventory
+) {
+	(void)inventory;
+	libssig_device_key* key = data;
+	const char*         kind = object_kind(key->object_class);
 	field(row, _("Object type"), kind);
 	char* id = hex_id(key->id, key->id_len);
 	field(row, _("ID"), id);
@@ -197,6 +192,26 @@ static void render_key(AdwExpanderRow* parent, libssig_device_key* key) {
 	    _("Signing attribute"),
 	    key->sign_known ? yes_no(key->can_sign) : _("Unavailable")
 	);
+}
+static void render_key(
+    GtkBox*                parent,
+    libssig_device_key*    key,
+    sign_device_inventory* inventory
+) {
+	const char* kind = object_kind(key->object_class);
+	char*       label = sign_device_text(
+        (const unsigned char*)key->label,
+        key->label_len
+    );
+	AdwExpanderRow* row = expander(
+	    *label ? label : kind,
+	    "dialog-password-symbolic"
+	);
+	adw_expander_row_set_subtitle(row, kind);
+	gtk_widget_set_name(GTK_WIDGET(row), "devices-key");
+	g_free(label);
+	gtk_list_box_append(row_group(parent), GTK_WIDGET(row));
+	defer_details(row, key, inventory, key_details);
 }
 static void certificate_details(
     AdwExpanderRow*        row,
@@ -274,7 +289,7 @@ static void certificate_details(
 }
 
 static void render_certificate(
-    AdwExpanderRow*        parent,
+    GtkBox*                parent,
     libssig_certificate*   object,
     sign_device_inventory* inventory
 ) {
@@ -282,15 +297,15 @@ static void render_certificate(
 	    (const unsigned char*)object->label,
 	    object->label_len
 	);
-	AdwActionRow* row = field(
-	    parent,
+	AdwExpanderRow* row = expander(
 	    *label ? label : _("Certificate"),
-	    _("Certificate")
+	    "application-certificate-symbolic"
 	);
-	gtk_widget_add_css_class(GTK_WIDGET(row), "heading");
 	g_free(label);
+	adw_expander_row_set_subtitle(row, _("Certificate"));
 	gtk_widget_set_name(GTK_WIDGET(row), "devices-certificate");
-	certificate_details(parent, object, inventory);
+	gtk_list_box_append(row_group(parent), GTK_WIDGET(row));
+	defer_details(row, object, inventory, certificate_details);
 }
 
 static void copy_token_uri(GtkButton* button, gpointer data) {
@@ -304,7 +319,7 @@ static void copy_token_uri(GtkButton* button, gpointer data) {
 	}
 }
 static void slot_details(
-    AdwExpanderRow*        row,
+    GtkBox*                row,
     gpointer               data,
     sign_device_inventory* inventory
 ) {
@@ -324,8 +339,8 @@ static void slot_details(
 	}
 	libssig_token* token = &slot->token;
 	field(row, _("Token label"), token->label);
-	AdwActionRow* uri_row = field(row, _("Token URI"), token->uri);
-	GtkWidget*    copy = gtk_button_new_from_icon_name("edit-copy-symbolic");
+	GtkWidget* uri_row = field(row, _("Token URI"), token->uri);
+	GtkWidget* copy = gtk_button_new_from_icon_name("edit-copy-symbolic");
 	gtk_widget_set_name(copy, "devices-copy-token-uri");
 	gtk_widget_set_tooltip_text(copy, _("Copy Token URI"));
 	gtk_widget_add_css_class(copy, "flat");
@@ -338,7 +353,7 @@ static void slot_details(
 	    g_free
 	);
 	g_signal_connect(copy, "clicked", G_CALLBACK(copy_token_uri), NULL);
-	adw_action_row_add_suffix(uri_row, copy);
+	gtk_box_append(GTK_BOX(uri_row), copy);
 	field(row, _("Manufacturer"), token->manufacturer);
 	field(row, _("Model"), token->model);
 	field(row, _("Serial number"), token->serial);
@@ -391,28 +406,157 @@ static void slot_details(
 		render_certificate(row, &slot->certificates.items[c], inventory);
 	}
 	for (size_t k = 0; k < slot->key_count; ++k) {
-		render_key(row, &slot->keys[k]);
+		render_key(row, &slot->keys[k], inventory);
 	}
 }
+static void open_slot(AdwActionRow* row, gpointer data) {
+	(void)data;
+	lazy_details* snapshot = g_object_get_data(G_OBJECT(row), "slot-snapshot");
+	AdwDialog*    dialog = adw_dialog_new();
+	gtk_widget_set_name(GTK_WIDGET(dialog), "devices-slot-dialog");
+	adw_dialog_set_title(
+	    dialog,
+	    adw_preferences_row_get_title(ADW_PREFERENCES_ROW(row))
+	);
+	adw_dialog_set_content_width(dialog, 620);
+	adw_dialog_set_content_height(dialog, 640);
+	GtkWidget* toolbar = adw_toolbar_view_new();
+	adw_toolbar_view_add_top_bar(
+	    ADW_TOOLBAR_VIEW(toolbar),
+	    adw_header_bar_new()
+	);
+	GtkWidget* list = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+	gtk_widget_set_margin_start(list, 18);
+	gtk_widget_set_margin_end(list, 18);
+	gtk_widget_set_margin_bottom(list, 18);
+	gtk_widget_set_valign(list, GTK_ALIGN_START);
+	/* Hold the scan snapshot independently of background device refreshes. */
+	g_object_set_data_full(
+	    G_OBJECT(dialog),
+	    "inventory",
+	    sign_device_inventory_ref(snapshot->inventory),
+	    (GDestroyNotify)sign_device_inventory_free
+	);
+	slot_details(GTK_BOX(list), snapshot->object, snapshot->inventory);
+	GtkWidget* scroll = gtk_scrolled_window_new();
+	gtk_scrolled_window_set_policy(
+	    GTK_SCROLLED_WINDOW(scroll),
+	    GTK_POLICY_NEVER,
+	    GTK_POLICY_AUTOMATIC
+	);
+	gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(scroll), list);
+	adw_toolbar_view_set_content(ADW_TOOLBAR_VIEW(toolbar), scroll);
+	adw_dialog_set_child(dialog, toolbar);
+	sign_dialog_present(dialog, GTK_WIDGET(row));
+}
+static void slot_snapshot_free(gpointer data) {
+	lazy_details* snapshot = data;
+	sign_device_inventory_free(snapshot->inventory);
+	g_free(snapshot);
+}
 static void render_slot(
-    GtkListBox*            parent,
+    GtkBox*                parent,
     libssig_device_slot*   slot,
     sign_device_inventory* inventory
 ) {
-	char*           title = g_strdup_printf(_("Slot %lu"), slot->id);
-	AdwExpanderRow* row = expander(title, "media-flash-symbolic");
+	char*         title = g_strdup_printf(_("Slot %lu"), slot->id);
+	AdwActionRow* row = ADW_ACTION_ROW(adw_action_row_new());
+	adw_preferences_row_set_use_markup(ADW_PREFERENCES_ROW(row), FALSE);
+	adw_preferences_row_set_title(ADW_PREFERENCES_ROW(row), title);
+	const char* subtitle = slot->token_present
+	                           ? (slot->token_valid && slot->token.label[0]
+	                                  ? slot->token.label
+	                                  : _("Token present"))
+	                           : _("No token inserted");
+	char*       safe = g_utf8_make_valid(subtitle, -1);
+	adw_action_row_set_subtitle(row, safe);
+	g_free(safe);
+	gtk_list_box_append(row_group(parent), GTK_WIDGET(row));
 	g_free(title);
-	char* label = slot->token_valid ? g_utf8_make_valid(slot->token.label, -1)
-	                                : NULL;
-	adw_expander_row_set_subtitle(
-	    row,
-	    slot->token_present ? (label && *label ? label : _("Token present"))
-	                        : _("No token inserted")
-	);
-	g_free(label);
-	gtk_list_box_append(parent, GTK_WIDGET(row));
 	gtk_widget_set_name(GTK_WIDGET(row), "devices-slot");
-	defer_details(row, slot, inventory, slot_details);
+	adw_action_row_add_prefix(
+	    row,
+	    gtk_image_new_from_icon_name("media-flash-symbolic")
+	);
+	adw_action_row_add_suffix(
+	    row,
+	    gtk_image_new_from_icon_name("go-next-symbolic")
+	);
+	gtk_list_box_row_set_activatable(GTK_LIST_BOX_ROW(row), TRUE);
+	lazy_details* snapshot = g_new0(lazy_details, 1);
+	snapshot->object = slot;
+	snapshot->inventory = sign_device_inventory_ref(inventory);
+	g_object_set_data_full(
+	    G_OBJECT(row),
+	    "slot-snapshot",
+	    snapshot,
+	    slot_snapshot_free
+	);
+	g_signal_connect(row, "activated", G_CALLBACK(open_slot), NULL);
+}
+/* Only the device list is constructed during a background scan update. */
+typedef struct {
+	libssig_device_module* module;
+	sign_device_inventory* inventory;
+	GPtrArray*             slots;
+	bool                   populated;
+} device_page;
+static void device_page_free(gpointer data) {
+	device_page* page = data;
+	sign_device_inventory_free(page->inventory);
+	g_ptr_array_unref(page->slots);
+	g_free(page);
+}
+static void populate_device(GtkWidget* scroll) {
+	GtkBox*      row = g_object_get_data(G_OBJECT(scroll), "device-list");
+	device_page* page = g_object_get_data(G_OBJECT(row), "device-page");
+	if (page->populated) {
+		return;
+	}
+	page->populated = true;
+	libssig_device_module* module = page->module;
+	libssig_device_slot*   first = g_ptr_array_index(page->slots, 0);
+	field(row, _("Manufacturer"), first->manufacturer);
+	field(row, _("PKCS#11 module"), module->name);
+	field(row, _("Module path"), module->path);
+	field(row, _("Library"), module->description);
+	char* version = g_strdup_printf(
+	    "%u.%u",
+	    module->version.major,
+	    module->version.minor
+	);
+	field(row, _("Library version"), version);
+	g_free(version);
+	version = g_strdup_printf(
+	    "%u.%u",
+	    module->cryptoki_version.major,
+	    module->cryptoki_version.minor
+	);
+	field(row, _("PKCS#11 version"), version);
+	g_free(version);
+	for (guint i = 0; i < page->slots->len; ++i) {
+		render_slot(row, g_ptr_array_index(page->slots, i), page->inventory);
+	}
+}
+static void navigation_changed(
+    GObject*    object,
+    GParamSpec* pspec,
+    gpointer    data
+) {
+	(void)object;
+	(void)pspec;
+	g_signal_emit_by_name(data, "navigation-changed");
+}
+const char* sign_devices_title(SignDevices* self) {
+	return adw_navigation_split_view_get_show_content(self->navigation.split)
+	           ? adw_navigation_page_get_title(self->navigation.page)
+	           : _("Devices");
+}
+bool sign_devices_in_details(SignDevices* self) {
+	return adw_navigation_split_view_get_show_content(self->navigation.split);
+}
+void sign_devices_back(SignDevices* self) {
+	adw_navigation_split_view_set_show_content(self->navigation.split, FALSE);
 }
 static void open_device(AdwActionRow* row, gpointer data) {
 	SignDevices* self = data;
@@ -421,6 +565,7 @@ static void open_device(AdwActionRow* row, gpointer data) {
 	if (!page) {
 		return;
 	}
+	populate_device(page);
 	g_free(self->selected_device);
 	self->selected_device = g_strdup(key);
 	if (self->selected_reader) {
@@ -488,7 +633,7 @@ static void render(SignDevices* self, sign_device_inventory* inventory) {
 			    slot->manufacturer ? slot->manufacturer : "",
 			    description
 			);
-			GtkListBox* row = g_hash_table_lookup(groups, group_id);
+			GtkBox* row = g_hash_table_lookup(groups, group_id);
 			if (!row) {
 				++readers;
 				AdwActionRow* reader = ADW_ACTION_ROW(adw_action_row_new());
@@ -527,14 +672,13 @@ static void render(SignDevices* self, sign_device_inventory* inventory) {
 				    GTK_WIDGET(reader)
 				);
 				gtk_box_append(GTK_BOX(self->content), group);
-				row = GTK_LIST_BOX(gtk_list_box_new());
-				gtk_list_box_set_selection_mode(row, GTK_SELECTION_NONE);
+				row = GTK_BOX(gtk_box_new(GTK_ORIENTATION_VERTICAL, 0));
 				gtk_widget_set_valign(GTK_WIDGET(row), GTK_ALIGN_START);
-				gtk_widget_add_css_class(GTK_WIDGET(row), "boxed-list");
 				gtk_widget_set_margin_start(GTK_WIDGET(row), 12);
 				gtk_widget_set_margin_end(GTK_WIDGET(row), 12);
 				gtk_widget_set_margin_bottom(GTK_WIDGET(row), 12);
 				GtkWidget* scroll = gtk_scrolled_window_new();
+				g_object_set_data(G_OBJECT(scroll), "device-list", row);
 				gtk_scrolled_window_set_policy(
 				    GTK_SCROLLED_WINDOW(scroll),
 				    GTK_POLICY_NEVER,
@@ -581,31 +725,24 @@ static void render(SignDevices* self, sign_device_inventory* inventory) {
 					);
 				}
 				g_hash_table_insert(groups, g_strdup(group_id), row);
-				field(row, _("Manufacturer"), slot->manufacturer);
-				field(row, _("PKCS#11 module"), module->name);
-				field(row, _("Module path"), module->path);
-				field(row, _("Library"), module->description);
-				char* version = g_strdup_printf(
-				    "%u.%u",
-				    module->version.major,
-				    module->version.minor
+				device_page* page = g_new0(device_page, 1);
+				page->module = module;
+				page->inventory = sign_device_inventory_ref(inventory);
+				page->slots = g_ptr_array_new();
+				g_object_set_data_full(
+				    G_OBJECT(row),
+				    "device-page",
+				    page,
+				    device_page_free
 				);
-				field(row, _("Library version"), version);
-				g_free(version);
-				version = g_strdup_printf(
-				    "%u.%u",
-				    module->cryptoki_version.major,
-				    module->cryptoki_version.minor
-				);
-				field(row, _("PKCS#11 version"), version);
-				g_free(version);
 			}
 			g_free(description);
 			g_free(group_id);
 			++slots;
 			certificates += slot->certificates.count;
 			keys += slot->key_count;
-			render_slot(row, slot, inventory);
+			device_page* page = g_object_get_data(G_OBJECT(row), "device-page");
+			g_ptr_array_add(page->slots, slot);
 		}
 		g_hash_table_unref(groups);
 	}
@@ -621,6 +758,15 @@ static void render(SignDevices* self, sign_device_inventory* inventory) {
 		    self->navigation.split,
 		    FALSE
 		);
+	}
+	if (self->selected_device && sign_devices_in_details(self)) {
+		GtkWidget* selected = gtk_stack_get_child_by_name(
+		    self->detail_pages,
+		    self->selected_device
+		);
+		if (selected) {
+			populate_device(selected);
+		}
 	}
 	char* summary = readers ? g_strdup_printf(
 	                              _("Readers: %zu · Slots: %zu · Certificates: "
@@ -932,6 +1078,17 @@ static void sign_devices_class_init(SignDevicesClass* klass) {
 	    N_PROPERTIES,
 	    properties
 	);
+	g_signal_new(
+	    "navigation-changed",
+	    G_TYPE_FROM_CLASS(klass),
+	    G_SIGNAL_RUN_LAST,
+	    0,
+	    NULL,
+	    NULL,
+	    NULL,
+	    G_TYPE_NONE,
+	    0
+	);
 }
 static void sign_devices_init(SignDevices* self) {
 	gtk_orientable_set_orientation(
@@ -1029,6 +1186,20 @@ static void sign_devices_init(SignDevices* self) {
 	        _("Devices"),
 	        "devices-split"
 	    )
+	);
+	g_signal_connect_object(
+	    self->navigation.split,
+	    "notify::show-content",
+	    G_CALLBACK(navigation_changed),
+	    self,
+	    0
+	);
+	g_signal_connect_object(
+	    self->navigation.page,
+	    "notify::title",
+	    G_CALLBACK(navigation_changed),
+	    self,
+	    0
 	);
 }
 GtkWidget* sign_devices_new(void) {

@@ -48,3 +48,10 @@ button.document-favorite:checked:active {
   border-color: transparent;
   color: @window_fg_color;
 }
+
+/* Document queues use equal spacing; status belongs below the filename. */
+row.document-row { padding: 10px 14px; min-height: 40px; }
+.sign-output-choices button { font-weight: normal; }
+.sign-output-choices button label { font-weight: normal; }
+
+row.plain-detail { background: transparent; border: none; box-shadow: none; padding: 0; }

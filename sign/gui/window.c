@@ -29,8 +29,9 @@ struct _SignWindow {
 	AdwOverlaySplitView* split_view;
 	GtkStack*            pages;
 	GtkLabel*            title;
-	GtkWidget *profile_selector, *view_toggle, *home_row, *devices_menu;
-	SignHome*  home;
+	GtkWidget *profile_selector, *view_toggle, *home_row, *devices_menu,
+	    *details_back;
+	SignHome* home;
 };
 
 G_DEFINE_TYPE(SignWindow, sign_window, ADW_TYPE_APPLICATION_WINDOW)
@@ -52,6 +53,23 @@ static void devices_busy_changed(
 	gtk_stack_set_visible_child_name(icons, busy ? "loading" : "icon");
 }
 
+static void device_navigation(SignDevices* devices, gpointer data) {
+	SignWindow* self = data;
+	if (g_strcmp0(gtk_stack_get_visible_child_name(self->pages), "devices")) {
+		return;
+	}
+	bool details = sign_devices_in_details(devices);
+	gtk_label_set_text(self->title, sign_devices_title(devices));
+	gtk_widget_set_visible(self->details_back, details);
+	gtk_widget_set_visible(self->devices_menu, !details);
+}
+static void device_back(GtkButton* button, gpointer data) {
+	(void)button;
+	SignWindow* self = data;
+	sign_devices_back(
+	    SIGN_DEVICES(gtk_stack_get_child_by_name(self->pages, "devices"))
+	);
+}
 static void section_selected(
     GtkListBox*    list,
     GtkListBoxRow* row,
@@ -98,6 +116,13 @@ static void section_selected(
 		);
 	}
 	gtk_label_set_label(self->title, _(sections[index].title));
+	gtk_widget_set_visible(self->details_back, FALSE);
+	if (index == 3) {
+		device_navigation(
+		    SIGN_DEVICES(gtk_stack_get_child_by_name(self->pages, "devices")),
+		    self
+		);
+	}
 	if (adw_overlay_split_view_get_collapsed(self->split_view)) {
 		adw_overlay_split_view_set_show_sidebar(self->split_view, FALSE);
 	}
@@ -254,6 +279,8 @@ static GtkWidget* create_content(SignWindow* self) {
 	GtkWidget* toolbar = adw_toolbar_view_new();
 	GtkWidget* header = adw_header_bar_new();
 	self->title = GTK_LABEL(gtk_label_new(_("Home")));
+	gtk_label_set_ellipsize(self->title, PANGO_ELLIPSIZE_END);
+	gtk_label_set_max_width_chars(self->title, 40);
 	gtk_widget_set_name(GTK_WIDGET(self->title), "section-title");
 	gtk_widget_add_css_class(GTK_WIDGET(self->title), "title");
 	adw_header_bar_set_title_widget(
@@ -286,6 +313,17 @@ static GtkWidget* create_content(SignWindow* self) {
 	    G_BINDING_SYNC_CREATE | G_BINDING_BIDIRECTIONAL
 	);
 	adw_header_bar_pack_start(ADW_HEADER_BAR(header), toggle);
+	self->details_back = gtk_button_new_from_icon_name("go-previous-symbolic");
+	gtk_widget_set_name(self->details_back, "details-back");
+	gtk_widget_set_tooltip_text(self->details_back, _("Back"));
+	gtk_widget_set_visible(self->details_back, FALSE);
+	g_signal_connect(
+	    self->details_back,
+	    "clicked",
+	    G_CALLBACK(device_back),
+	    self
+	);
+	adw_header_bar_pack_start(ADW_HEADER_BAR(header), self->details_back);
 	self->view_toggle = gtk_toggle_button_new();
 	gtk_button_set_icon_name(
 	    GTK_BUTTON(self->view_toggle),
@@ -362,6 +400,13 @@ static GtkWidget* create_content(SignWindow* self) {
 		}
 		if (!strcmp(sections[i].id, "devices")) {
 			GtkWidget* devices = sign_devices_new();
+			g_signal_connect_object(
+			    devices,
+			    "navigation-changed",
+			    G_CALLBACK(device_navigation),
+			    self,
+			    0
+			);
 			self->devices_menu = sign_devices_header_menu(
 			    SIGN_DEVICES(devices)
 			);

@@ -124,16 +124,15 @@ int main(int argc, char** argv) {
 	g_assert_true(unknown->verification.signature_valid);
 	g_assert_false(unknown->verification.trusted);
 	g_assert_true(sign_validation_result(self, 5)->ok);
-	g_assert_true(contains(view, "CN=Flow signer"));
-	GtkListBox*   list = GTK_LIST_BOX(named(view, "validation-results"));
-	AdwActionRow* row = ADW_ACTION_ROW(gtk_list_box_get_row_at_index(list, 1));
+	g_assert_false(contains(view, "CN=Flow signer"));
+	GtkListBox*    list = GTK_LIST_BOX(named(view, "validation-results"));
+	GtkListBoxRow* row = gtk_list_box_get_row_at_index(list, 1);
 	g_assert_cmpstr(
-	    adw_preferences_row_get_title(ADW_PREFERENCES_ROW(row)),
+	    gtk_label_get_text(
+	        GTK_LABEL(named(GTK_WIDGET(row), "validation-filename"))
+	    ),
 	    ==,
 	    "signed ñ & record.p7m"
-	);
-	g_assert_false(
-	    adw_preferences_row_get_use_markup(ADW_PREFERENCES_ROW(row))
 	);
 	const char* signed_at = valid->verification.signers[0].signing_time;
 	g_assert_nonnull(signed_at);
@@ -148,40 +147,47 @@ int main(int argc, char** argv) {
 	GDateTime* local = g_date_time_to_local(utc);
 	char*      date = g_date_time_format(local, "%x %X");
 	char*      expected = g_strdup_printf("Válido · Firmado: %s", date);
-	g_assert_cmpstr(adw_action_row_get_subtitle(row), ==, expected);
+	g_assert_cmpstr(
+	    gtk_label_get_text(
+	        GTK_LABEL(named(GTK_WIDGET(row), "validation-status"))
+	    ),
+	    ==,
+	    expected
+	);
 	g_free(expected);
 	g_free(date);
 	g_date_time_unref(local);
 	g_date_time_unref(utc);
+	GtkListBoxRow* failed = gtk_list_box_get_row_at_index(list, 0);
 	g_assert_cmpstr(
-	    adw_action_row_get_subtitle(
-	        ADW_ACTION_ROW(gtk_list_box_get_row_at_index(list, 0))
+	    gtk_label_get_text(
+	        GTK_LABEL(named(GTK_WIDGET(failed), "validation-status"))
 	    ),
 	    ==,
 	    "Archivo sin firma o formato no admitido"
 	);
-	AdwNavigationSplitView* split = ADW_NAVIGATION_SPLIT_VIEW(
-	    named(view, "validation-split")
-	);
-	settle();
-	g_assert_false(adw_navigation_split_view_get_collapsed(split));
-	g_assert_false(adw_navigation_split_view_get_show_content(split));
+	g_assert_null(named(view, "validation-signer"));
+	snapshot(window, argv[2], "validation-queue.png");
+	g_assert_null(strstr(
+	    gtk_label_get_text(GTK_LABEL(named(
+	        GTK_WIDGET(gtk_list_box_get_row_at_index(list, 4)),
+	        "validation-status"
+	    ))),
+	    "Firmado:"
+	));
 	g_signal_emit_by_name(list, "row-activated", row);
-	g_assert_true(adw_navigation_split_view_get_show_content(split));
-	g_assert_cmpstr(
-	    adw_navigation_page_get_title(
-	        adw_navigation_split_view_get_content(split)
-	    ),
-	    ==,
-	    "signed ñ & record.p7m"
+	settle();
+	AdwDialog* dialog = adw_application_window_get_visible_dialog(
+	    ADW_APPLICATION_WINDOW(window)
 	);
-	GtkWidget* page = gtk_stack_get_visible_child(
-	    GTK_STACK(named(view, "validation-detail-pages"))
-	);
+	g_assert_nonnull(dialog);
+	g_assert_cmpstr(adw_dialog_get_title(dialog), ==, "signed ñ & record.p7m");
+	GtkWidget* page = GTK_WIDGET(dialog);
+	g_assert_false(contains(page, "Archivo"));
 	AdwExpanderRow* signer = ADW_EXPANDER_ROW(named(page, "validation-signer"));
 	g_assert_nonnull(signer);
-	gtk_widget_grab_focus(GTK_WIDGET(signer));
 	g_assert_false(adw_expander_row_get_expanded(signer));
+	g_assert_false(contains(page, "Huella SHA-256"));
 	GBytes* collapsed_arrow = arrow_shape(window, GTK_WIDGET(signer));
 	adw_expander_row_set_expanded(signer, TRUE);
 	GBytes* expanded_arrow = arrow_shape(window, GTK_WIDGET(signer));
@@ -195,30 +201,26 @@ int main(int argc, char** argv) {
 	snapshot(window, argv[2], "validation-results.png");
 	gtk_window_set_default_size(GTK_WINDOW(window), 400, 700);
 	snapshot(window, argv[2], "validation-narrow.png");
-	g_assert_true(adw_navigation_split_view_get_collapsed(split));
-	GtkWidget* back = named(view, "details-back");
-	g_assert_true(gtk_widget_get_visible(back));
-	g_signal_emit_by_name(back, "clicked");
+	no_nested_expanders(page, false);
+	adw_dialog_force_close(dialog);
 	settle();
-	g_assert_false(adw_navigation_split_view_get_show_content(split));
-	g_signal_emit_by_name(
-	    list,
-	    "row-activated",
-	    gtk_list_box_get_row_at_index(list, 4)
+	g_signal_emit_by_name(list, "row-activated", failed);
+	settle();
+	dialog = adw_application_window_get_visible_dialog(
+	    ADW_APPLICATION_WINDOW(window)
 	);
-	g_assert_true(adw_navigation_split_view_get_show_content(split));
+	g_assert_nonnull(dialog);
+	g_assert_true(
+	    contains(GTK_WIDGET(dialog), "Archivo sin firma o formato no admitido")
+	);
+	adw_dialog_force_close(dialog);
 	settle();
-	g_assert_true(contains(
-	    gtk_stack_get_visible_child(
-	        GTK_STACK(named(view, "validation-detail-pages"))
-	    ),
-	    "CN=Flow signer"
-	));
 	gtk_window_set_default_size(GTK_WINDOW(window), 1000, 750);
 	settle();
-	g_assert_false(adw_navigation_split_view_get_collapsed(split));
-	g_assert_false(gtk_widget_get_visible(back));
-	no_nested_expanders(view, false);
+	g_signal_emit_by_name(list, "row-activated", failed);
+	settle();
+	dismiss_dialog_background(window);
+
 	sign_validation_set_content(self, 3, files[0]);
 	wait_done(self);
 	g_assert_true(sign_validation_result(self, 3)->ok);
@@ -230,10 +232,19 @@ int main(int argc, char** argv) {
 	sign_validation_set_content(self, 3, files[0]);
 	wait_done(self);
 	g_assert_true(sign_validation_result(self, 3)->ok);
+	GtkWidget* remove = named(
+	    GTK_WIDGET(gtk_list_box_get_row_at_index(list, 2)),
+	    "validation-remove-document"
+	);
+	g_assert_nonnull(remove);
+	g_signal_emit_by_name(remove, "clicked");
+	g_assert_cmpuint(sign_validation_count(self), ==, 5);
 	g_assert_true(gtk_widget_get_sensitive(named(view, "validation-clear")));
 	g_signal_emit_by_name(named(view, "validation-clear"), "clicked");
 	g_assert_cmpuint(sign_validation_count(self), ==, 0);
-	g_assert_false(adw_navigation_split_view_get_show_content(split));
+	g_assert_null(adw_application_window_get_visible_dialog(
+	    ADW_APPLICATION_WINDOW(window)
+	));
 	g_assert_null(gtk_widget_get_first_child(GTK_WIDGET(list)));
 	/* A temporary unroot/reparent must not permanently disable file intake or
 	 * abandon queued work, even when a worker finishes while detached. */

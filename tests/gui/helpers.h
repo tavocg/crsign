@@ -13,6 +13,91 @@ static void settle(void) {
 	} while (g_get_monotonic_time() < deadline);
 }
 
+/* Use real pointer events to ensure an exterior click dismisses the dialog
+ * without activating a widget underneath; an interior click must keep it open.
+ */
+static inline void dismiss_dialog_background(GtkWidget* window) {
+	char* tool = g_find_program_in_path("xdotool");
+	if (!tool) {
+		AdwDialog* dialog = adw_application_window_get_visible_dialog(
+		    ADW_APPLICATION_WINDOW(window)
+		);
+		adw_dialog_force_close(dialog);
+		settle();
+		return;
+	}
+	char* title = g_strdup(gtk_window_get_title(GTK_WINDOW(window)));
+	gtk_window_set_title(GTK_WINDOW(window), "CRSign Dialog Background Test");
+	settle();
+	char* id = NULL;
+	int   status = 0;
+	char* search[] =
+	    {tool, "search", "--name", "^CRSign Dialog Background Test$", NULL};
+	g_assert_true(g_spawn_sync(
+	    NULL,
+	    search,
+	    NULL,
+	    G_SPAWN_DEFAULT,
+	    NULL,
+	    NULL,
+	    &id,
+	    NULL,
+	    &status,
+	    NULL
+	));
+	g_assert_cmpint(status, ==, 0);
+	g_strstrip(id);
+	AdwDialog* dialog = adw_application_window_get_visible_dialog(
+	    ADW_APPLICATION_WINDOW(window)
+	);
+	graphene_rect_t bounds;
+	g_assert_true(
+	    gtk_widget_compute_bounds(adw_dialog_get_child(dialog), window, &bounds)
+	);
+	for (int outside = 0; outside < 2; ++outside) {
+		char* x = g_strdup_printf(
+		    "%d",
+		    outside ? 5 : (int)bounds.origin.x + 20
+		);
+		char* y = g_strdup_printf(
+		    "%d",
+		    outside ? 100 : (int)bounds.origin.y + 20
+		);
+		char* click[] =
+		    {tool, "mousemove", "--window", id, x, y, "click", "1", NULL};
+		g_assert_true(g_spawn_sync(
+		    NULL,
+		    click,
+		    NULL,
+		    G_SPAWN_DEFAULT,
+		    NULL,
+		    NULL,
+		    NULL,
+		    NULL,
+		    &status,
+		    NULL
+		));
+		g_assert_cmpint(status, ==, 0);
+		g_free(x);
+		g_free(y);
+		settle();
+		if (!outside) {
+			g_assert_true(
+			    dialog == adw_application_window_get_visible_dialog(
+			                  ADW_APPLICATION_WINDOW(window)
+			              )
+			);
+		}
+	}
+	g_assert_null(adw_application_window_get_visible_dialog(
+	    ADW_APPLICATION_WINDOW(window)
+	));
+	gtk_window_set_title(GTK_WINDOW(window), title);
+	g_free(title);
+	g_free(id);
+	g_free(tool);
+}
+
 /* Compare arrow shapes independently of accent/foreground color changes. */
 static inline GBytes* arrow_shape(GtkWidget* window, GtkWidget* row) {
 	settle();

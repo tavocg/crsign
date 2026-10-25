@@ -877,6 +877,16 @@ static void remove_item(GtkButton* button, gpointer data) {
 	refresh_output_warnings(self);
 	sign_signing_show_queue(self);
 }
+static void graphical_clicked(GtkButton* button, gpointer data) {
+	signing_item* item = g_object_get_data(G_OBJECT(button), "signing-item");
+	SignSigning*  self = data;
+	for (guint i = 0; i < self->items->len; ++i) {
+		if (g_ptr_array_index(self->items, i) == item) {
+			sign_signing_open_document(self, i);
+			break;
+		}
+	}
+}
 static void row_activated(GtkListBox* list, GtkListBoxRow* row, gpointer data) {
 	(void)list;
 	sign_signing_open_document(data, (size_t)gtk_list_box_row_get_index(row));
@@ -970,6 +980,23 @@ void sign_signing_add_files(SignSigning* self, GListModel* files) {
 		gtk_widget_set_name(item->warning, "sign-document-warning");
 		gtk_widget_add_css_class(item->warning, "warning");
 		adw_action_row_add_suffix(ADW_ACTION_ROW(item->row), item->warning);
+		if (item->is_pdf) {
+			GtkWidget* graphical = gtk_button_new_from_icon_name(
+			    "insert-image-symbolic"
+			);
+			gtk_widget_set_name(graphical, "sign-graphical-signature");
+			gtk_widget_set_tooltip_text(graphical, _("Graphical signature"));
+			gtk_widget_add_css_class(graphical, "flat");
+			gtk_widget_set_valign(graphical, GTK_ALIGN_CENTER);
+			g_object_set_data(G_OBJECT(graphical), "signing-item", item);
+			g_signal_connect(
+			    graphical,
+			    "clicked",
+			    G_CALLBACK(graphical_clicked),
+			    self
+			);
+			adw_action_row_add_suffix(ADW_ACTION_ROW(item->row), graphical);
+		}
 		item->output_button = gtk_button_new_from_icon_name(
 		    "document-edit-symbolic"
 		);
@@ -2425,20 +2452,26 @@ static void sign_signing_init(SignSigning* self) {
 	gtk_widget_set_tooltip_text(self->output_options, _("Output file options"));
 	GtkWidget* options = gtk_popover_new();
 	GtkWidget* options_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
+	gtk_widget_add_css_class(options_box, "sign-output-choices");
 	gtk_widget_set_margin_start(options_box, 12);
 	gtk_widget_set_margin_end(options_box, 12);
 	gtk_widget_set_margin_top(options_box, 12);
 	gtk_widget_set_margin_bottom(options_box, 12);
 	GtkWidget* folder = gtk_button_new_with_label(
-	    _("Choose an output folder for all files")
+	    _("Choose output folder for all")
 	);
 	gtk_widget_set_name(folder, "sign-output-folder");
 	gtk_widget_add_css_class(folder, "flat");
 	GtkWidget* names = gtk_button_new_with_label(
-	    _("Choose the output name for each file")
+	    _("Choose output individually")
 	);
 	gtk_widget_set_name(names, "sign-output-names");
 	gtk_widget_add_css_class(names, "flat");
+	gtk_label_set_xalign(
+	    GTK_LABEL(gtk_button_get_child(GTK_BUTTON(folder))),
+	    0
+	);
+	gtk_label_set_xalign(GTK_LABEL(gtk_button_get_child(GTK_BUTTON(names))), 0);
 	g_signal_connect(
 	    folder,
 	    "clicked",
@@ -2466,7 +2499,7 @@ static void sign_signing_init(SignSigning* self) {
 	gtk_box_append(GTK_BOX(reader_tools), GTK_WIDGET(self->filename));
 	gtk_box_append(GTK_BOX(reader_tools), self->spinner);
 	self->image_button = icon_button(
-	    "insert-image-symbolic",
+	    "image-x-generic-symbolic",
 	    _("Choose signature image"),
 	    G_CALLBACK(choose_image),
 	    self

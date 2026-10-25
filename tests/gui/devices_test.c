@@ -61,12 +61,25 @@ static void wait_card(GtkWidget* view, const char* serial) {
 	do {
 		while (g_main_context_iteration(NULL, FALSE)) {
 		}
+		GtkWidget* root = GTK_WIDGET(gtk_widget_get_root(view));
+		AdwDialog* dialog = adw_application_window_get_visible_dialog(
+		    ADW_APPLICATION_WINDOW(root)
+		);
+		if (dialog) {
+			adw_dialog_force_close(dialog);
+		}
 		GtkWidget* slot = named(view, "devices-slot");
 		if (slot) {
-			adw_expander_row_set_expanded(ADW_EXPANDER_ROW(slot), TRUE);
+			g_signal_emit_by_name(slot, "activated");
 		}
-		if (contains(view, serial) &&
-		    !sign_devices_is_busy(SIGN_DEVICES(view))) {
+		dialog = adw_application_window_get_visible_dialog(
+		    ADW_APPLICATION_WINDOW(root)
+		);
+		bool found = dialog && contains(GTK_WIDGET(dialog), serial);
+		if (dialog) {
+			adw_dialog_force_close(dialog);
+		}
+		if (found && !sign_devices_is_busy(SIGN_DEVICES(view))) {
 			return;
 		}
 		g_usleep(1000);
@@ -150,7 +163,7 @@ int main(int argc, char** argv) {
 	    GTK_SPINNER(named(window, "devices-nav-spinner"))
 	));
 	gtk_window_present(GTK_WINDOW(window));
-	wait_text(view, "Signing card <&>", true);
+	wait_text(view, "USB fixture <&>", true);
 	/* Re-entering the section must not restart the scan; only Refresh does. */
 	GtkListBox* navigation = GTK_LIST_BOX(named(window, "navigation"));
 	gtk_list_box_select_row(
@@ -173,7 +186,7 @@ int main(int argc, char** argv) {
 	);
 	gtk_window_set_default_size(GTK_WINDOW(window), 1120, 800);
 	settle();
-	g_assert_false(adw_navigation_split_view_get_collapsed(split));
+	g_assert_true(adw_navigation_split_view_get_collapsed(split));
 	g_assert_false(adw_navigation_split_view_get_show_content(split));
 
 	navigation = GTK_LIST_BOX(named(window, "navigation"));
@@ -181,7 +194,7 @@ int main(int argc, char** argv) {
 	    navigation,
 	    gtk_list_box_get_row_at_index(navigation, 3)
 	);
-	wait_text(view, "Signing card <&>", true);
+	wait_text(view, "USB fixture <&>", true);
 	snapshot(window, argv[2], "devices-collapsed.png");
 	graphene_rect_t options, title;
 	g_assert_true(gtk_widget_compute_bounds(
@@ -201,48 +214,53 @@ int main(int argc, char** argv) {
 	settle();
 	g_assert_true(adw_navigation_split_view_get_show_content(split));
 	snapshot(window, argv[2], "devices-expanded.png");
-	AdwExpanderRow* slot = ADW_EXPANDER_ROW(named(view, "devices-slot"));
-	guint           collapsed = widget_count(view);
-	g_assert_false(adw_expander_row_get_expanded(slot));
-	GBytes* collapsed_arrow = arrow_shape(window, GTK_WIDGET(slot));
-	adw_expander_row_set_expanded(slot, TRUE);
-	g_assert_true(adw_expander_row_get_expanded(slot));
-	GBytes* expanded_arrow = arrow_shape(window, GTK_WIDGET(slot));
+	g_assert_cmpstr(
+	    gtk_label_get_text(GTK_LABEL(named(window, "section-title"))),
+	    ==,
+	    adw_preferences_row_get_title(ADW_PREFERENCES_ROW(reader))
+	);
+	GtkWidget* slot = named(view, "devices-slot");
+	g_assert_true(ADW_IS_ACTION_ROW(slot));
+	g_assert_false(ADW_IS_EXPANDER_ROW(slot));
+	g_signal_emit_by_name(slot, "activated");
+	settle();
+	AdwDialog* dialog = adw_application_window_get_visible_dialog(
+	    ADW_APPLICATION_WINDOW(window)
+	);
+	g_assert_nonnull(dialog);
+	g_assert_cmpstr(
+	    adw_dialog_get_title(dialog),
+	    ==,
+	    adw_preferences_row_get_title(ADW_PREFERENCES_ROW(slot))
+	);
+	GtkWidget* certificate = named(GTK_WIDGET(dialog), "devices-certificate");
+	g_assert_true(ADW_IS_EXPANDER_ROW(certificate));
+	g_assert_false(contains(GTK_WIDGET(dialog), "CN=Device fixture signer"));
+	guint   collapsed = widget_count(GTK_WIDGET(dialog));
+	GBytes* collapsed_arrow = arrow_shape(window, certificate);
+	adw_expander_row_set_expanded(ADW_EXPANDER_ROW(certificate), TRUE);
+	GBytes* expanded_arrow = arrow_shape(window, certificate);
 	g_assert_false(g_bytes_equal(collapsed_arrow, expanded_arrow));
-	adw_expander_row_set_expanded(slot, FALSE);
-	GBytes* closed_again = arrow_shape(window, GTK_WIDGET(slot));
+	g_assert_true(contains(GTK_WIDGET(dialog), "CN=Device fixture signer"));
+	g_assert_cmpuint(widget_count(GTK_WIDGET(dialog)), >, collapsed);
+	adw_expander_row_set_expanded(ADW_EXPANDER_ROW(certificate), FALSE);
+	GBytes* closed_again = arrow_shape(window, certificate);
 	g_assert_true(g_bytes_equal(collapsed_arrow, closed_again));
 	g_bytes_unref(collapsed_arrow);
 	g_bytes_unref(expanded_arrow);
 	g_bytes_unref(closed_again);
-	snapshot(window, argv[2], "devices-slot-collapsed.png");
-	adw_expander_row_set_expanded(slot, TRUE);
-	g_assert_true(contains(view, "2048 bits"));
-	g_assert_true(contains(view, "3072 bits"));
-	g_assert_true(contains(view, "256 bits"));
-	g_assert_cmpuint(widget_count(view), >, collapsed);
-	GtkWidget* certificate = named(view, "devices-certificate");
-	g_assert_nonnull(certificate);
-	g_assert_true(ADW_IS_ACTION_ROW(certificate));
-	g_assert_true(contains(view, "CN=Device fixture signer"));
-	no_nested_expanders(view, false);
-	gtk_window_set_default_size(GTK_WINDOW(window), 440, 750);
-	settle();
-	g_assert_true(adw_navigation_split_view_get_collapsed(split));
-	GtkWidget* back = named(view, "details-back");
-	g_assert_true(gtk_widget_get_visible(back));
-	snapshot(window, argv[2], "devices-details-narrow.png");
-	g_signal_emit_by_name(back, "clicked");
-	settle();
-	g_assert_false(adw_navigation_split_view_get_show_content(split));
-	g_signal_emit_by_name(reader, "activated");
-	settle();
-	g_assert_true(adw_navigation_split_view_get_show_content(split));
-	gtk_window_set_default_size(GTK_WINDOW(window), 1120, 800);
-	settle();
-	g_assert_false(adw_navigation_split_view_get_collapsed(split));
-	g_assert_false(gtk_widget_get_visible(back));
-	GtkWidget* copy = named(view, "devices-copy-token-uri");
+	AdwExpanderRow* key = ADW_EXPANDER_ROW(
+	    named(GTK_WIDGET(dialog), "devices-key")
+	);
+	g_assert_nonnull(key);
+	g_assert_cmpstr(adw_expander_row_get_subtitle(key), ==, "Public key");
+	g_assert_false(adw_expander_row_get_expanded(key));
+	g_assert_false(contains(GTK_WIDGET(dialog), "Signing attribute"));
+	adw_expander_row_set_expanded(key, TRUE);
+	g_assert_true(contains(GTK_WIDGET(dialog), "Signing attribute"));
+	no_nested_expanders(GTK_WIDGET(dialog), false);
+	snapshot(window, argv[2], "devices-slot-dialog.png");
+	GtkWidget* copy = named(GTK_WIDGET(dialog), "devices-copy-token-uri");
 	g_assert_nonnull(copy);
 	g_signal_emit_by_name(copy, "clicked");
 	bool copied = false;
@@ -259,6 +277,40 @@ int main(int argc, char** argv) {
 		g_usleep(1000);
 	}
 	g_assert_true(copied);
+
+	dismiss_dialog_background(window);
+	settle();
+	adw_preferences_row_set_title(
+	    ADW_PREFERENCES_ROW(reader),
+	    "A very long smart card reader device name that must never force the "
+	    "window or its contents beyond the available width"
+	);
+	g_signal_emit_by_name(reader, "activated");
+	gtk_window_set_default_size(GTK_WINDOW(window), 440, 750);
+	settle();
+	GtkWidget* back = named(window, "details-back");
+	g_assert_true(gtk_widget_get_visible(back));
+	g_assert_cmpint(gtk_widget_get_width(window), <=, 440);
+	g_assert_cmpint(
+	    gtk_label_get_ellipsize(GTK_LABEL(named(window, "section-title"))),
+	    ==,
+	    PANGO_ELLIPSIZE_END
+	);
+
+	snapshot(window, argv[2], "devices-details-narrow.png");
+	g_signal_emit_by_name(back, "clicked");
+	settle();
+	g_assert_false(adw_navigation_split_view_get_show_content(split));
+	g_assert_cmpstr(
+	    gtk_label_get_text(GTK_LABEL(named(window, "section-title"))),
+	    ==,
+	    "Devices"
+	);
+	g_signal_emit_by_name(reader, "activated");
+	settle();
+	gtk_window_set_default_size(GTK_WINDOW(window), 1120, 800);
+	settle();
+	g_assert_true(gtk_widget_get_visible(back));
 
 	GtkCheckButton* hardware = GTK_CHECK_BUTTON(
 	    named(window, "devices-hardware-only")
@@ -304,9 +356,9 @@ int main(int argc, char** argv) {
 	);
 	snapshot(window, argv[2], "devices-empty.png");
 	phase(argv[1], "0");
-	wait_text(view, "Signing card <&>", true);
+	wait_text(view, "USB fixture <&>", true);
 	g_signal_emit_by_name(named(view, "devices-refresh"), "clicked");
-	wait_text(view, "Signing card <&>", true);
+	wait_text(view, "USB fixture <&>", true);
 	gpointer weak = view;
 	g_object_add_weak_pointer(G_OBJECT(view), &weak);
 	gtk_window_destroy(GTK_WINDOW(window));
