@@ -114,12 +114,15 @@ jobs:
           python scripts/package-native.py --build build --library-prefix build/native-prefix \
             --dependency-prefix "$MINGW_PREFIX" --destination build/stage/CRSign
           python scripts/test-native-package.py build/stage/CRSign --openssl "$MINGW_PREFIX/bin/openssl.exe" --gui
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
       - name: Build and test MSI installation and removal
         shell: pwsh
         run: |
           dotnet tool install --global wix --version 4.0.6
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $python = Join-Path $env:RUNNER_TEMP 'msys64/ucrt64/bin/python.exe'
+          $python = Join-Path $env:pythonLocation 'python.exe'
           & $python scripts/package-msi.py --payload build/stage/CRSign --version $env:RELEASE_VERSION --output build/dist/CRSign-windows-x86_64.msi
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & $python scripts/test-release-package.py build/dist/CRSign-windows-x86_64.msi --openssl "$env:RUNNER_TEMP/msys64/ucrt64/bin/openssl.exe"
