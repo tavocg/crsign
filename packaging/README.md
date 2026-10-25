@@ -31,6 +31,7 @@ argp-standalone **1.2.0** para MinGW. macOS usa argp de Homebrew.
 CMake compila OpenSC desde `vendor/opensc`, con Autoconf, Automake, Libtool y
 Make, dentro de `build/opensc`. Los paquetes oficiales usan
 `-DSIGN_EMBED_OPENSC=ON`; el modo OFF permite usar solamente módulos externos.
+El submódulo sigue `tavocg/opensc`, rama `iasecc/jcop-patch-v3`.
 Para actualizar OpenSC, ejecuta `git submodule update --remote vendor/opensc`,
 verifica el CI de los tres sistemas y registra el nuevo commit del submódulo.
 Las descargas tienen SHA-256 fijado y se verifican también al reutilizar la caché.

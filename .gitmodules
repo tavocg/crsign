@@ -3,5 +3,5 @@
 	url = https://github.com/tavocg/libssig.git
 [submodule "vendor/opensc"]
 	path = vendor/opensc
-	url = https://github.com/OpenSC/OpenSC.git
-	branch = master
+	url = https://github.com/tavocg/opensc.git
+	branch = iasecc/jcop-patch-v3

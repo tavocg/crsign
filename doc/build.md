@@ -17,7 +17,8 @@ y `-DARGP_LIBRARY=/ruta/lib/libargp.a` (o la biblioteca equivalente del sistema)
 No se descargan dependencias durante la configuración.
 
 Los submódulos de producción están en `vendor/libssig` y `vendor/opensc`.
-CMake construye OpenSC estáticamente desde el commit de `master` fijado por Git,
+CMake construye OpenSC estáticamente desde el commit fijado por Git de
+[`tavocg/opensc`, rama `iasecc/jcop-patch-v3`](https://github.com/tavocg/opensc/tree/iasecc/jcop-patch-v3),
 sin descargas, usando Autoconf, Automake, Libtool, Make y los encabezados de PC/SC.
 `nix develop` proporciona esas herramientas. Los archivos generados permanecen
 en `build/opensc`; el submódulo no se modifica.
