@@ -18,6 +18,7 @@ def module(name, file):
     return result
 package = module('package_native', 'scripts/package-native.py')
 bootstrap = module('bootstrap_native', 'scripts/bootstrap-native.py')
+opensc = module('build_opensc', 'scripts/build-opensc.py')
 
 
 def macho(*dependencies, rpath=None, identity=False):
@@ -30,6 +31,13 @@ def macho(*dependencies, rpath=None, identity=False):
 
 
 class Packaging(unittest.TestCase):
+    def test_opensc_configure_uses_posix_paths_on_windows(self):
+        path = Path('source')
+        with patch.object(opensc.os, 'name', 'nt'), patch.object(
+                opensc.subprocess, 'check_output', return_value='/d/source\n') as convert:
+            self.assertEqual(opensc.configure_path(path), '/d/source')
+            convert.assert_called_once_with(['cygpath', '-u', str(path)], text=True)
+
     def test_parsers(self):
         self.assertEqual(package.pe_dependencies(' DLL Name: foo.dll  \n DLL Name: USER32.dll\r\n'), ['foo.dll', 'USER32.dll'])
         text = macho('@rpath/lib with spaces.dylib', '/usr/lib/libSystem.B.dylib', rpath='@loader_path/../lib', identity=True)

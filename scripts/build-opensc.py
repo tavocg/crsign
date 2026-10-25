@@ -16,6 +16,14 @@ def run(*args, cwd, env=None):
     subprocess.run(list(map(str, args)), cwd=cwd, env=env, check=True)
 
 
+def configure_path(path):
+    # Autoconf treats ':' as a search-path separator; drive-letter source
+    # paths therefore lose their drive when searching for auxiliary files.
+    if os.name == 'nt':
+        return subprocess.check_output(['cygpath', '-u', str(path)], text=True).strip()
+    return path.as_posix()
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source', type=Path, required=True)
@@ -35,11 +43,11 @@ def main():
     if os.name == 'nt':
         target = subprocess.check_output(['gcc', '-dumpmachine'], text=True).strip()
         host = ['--host=' + target]
-    run('sh', (source / 'configure').as_posix(), *host, '--disable-shared', '--enable-static',
+    run('sh', configure_path(source / 'configure'), *host, '--disable-shared', '--enable-static',
         '--disable-tests', '--disable-cmocka', '--disable-man', '--disable-doc',
         '--disable-notify', '--disable-readline', '--disable-openpace',
         '--disable-zlib', '--disable-minidriver', '--disable-strict',
-        '--prefix=' + prefix.as_posix(), cwd=build, env=env)
+        '--prefix=' + configure_path(prefix), cwd=build, env=env)
     for directory in ('common', 'scconf', 'ui', 'pkcs15init', 'sm', 'libopensc', 'pkcs11'):
         run('make', '-j4', '-C', build / 'src' / directory, cwd=build)
     # Merge object files, not archive files: this preserves normal static linker
