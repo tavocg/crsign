@@ -14,6 +14,7 @@
 - [ ] Terminar de configurar .clang-format
 - [ ] Empaquetar (ya existe el workflow, pero es mejor testear los previews
       antes de sacar la tag) y testear GUI y CLI en Linux/Windows. También la
-      desinstalación.
+      desinstalación. De momento únicamente los ficheros en releases, empaquetar
+      para distribuciones y demás debería depender de otros repositorios?
 - [ ] Formalizar documentación, crear sitio web, screenshots.
 - [ ] Tag y Release.
