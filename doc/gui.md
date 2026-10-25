@@ -121,10 +121,11 @@ se muestra el error y se mantiene la composición anterior. Al desactivarla qued
 La marca predeterminada ya incluye esa información y no muestra este control.
 
 «Continuar» vuelve a la cola; también se puede continuar sin firma gráfica.
-Cada archivo sin representación tiene un icono de advertencia con un tooltip,
+Cada PDF sin representación tiene un icono de advertencia con un tooltip,
 y junto a «Firmar» aparece un aviso que permite continuar igualmente. Seleccionar un documento
 PDF de la cola vuelve a abrir su lector y conserva la representación elegida.
-Los documentos de otros tipos se firman sin representación gráfica.
+Los documentos de otros tipos se firman sin representación gráfica, no muestran
+esa advertencia y seleccionarlos no abre el lector ni muestra un aviso.
 
 La barra superior de la cola muestra «Total: n» y «Limpiar todo», que vacía la
 cola y cancela cualquier previsualización pendiente. Cada fila permite abrir la
@@ -159,10 +160,11 @@ sigue realizándose mediante libssig.
 
 La búsqueda comienza al abrir la aplicación, en segundo plano. Mientras se
 explora, el icono de Dispositivos en el menú se sustituye por un spinner.
-Los lectores aparecen colapsados y agrupan los slots informados por el módulo
-PKCS#11. Los detalles de slots y certificados se construyen únicamente al
-desplegarlos, para evitar cargar miles de controles durante el escaneo.
-Dentro de cada slot se pueden desplegar certificados y llaves, con sus
+Seleccionar un lector abre sus datos al lado de la lista, con los slots del módulo
+PKCS#11 como desplegables. En ventanas pequeñas, los datos ocupan toda la sección
+y el botón «Volver» regresa a la lista. Los detalles de cada slot se construyen
+únicamente al desplegarlo, para evitar cargar miles de controles durante el escaneo.
+Dentro de cada slot se muestran certificados y llaves sin desplegables anidados, con sus
 identificadores, algoritmos, tamaños en bits y los atributos públicos disponibles.
 El URI del token dispone de un botón para copiarlo al portapapeles.
 También se muestran el fabricante, modelo, número de serie, versiones, memoria
@@ -298,7 +300,9 @@ usa su propio flow JSON de validación: un fallo no impide procesar los siguient
 Si otro flow está ejecutándose en el proceso, la cola espera a que termine.
 Los archivos originales se leen sin modificarlos.
 
-Cada fila se puede desplegar para consultar la firma criptográfica, la confianza
+Seleccionar un archivo abre sus detalles al lado de la lista. En ventanas pequeñas,
+los detalles ocupan toda la sección y «Volver» regresa a los archivos. Cada firmante
+dispone de un desplegable para consultar la firma criptográfica, la confianza
 de la cadena, el formato, los firmantes, los titulares y emisores de certificados,
 su vigencia y huella SHA-256, los niveles detectados y validados, y los sellos de
 tiempo disponibles. Una firma criptográficamente correcta con un certificado no

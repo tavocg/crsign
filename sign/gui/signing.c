@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+#include <glib/gstdio.h>
 #include <math.h>
 #include <sign/appearance.h>
 #include <sign/config.h>
@@ -13,13 +14,14 @@
 #include <sign/pin.h>
 #include <sign/preferences.h>
 #include <sign/sign.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 typedef struct {
 	gint               references;
 	char *             path, *output, *image, *profile_image;
-	bool               image_set, checked, information;
+	bool               image_set, checked, information, is_pdf;
 	bool               output_exists, output_duplicate, output_input_collision;
 	sign_pdf_document* pdf;
 	libssig_pdf_appearance appearance;
@@ -101,8 +103,19 @@ static void append_warning(GString* text, const char* warning) {
 	}
 	g_string_append(text, warning);
 }
+static bool file_is_pdf(const char* path) {
+	FILE* file = g_fopen(path, "rb");
+	if (!file) {
+		return false;
+	}
+	char magic[5];
+	bool pdf = fread(magic, 1, sizeof(magic), file) == sizeof(magic) &&
+	           !memcmp(magic, "%PDF-", sizeof(magic));
+	fclose(file);
+	return pdf;
+}
 static bool item_warning_text(signing_item* item, GString* text) {
-	if (!item->appearance.page_number) {
+	if (item->is_pdf && !item->appearance.page_number) {
 		append_warning(text, _("No graphical signature"));
 	}
 	if (!item->output || !item->output[0]) {
@@ -138,7 +151,7 @@ static void update_warning_widgets(SignSigning* self) {
 	     unavailable = false;
 	for (guint n = 0; n < self->items->len; ++n) {
 		signing_item* item = g_ptr_array_index(self->items, n);
-		missing |= !item->appearance.page_number;
+		missing |= item->is_pdf && !item->appearance.page_number;
 		exists |= item->output_exists;
 		duplicate |= item->output_duplicate;
 		collision |= item->output_input_collision;
@@ -578,8 +591,8 @@ static void preview_finished(
 		}
 	} else if (!job->pdf) {
 		self->current->checked = true;
+		self->current->is_pdf = false;
 		sign_signing_show_queue(self);
-		message(self, _("Graphical signatures are available for PDF files"));
 	} else {
 		signing_item* item = job->item;
 		sign_pdf_unref(item->pdf);
@@ -704,8 +717,7 @@ void sign_signing_open_document(SignSigning* self, size_t index) {
 		return;
 	}
 	signing_item* item = g_ptr_array_index(self->items, index);
-	if (item->checked && !item->pdf) {
-		message(self, _("Graphical signatures are available for PDF files"));
+	if (!item->is_pdf || (item->checked && !item->pdf)) {
 		return;
 	}
 	self->current = item;
@@ -942,6 +954,7 @@ void sign_signing_add_files(SignSigning* self, GListModel* files) {
 		item->references = 1;
 		item->information = true;
 		item->path = path;
+		item->is_pdf = file_is_pdf(path);
 		item->output = output;
 		item->row = adw_action_row_new();
 		adw_preferences_row_set_use_markup(

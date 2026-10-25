@@ -804,6 +804,29 @@ int main(int argc, char** argv) {
 	add(self, payload);
 	g_assert_false(sign_signing_is_reader(self));
 	g_assert_cmpuint(sign_signing_count(self), ==, 2);
+	GtkListBox* queue = GTK_LIST_BOX(named(GTK_WIDGET(self), "sign-documents"));
+	if (!queue) {
+		queue = GTK_LIST_BOX(gtk_widget_get_ancestor(
+		    named(GTK_WIDGET(self), "sign-change-output"),
+		    GTK_TYPE_LIST_BOX
+		));
+	}
+	GtkListBoxRow* plain = gtk_list_box_get_row_at_index(queue, 1);
+	g_assert_false(gtk_widget_get_visible(
+	    named(GTK_WIDGET(plain), "sign-document-warning")
+	));
+	char* old_notice = g_strdup(
+	    gtk_label_get_text(GTK_LABEL(named(GTK_WIDGET(self), "sign-notice")))
+	);
+	sign_signing_open_document(self, 1);
+	g_assert_false(sign_signing_is_reader(self));
+	g_assert_cmpstr(
+	    gtk_label_get_text(GTK_LABEL(named(GTK_WIDGET(self), "sign-notice"))),
+	    ==,
+	    old_notice
+	);
+	g_free(old_notice);
+
 	g_assert_nonnull(strstr(sign_signing_output(self, 0), "-firmado.pdf"));
 	g_assert_nonnull(strstr(sign_signing_output(self, 1), "-firmado.bin"));
 	g_assert_null(named(GTK_WIDGET(self), "sign-output-location"));
@@ -847,7 +870,7 @@ int main(int argc, char** argv) {
 	sign_signing_set_output(self, 1, second_output);
 	g_free(first_output);
 	g_free(second_output);
-	g_assert_true(
+	g_assert_false(
 	    gtk_widget_get_visible(named(GTK_WIDGET(self), "sign-warning"))
 	);
 	GtkDropDown* profiles = GTK_DROP_DOWN(sign_signing_profile_selector(self));
@@ -940,7 +963,7 @@ int main(int argc, char** argv) {
 	    named(GTK_WIDGET(self), "sign-warning")
 	);
 	g_assert_nonnull(warning);
-	g_assert_nonnull(strchr(warning, '\n'));
+	g_assert_nonnull(strstr(warning, _("Some output files already exist")));
 	sign_signing_run(self);
 	conflict = window_named(app, "sign-conflict-dialog");
 	g_assert_nonnull(conflict);

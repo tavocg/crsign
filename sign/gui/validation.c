@@ -3,6 +3,7 @@
 #include <openssl/x509_vfy.h>
 #include <sign/config.h>
 #include <sign/gui/certificate.h>
+#include <sign/gui/details.h>
 #include <sign/gui/error.h>
 #include <sign/gui/file_actions.h>
 #include <sign/gui/file_drop.h>
@@ -14,8 +15,8 @@
 typedef enum { QUEUED, RUNNING, FINISHED } item_state;
 typedef struct {
 	GFile *          file, *content;
-	AdwExpanderRow*  row;
-	GtkWidget *      details, *original, *icon, *spinner;
+	AdwActionRow*    row;
+	GtkWidget *      details, *original, *icon, *spinner, *page;
 	item_state       state;
 	sign_flow_result result;
 	sign_flow*       template;
@@ -24,7 +25,10 @@ typedef struct {
 } validation_item;
 struct _SignValidation {
 	GtkBox           parent_instance;
-	GtkWidget *      drop_area, *scroll, *controls, *clear;
+	GtkWidget *      drop_area, *scroll, *controls, *clear, *prompt;
+	GtkStack*        detail_pages;
+	GtkWidget*       empty_details;
+	sign_details     navigation;
 	GtkListBox*      list;
 	GtkLabel*        summary;
 	GtkLabel*        notice;
@@ -90,6 +94,11 @@ static void summary_update(SignValidation* self) {
 	gtk_label_set_text(self->summary, text);
 	g_free(text);
 	bool has_items = self->items->len != 0;
+	gtk_stack_set_visible_child_name(
+	    GTK_STACK(self->prompt),
+	    has_items ? "compact" : "empty"
+	);
+	gtk_widget_set_size_request(self->drop_area, -1, has_items ? 44 : 150);
 	gtk_widget_set_visible(self->controls, has_items);
 	gtk_widget_set_visible(self->scroll, has_items);
 	gtk_widget_set_vexpand(self->drop_area, !has_items);
@@ -268,7 +277,7 @@ static void render(validation_item* item) {
 	gtk_widget_remove_css_class(item->icon, "warning");
 	gtk_widget_add_css_class(item->icon, item->ok ? "success" : "warning");
 	char* status = subtitle(item);
-	adw_expander_row_set_subtitle(item->row, status);
+	adw_action_row_set_subtitle(item->row, status);
 	g_free(status);
 	bool needs_content = item->result.count &&
 	                     item->result.documents[0].verification_status ==
@@ -483,7 +492,7 @@ static void finished(GObject* source, GAsyncResult* result, gpointer data) {
 		sign_flow_result_clear(&item->result);
 		g_clear_error(&item->error);
 		item->state = QUEUED;
-		adw_expander_row_set_subtitle(
+		adw_action_row_set_subtitle(
 		    item->row,
 		    _("Waiting for another operation")
 		);
@@ -511,7 +520,7 @@ static void start_next(SignValidation* self) {
 	gtk_widget_set_visible(item->icon, FALSE);
 	gtk_widget_set_visible(item->spinner, TRUE);
 	gtk_spinner_start(GTK_SPINNER(item->spinner));
-	adw_expander_row_set_subtitle(item->row, _("Validating…"));
+	adw_action_row_set_subtitle(item->row, _("Validating…"));
 	GTask* task = g_task_new(self, self->cancellable, finished, NULL);
 	g_task_set_check_cancellable(task, FALSE);
 	g_task_set_task_data(task, item, NULL);
@@ -540,9 +549,24 @@ void sign_validation_set_content(
 	item->state = QUEUED;
 	gtk_widget_set_visible(item->original, FALSE);
 	g_queue_push_tail(&self->queue, item);
-	adw_expander_row_set_subtitle(item->row, _("Queued"));
+	adw_action_row_set_subtitle(item->row, _("Queued"));
 	start_next(self);
 	summary_update(self);
+}
+static void open_details(GtkListBox* list, GtkListBoxRow* row, gpointer data) {
+	(void)list;
+	SignValidation* self = data;
+	GtkWidget*      page = g_object_get_data(G_OBJECT(row), "validation-page");
+	if (!page) {
+		return;
+	}
+	gtk_list_box_select_row(self->list, row);
+	gtk_stack_set_visible_child(self->detail_pages, page);
+	adw_navigation_page_set_title(
+	    self->navigation.page,
+	    adw_preferences_row_get_title(ADW_PREFERENCES_ROW(row))
+	);
+	adw_navigation_split_view_set_show_content(self->navigation.split, TRUE);
 }
 static void add_files(
     SignValidation* self,
@@ -574,7 +598,10 @@ static void add_files(
 				item->content = g_file_new_for_path(document->content);
 			}
 		}
-		item->row = ADW_EXPANDER_ROW(adw_expander_row_new());
+		item->row = ADW_ACTION_ROW(adw_action_row_new());
+		adw_action_row_set_title_lines(item->row, 1);
+		gtk_list_box_row_set_activatable(GTK_LIST_BOX_ROW(item->row), TRUE);
+		g_object_set_data(G_OBJECT(item->row), "validation-item", item);
 		char* basename = g_file_get_basename(file);
 		char* display = basename ? g_filename_display_name(basename)
 		                         : g_file_get_parse_name(file);
@@ -585,21 +612,35 @@ static void add_files(
 		adw_preferences_row_set_title(ADW_PREFERENCES_ROW(item->row), display);
 		g_free(display);
 		g_free(basename);
-		adw_expander_row_set_subtitle(item->row, _("Queued"));
+		adw_action_row_set_subtitle(item->row, _("Queued"));
 		item->spinner = gtk_spinner_new();
 		gtk_widget_set_valign(item->spinner, GTK_ALIGN_CENTER);
-		adw_expander_row_add_prefix(item->row, item->spinner);
+		adw_action_row_add_prefix(item->row, item->spinner);
 		item->icon = gtk_image_new();
-		adw_expander_row_add_prefix(item->row, item->icon);
+		adw_action_row_add_prefix(item->row, item->icon);
 		item->details = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
-		adw_expander_row_add_row(item->row, item->details);
+		item->page = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+		gtk_widget_set_name(item->page, "validation-details");
+		gtk_box_append(GTK_BOX(item->page), item->details);
 		item->original = gtk_button_new_with_label(
 		    _("Select original content…")
 		);
 		gtk_widget_set_halign(item->original, GTK_ALIGN_START);
 		gtk_widget_set_margin_start(item->original, 12);
 		gtk_widget_set_margin_bottom(item->original, 12);
-		adw_expander_row_add_row(item->row, item->original);
+		gtk_box_append(GTK_BOX(item->page), item->original);
+		GtkWidget* page_scroll = gtk_scrolled_window_new();
+		gtk_scrolled_window_set_policy(
+		    GTK_SCROLLED_WINDOW(page_scroll),
+		    GTK_POLICY_NEVER,
+		    GTK_POLICY_AUTOMATIC
+		);
+		gtk_scrolled_window_set_child(
+		    GTK_SCROLLED_WINDOW(page_scroll),
+		    item->page
+		);
+		g_object_set_data(G_OBJECT(item->row), "validation-page", page_scroll);
+		gtk_stack_add_child(self->detail_pages, page_scroll);
 		gtk_widget_set_visible(item->original, FALSE);
 		g_object_set_data(G_OBJECT(item->original), "validation-item", item);
 		g_signal_connect(
@@ -616,7 +657,11 @@ static void add_files(
 		    NULL,
 		    NULL
 		);
-		adw_expander_row_add_suffix(item->row, sign_file_location_button());
+		adw_action_row_add_suffix(item->row, sign_file_location_button());
+		adw_action_row_add_suffix(
+		    item->row,
+		    gtk_image_new_from_icon_name("go-next-symbolic")
+		);
 		gtk_list_box_append(self->list, GTK_WIDGET(item->row));
 		g_ptr_array_add(self->items, item);
 		g_queue_push_tail(&self->queue, item);
@@ -814,6 +859,17 @@ static void clear_results(GtkButton* button, gpointer data) {
 	if (sign_validation_is_busy(self) || self->dialogs) {
 		return;
 	}
+	adw_navigation_split_view_set_show_content(self->navigation.split, FALSE);
+	gtk_stack_set_visible_child(self->detail_pages, self->empty_details);
+	adw_navigation_page_set_title(self->navigation.page, _("Validate"));
+	for (guint i = 0; i < self->items->len; ++i) {
+		validation_item* item = g_ptr_array_index(self->items, i);
+		GtkWidget*       page = g_object_get_data(
+            G_OBJECT(item->row),
+            "validation-page"
+        );
+		gtk_stack_remove(self->detail_pages, page);
+	}
 	GtkWidget* row;
 	while ((row = gtk_widget_get_first_child(GTK_WIDGET(self->list)))) {
 		gtk_list_box_remove(self->list, row);
@@ -875,6 +931,18 @@ static void sign_validation_init(SignValidation* self) {
 	gtk_widget_set_margin_end(GTK_WIDGET(self), 18);
 	gtk_widget_set_margin_top(GTK_WIDGET(self), 18);
 	gtk_widget_set_margin_bottom(GTK_WIDGET(self), 18);
+	GtkWidget* sidebar = gtk_box_new(GTK_ORIENTATION_VERTICAL, 12);
+	self->detail_pages = GTK_STACK(gtk_stack_new());
+	gtk_widget_set_name(
+	    GTK_WIDGET(self->detail_pages),
+	    "validation-detail-pages"
+	);
+	self->empty_details = gtk_label_new(
+	    _("Select a file to view its signatures")
+	);
+	gtk_label_set_wrap(GTK_LABEL(self->empty_details), TRUE);
+	gtk_widget_add_css_class(self->empty_details, "dim-label");
+	gtk_stack_add_child(self->detail_pages, self->empty_details);
 	self->items = g_ptr_array_new_with_free_func(item_free);
 	g_queue_init(&self->queue);
 	self->cancellable = g_cancellable_new();
@@ -900,21 +968,33 @@ static void sign_validation_init(SignValidation* self) {
 	gtk_label_set_justify(GTK_LABEL(hint), GTK_JUSTIFY_CENTER);
 	gtk_widget_add_css_class(hint, "dim-label");
 	gtk_box_append(GTK_BOX(prompt), hint);
-	gtk_button_set_child(GTK_BUTTON(self->drop_area), prompt);
-	gtk_box_append(GTK_BOX(self), self->drop_area);
+	self->prompt = gtk_stack_new();
+	gtk_stack_set_vhomogeneous(GTK_STACK(self->prompt), FALSE);
+	gtk_stack_set_hhomogeneous(GTK_STACK(self->prompt), FALSE);
+	gtk_stack_add_named(GTK_STACK(self->prompt), prompt, "empty");
+	GtkWidget* compact = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+	gtk_widget_set_halign(compact, GTK_ALIGN_CENTER);
+	gtk_box_append(
+	    GTK_BOX(compact),
+	    gtk_image_new_from_icon_name("document-open-symbolic")
+	);
+	gtk_box_append(GTK_BOX(compact), gtk_label_new(_("Add files")));
+	gtk_stack_add_named(GTK_STACK(self->prompt), compact, "compact");
+	gtk_button_set_child(GTK_BUTTON(self->drop_area), self->prompt);
+	gtk_box_append(GTK_BOX(sidebar), self->drop_area);
 	self->notice = GTK_LABEL(gtk_label_new(NULL));
 	gtk_label_set_wrap(self->notice, TRUE);
 	gtk_label_set_wrap_mode(self->notice, PANGO_WRAP_WORD_CHAR);
 	gtk_widget_add_css_class(GTK_WIDGET(self->notice), "error");
 	gtk_widget_set_visible(GTK_WIDGET(self->notice), FALSE);
-	gtk_box_append(GTK_BOX(self), GTK_WIDGET(self->notice));
+	gtk_box_append(GTK_BOX(sidebar), GTK_WIDGET(self->notice));
 	g_signal_connect(
 	    self->drop_area,
 	    "clicked",
 	    G_CALLBACK(choose_files),
 	    self
 	);
-	self->controls = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
+	self->controls = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
 	self->summary = GTK_LABEL(gtk_label_new(NULL));
 	gtk_widget_add_css_class(GTK_WIDGET(self->summary), "dim-label");
 	gtk_label_set_wrap(self->summary, TRUE);
@@ -923,9 +1003,10 @@ static void sign_validation_init(SignValidation* self) {
 	gtk_box_append(GTK_BOX(self->controls), GTK_WIDGET(self->summary));
 	self->clear = gtk_button_new_with_label(_("Clear results"));
 	gtk_widget_set_name(self->clear, "validation-clear");
+	gtk_widget_set_halign(self->clear, GTK_ALIGN_END);
 	gtk_box_append(GTK_BOX(self->controls), self->clear);
 	g_signal_connect(self->clear, "clicked", G_CALLBACK(clear_results), self);
-	gtk_box_append(GTK_BOX(self), self->controls);
+	gtk_box_append(GTK_BOX(sidebar), self->controls);
 	self->scroll = gtk_scrolled_window_new();
 	gtk_scrolled_window_set_policy(
 	    GTK_SCROLLED_WINDOW(self->scroll),
@@ -936,13 +1017,29 @@ static void sign_validation_init(SignValidation* self) {
 	self->list = GTK_LIST_BOX(gtk_list_box_new());
 	gtk_widget_set_valign(GTK_WIDGET(self->list), GTK_ALIGN_START);
 	gtk_widget_set_name(GTK_WIDGET(self->list), "validation-results");
-	gtk_list_box_set_selection_mode(self->list, GTK_SELECTION_NONE);
+	gtk_list_box_set_selection_mode(self->list, GTK_SELECTION_SINGLE);
+	g_signal_connect(
+	    self->list,
+	    "row-activated",
+	    G_CALLBACK(open_details),
+	    self
+	);
 	gtk_widget_add_css_class(GTK_WIDGET(self->list), "boxed-list");
 	gtk_scrolled_window_set_child(
 	    GTK_SCROLLED_WINDOW(self->scroll),
 	    GTK_WIDGET(self->list)
 	);
-	gtk_box_append(GTK_BOX(self), self->scroll);
+	gtk_box_append(GTK_BOX(sidebar), self->scroll);
+	gtk_box_append(
+	    GTK_BOX(self),
+	    sign_details_new(
+	        &self->navigation,
+	        sidebar,
+	        GTK_WIDGET(self->detail_pages),
+	        _("Validate"),
+	        "validation-split"
+	    )
+	);
 	sign_file_drop_attach(
 	    GTK_WIDGET(self),
 	    dropped_files,

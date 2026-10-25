@@ -3,6 +3,7 @@
 #include <p11-kit/p11-kit.h>
 #include <sign/config.h>
 #include <sign/gui/certificate.h>
+#include <sign/gui/details.h>
 #include <sign/gui/device_access.h>
 #include <sign/gui/devices.h>
 #include <sign/gui/error.h>
@@ -17,6 +18,11 @@ struct _SignDevices {
 	GtkBox        parent_instance;
 	GtkWidget *   refresh, *spinner, *content, *body, *header_menu;
 	GtkLabel*     status;
+	sign_details  navigation;
+	GtkStack*     detail_pages;
+	GtkWidget*    empty_details;
+	GtkWidget*    selected_reader;
+	char*         selected_device;
 	GCancellable* cancellable;
 	gint          revision, include_software;
 	bool          busy, monitoring, closing;
@@ -28,9 +34,9 @@ static const char* yes_no(bool value) {
 	return value ? _("Yes") : _("No");
 }
 static AdwActionRow* field(
-    AdwExpanderRow* parent,
-    const char*     name,
-    const char*     value
+    gpointer    parent,
+    const char* name,
+    const char* value
 ) {
 	AdwActionRow* row = ADW_ACTION_ROW(adw_action_row_new());
 	adw_preferences_row_set_use_markup(ADW_PREFERENCES_ROW(row), FALSE);
@@ -41,14 +47,14 @@ static AdwActionRow* field(
 	g_free(safe);
 	adw_action_row_set_subtitle_lines(row, 0);
 	adw_preferences_row_set_title_selectable(ADW_PREFERENCES_ROW(row), TRUE);
-	adw_expander_row_add_row(parent, GTK_WIDGET(row));
+	if (ADW_IS_EXPANDER_ROW(parent)) {
+		adw_expander_row_add_row(parent, GTK_WIDGET(row));
+	} else {
+		gtk_list_box_append(GTK_LIST_BOX(parent), GTK_WIDGET(row));
+	}
 	return row;
 }
-static void number(
-    AdwExpanderRow* parent,
-    const char*     name,
-    unsigned long   value
-) {
+static void number(gpointer parent, const char* name, unsigned long value) {
 	char* text = value == CK_UNAVAILABLE_INFORMATION
 	                 ? g_strdup(_("Unavailable"))
 	                 : g_strdup_printf("%lu", value);
@@ -165,13 +171,10 @@ static void render_key(AdwExpanderRow* parent, libssig_device_key* key) {
         (const unsigned char*)key->label,
         key->label_len
     );
-	AdwExpanderRow* row = expander(
-	    *label ? label : kind,
-	    "dialog-password-symbolic"
-	);
+	AdwExpanderRow* row = parent;
+	AdwActionRow*   heading = field(row, *label ? label : kind, kind);
+	gtk_widget_add_css_class(GTK_WIDGET(heading), "heading");
 	g_free(label);
-	adw_expander_row_set_subtitle(row, kind);
-	adw_expander_row_add_row(parent, GTK_WIDGET(row));
 	field(row, _("Object type"), kind);
 	char* id = hex_id(key->id, key->id_len);
 	field(row, _("ID"), id);
@@ -279,15 +282,15 @@ static void render_certificate(
 	    (const unsigned char*)object->label,
 	    object->label_len
 	);
-	AdwExpanderRow* row = expander(
+	AdwActionRow* row = field(
+	    parent,
 	    *label ? label : _("Certificate"),
-	    "application-certificate-symbolic"
+	    _("Certificate")
 	);
+	gtk_widget_add_css_class(GTK_WIDGET(row), "heading");
 	g_free(label);
-	adw_expander_row_set_subtitle(row, _("Certificate"));
-	adw_expander_row_add_row(parent, GTK_WIDGET(row));
 	gtk_widget_set_name(GTK_WIDGET(row), "devices-certificate");
-	defer_details(row, object, inventory, certificate_details);
+	certificate_details(parent, object, inventory);
 }
 
 static void copy_token_uri(GtkButton* button, gpointer data) {
@@ -392,7 +395,7 @@ static void slot_details(
 	}
 }
 static void render_slot(
-    AdwExpanderRow*        parent,
+    GtkListBox*            parent,
     libssig_device_slot*   slot,
     sign_device_inventory* inventory
 ) {
@@ -407,11 +410,49 @@ static void render_slot(
 	                        : _("No token inserted")
 	);
 	g_free(label);
-	adw_expander_row_add_row(parent, GTK_WIDGET(row));
+	gtk_list_box_append(parent, GTK_WIDGET(row));
 	gtk_widget_set_name(GTK_WIDGET(row), "devices-slot");
 	defer_details(row, slot, inventory, slot_details);
 }
+static void open_device(AdwActionRow* row, gpointer data) {
+	SignDevices* self = data;
+	const char*  key = g_object_get_data(G_OBJECT(row), "device-key");
+	GtkWidget*   page = gtk_stack_get_child_by_name(self->detail_pages, key);
+	if (!page) {
+		return;
+	}
+	g_free(self->selected_device);
+	self->selected_device = g_strdup(key);
+	if (self->selected_reader) {
+		gtk_widget_unset_state_flags(
+		    self->selected_reader,
+		    GTK_STATE_FLAG_SELECTED
+		);
+	}
+	self->selected_reader = GTK_WIDGET(row);
+	gtk_widget_set_state_flags(
+	    self->selected_reader,
+	    GTK_STATE_FLAG_SELECTED,
+	    FALSE
+	);
+	gtk_stack_set_visible_child(self->detail_pages, page);
+	adw_navigation_page_set_title(
+	    self->navigation.page,
+	    adw_preferences_row_get_title(ADW_PREFERENCES_ROW(row))
+	);
+	adw_navigation_split_view_set_show_content(self->navigation.split, TRUE);
+}
 static void clear_content(SignDevices* self) {
+	self->selected_reader = NULL;
+	for (GtkWidget* page =
+	         gtk_widget_get_first_child(GTK_WIDGET(self->detail_pages));
+	     page;) {
+		GtkWidget* next = gtk_widget_get_next_sibling(page);
+		if (page != self->empty_details) {
+			gtk_stack_remove(self->detail_pages, page);
+		}
+		page = next;
+	}
 	GtkWidget* child;
 	while ((child = gtk_widget_get_first_child(self->content))) {
 		gtk_box_remove(GTK_BOX(self->content), child);
@@ -447,26 +488,98 @@ static void render(SignDevices* self, sign_device_inventory* inventory) {
 			    slot->manufacturer ? slot->manufacturer : "",
 			    description
 			);
-			AdwExpanderRow* row = g_hash_table_lookup(groups, group_id);
+			GtkListBox* row = g_hash_table_lookup(groups, group_id);
 			if (!row) {
 				++readers;
-				row = expander(
-				    *description ? description : _("Unnamed reader"),
-				    "drive-removable-media-symbolic"
+				AdwActionRow* reader = ADW_ACTION_ROW(adw_action_row_new());
+				gtk_widget_set_name(GTK_WIDGET(reader), "devices-reader");
+				adw_preferences_row_set_use_markup(
+				    ADW_PREFERENCES_ROW(reader),
+				    FALSE
+				);
+				adw_preferences_row_set_title(
+				    ADW_PREFERENCES_ROW(reader),
+				    *description ? description : _("Unnamed reader")
+				);
+				adw_action_row_add_prefix(
+				    reader,
+				    gtk_image_new_from_icon_name(
+				        "drive-removable-media-symbolic"
+				    )
+				);
+				adw_action_row_add_suffix(
+				    reader,
+				    gtk_image_new_from_icon_name("go-next-symbolic")
+				);
+				gtk_list_box_row_set_activatable(
+				    GTK_LIST_BOX_ROW(reader),
+				    TRUE
 				);
 				char* module_name = g_utf8_make_valid(
 				    module->name ? module->name : "",
 				    -1
 				);
-				adw_expander_row_set_subtitle(row, module_name);
+				adw_action_row_set_subtitle(reader, module_name);
 				g_free(module_name);
-				/* Devices start collapsed; details are available on demand. */
 				GtkWidget* group = adw_preferences_group_new();
 				adw_preferences_group_add(
 				    ADW_PREFERENCES_GROUP(group),
-				    GTK_WIDGET(row)
+				    GTK_WIDGET(reader)
 				);
 				gtk_box_append(GTK_BOX(self->content), group);
+				row = GTK_LIST_BOX(gtk_list_box_new());
+				gtk_list_box_set_selection_mode(row, GTK_SELECTION_NONE);
+				gtk_widget_set_valign(GTK_WIDGET(row), GTK_ALIGN_START);
+				gtk_widget_add_css_class(GTK_WIDGET(row), "boxed-list");
+				gtk_widget_set_margin_start(GTK_WIDGET(row), 12);
+				gtk_widget_set_margin_end(GTK_WIDGET(row), 12);
+				gtk_widget_set_margin_bottom(GTK_WIDGET(row), 12);
+				GtkWidget* scroll = gtk_scrolled_window_new();
+				gtk_scrolled_window_set_policy(
+				    GTK_SCROLLED_WINDOW(scroll),
+				    GTK_POLICY_NEVER,
+				    GTK_POLICY_AUTOMATIC
+				);
+				gtk_scrolled_window_set_child(
+				    GTK_SCROLLED_WINDOW(scroll),
+				    GTK_WIDGET(row)
+				);
+				char* key = g_strdup_printf(
+				    "%s/%s",
+				    module->path   ? module->path
+				    : module->name ? module->name
+				                   : "",
+				    group_id
+				);
+				gtk_stack_add_named(self->detail_pages, scroll, key);
+				g_object_set_data_full(
+				    G_OBJECT(reader),
+				    "device-key",
+				    key,
+				    g_free
+				);
+				g_signal_connect_object(
+				    reader,
+				    "activated",
+				    G_CALLBACK(open_device),
+				    self,
+				    0
+				);
+				if (!g_strcmp0(key, self->selected_device)) {
+					self->selected_reader = GTK_WIDGET(reader);
+					gtk_widget_set_state_flags(
+					    self->selected_reader,
+					    GTK_STATE_FLAG_SELECTED,
+					    FALSE
+					);
+					gtk_stack_set_visible_child(self->detail_pages, scroll);
+					adw_navigation_page_set_title(
+					    self->navigation.page,
+					    adw_preferences_row_get_title(
+					        ADW_PREFERENCES_ROW(reader)
+					    )
+					);
+				}
 				g_hash_table_insert(groups, g_strdup(group_id), row);
 				field(row, _("Manufacturer"), slot->manufacturer);
 				field(row, _("PKCS#11 module"), module->name);
@@ -495,6 +608,18 @@ static void render(SignDevices* self, sign_device_inventory* inventory) {
 			render_slot(row, slot, inventory);
 		}
 		g_hash_table_unref(groups);
+	}
+	if (self->selected_device && !gtk_stack_get_child_by_name(
+	                                 self->detail_pages,
+	                                 self->selected_device
+	                             )) {
+		g_clear_pointer(&self->selected_device, g_free);
+		gtk_stack_set_visible_child(self->detail_pages, self->empty_details);
+		adw_navigation_page_set_title(self->navigation.page, _("Devices"));
+		adw_navigation_split_view_set_show_content(
+		    self->navigation.split,
+		    FALSE
+		);
 	}
 	char* summary = readers ? g_strdup_printf(
 	                              _("Readers: %zu · Slots: %zu · Certificates: "
@@ -769,6 +894,7 @@ static void devices_dispose(GObject* object) {
 		g_object_unref(self->cancellable);
 		self->cancellable = NULL;
 	}
+	g_clear_pointer(&self->selected_device, g_free);
 	if (self->header_menu) {
 		g_object_unref(self->header_menu);
 		self->header_menu = NULL;
@@ -815,6 +941,15 @@ static void sign_devices_init(SignDevices* self) {
 	gtk_widget_set_margin_end(GTK_WIDGET(self), 18);
 	gtk_widget_set_margin_top(GTK_WIDGET(self), 12);
 	gtk_widget_set_margin_bottom(GTK_WIDGET(self), 12);
+	GtkWidget* sidebar = gtk_box_new(GTK_ORIENTATION_VERTICAL, 12);
+	self->detail_pages = GTK_STACK(gtk_stack_new());
+	gtk_widget_set_name(GTK_WIDGET(self->detail_pages), "devices-detail-pages");
+	self->empty_details = gtk_label_new(
+	    _("Select a device to view its details")
+	);
+	gtk_label_set_wrap(GTK_LABEL(self->empty_details), TRUE);
+	gtk_widget_add_css_class(self->empty_details, "dim-label");
+	gtk_stack_add_child(self->detail_pages, self->empty_details);
 	self->header_menu = g_object_ref_sink(gtk_menu_button_new());
 	gtk_widget_set_name(self->header_menu, "devices-options");
 	gtk_menu_button_set_icon_name(
@@ -859,7 +994,7 @@ static void sign_devices_init(SignDevices* self) {
 	gtk_box_append(GTK_BOX(self->body), self->content);
 	GtkWidget* bar = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
 	gtk_widget_set_name(bar, "devices-controls");
-	gtk_box_append(GTK_BOX(self), bar);
+	gtk_box_append(GTK_BOX(sidebar), bar);
 	self->status = GTK_LABEL(gtk_label_new(_("Scanning devices…")));
 	gtk_widget_set_name(GTK_WIDGET(self->status), "devices-status");
 	gtk_label_set_wrap(self->status, TRUE);
@@ -882,7 +1017,17 @@ static void sign_devices_init(SignDevices* self) {
 	    self
 	);
 	gtk_box_append(GTK_BOX(bar), self->refresh);
-	gtk_box_append(GTK_BOX(self), scroll);
+	gtk_box_append(GTK_BOX(sidebar), scroll);
+	gtk_box_append(
+	    GTK_BOX(self),
+	    sign_details_new(
+	        &self->navigation,
+	        sidebar,
+	        GTK_WIDGET(self->detail_pages),
+	        _("Devices"),
+	        "devices-split"
+	    )
+	);
 }
 GtkWidget* sign_devices_new(void) {
 	return g_object_new(SIGN_TYPE_DEVICES, NULL);

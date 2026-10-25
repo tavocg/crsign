@@ -164,11 +164,18 @@ int main(int argc, char** argv) {
 	g_assert_false(gtk_spinner_get_spinning(
 	    GTK_SPINNER(named(window, "devices-nav-spinner"))
 	));
-	GtkWidget*      content = named(view, "devices-content");
-	AdwExpanderRow* reader = ADW_EXPANDER_ROW(
-	    find_widget(content, ADW_TYPE_EXPANDER_ROW)
+	GtkWidget*    content = named(view, "devices-content");
+	AdwActionRow* reader = ADW_ACTION_ROW(named(content, "devices-reader"));
+	g_assert_nonnull(reader);
+	g_assert_null(find_widget(content, ADW_TYPE_EXPANDER_ROW));
+	AdwNavigationSplitView* split = ADW_NAVIGATION_SPLIT_VIEW(
+	    named(view, "devices-split")
 	);
-	g_assert_false(adw_expander_row_get_expanded(reader));
+	gtk_window_set_default_size(GTK_WINDOW(window), 1120, 800);
+	settle();
+	g_assert_false(adw_navigation_split_view_get_collapsed(split));
+	g_assert_false(adw_navigation_split_view_get_show_content(split));
+
 	navigation = GTK_LIST_BOX(named(window, "navigation"));
 	gtk_list_box_select_row(
 	    navigation,
@@ -189,11 +196,13 @@ int main(int argc, char** argv) {
 	));
 	g_assert_cmpfloat(options.origin.x + options.size.width, <, title.origin.x);
 
-	reader = ADW_EXPANDER_ROW(find_widget(content, ADW_TYPE_EXPANDER_ROW));
-	adw_expander_row_set_expanded(reader, TRUE);
+	reader = ADW_ACTION_ROW(named(content, "devices-reader"));
+	g_signal_emit_by_name(reader, "activated");
+	settle();
+	g_assert_true(adw_navigation_split_view_get_show_content(split));
 	snapshot(window, argv[2], "devices-expanded.png");
 	AdwExpanderRow* slot = ADW_EXPANDER_ROW(named(view, "devices-slot"));
-	guint           collapsed = widget_count(content);
+	guint           collapsed = widget_count(view);
 	g_assert_false(adw_expander_row_get_expanded(slot));
 	GBytes* collapsed_arrow = arrow_shape(window, GTK_WIDGET(slot));
 	adw_expander_row_set_expanded(slot, TRUE);
@@ -211,20 +220,28 @@ int main(int argc, char** argv) {
 	g_assert_true(contains(view, "2048 bits"));
 	g_assert_true(contains(view, "3072 bits"));
 	g_assert_true(contains(view, "256 bits"));
-	g_assert_cmpuint(widget_count(content), >, collapsed);
-	AdwExpanderRow* certificate = ADW_EXPANDER_ROW(
-	    named(view, "devices-certificate")
-	);
+	g_assert_cmpuint(widget_count(view), >, collapsed);
+	GtkWidget* certificate = named(view, "devices-certificate");
 	g_assert_nonnull(certificate);
-	g_assert_false(contains(view, "CN=Device fixture signer"));
-	guint before = widget_count(content);
-	adw_expander_row_set_expanded(certificate, TRUE);
+	g_assert_true(ADW_IS_ACTION_ROW(certificate));
 	g_assert_true(contains(view, "CN=Device fixture signer"));
-	g_assert_cmpuint(widget_count(content), >, before);
-	guint expanded = widget_count(content);
-	adw_expander_row_set_expanded(certificate, FALSE);
-	adw_expander_row_set_expanded(certificate, TRUE);
-	g_assert_cmpuint(widget_count(content), ==, expanded);
+	no_nested_expanders(view, false);
+	gtk_window_set_default_size(GTK_WINDOW(window), 440, 750);
+	settle();
+	g_assert_true(adw_navigation_split_view_get_collapsed(split));
+	GtkWidget* back = named(view, "details-back");
+	g_assert_true(gtk_widget_get_visible(back));
+	snapshot(window, argv[2], "devices-details-narrow.png");
+	g_signal_emit_by_name(back, "clicked");
+	settle();
+	g_assert_false(adw_navigation_split_view_get_show_content(split));
+	g_signal_emit_by_name(reader, "activated");
+	settle();
+	g_assert_true(adw_navigation_split_view_get_show_content(split));
+	gtk_window_set_default_size(GTK_WINDOW(window), 1120, 800);
+	settle();
+	g_assert_false(adw_navigation_split_view_get_collapsed(split));
+	g_assert_false(gtk_widget_get_visible(back));
 	GtkWidget* copy = named(view, "devices-copy-token-uri");
 	g_assert_nonnull(copy);
 	g_signal_emit_by_name(copy, "clicked");
@@ -274,6 +291,7 @@ int main(int argc, char** argv) {
 	wait_text(view, "Certificate <&>", false);
 	phase(argv[1], "3");
 	wait_text(view, "No readers found", true);
+	g_assert_false(adw_navigation_split_view_get_show_content(split));
 	g_assert_cmpint(
 	    gtk_widget_get_valign(named(view, "devices-body")),
 	    ==,

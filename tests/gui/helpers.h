@@ -2,6 +2,7 @@
 #ifndef SIGN_GUI_TEST_HELPERS_H
 #define SIGN_GUI_TEST_HELPERS_H
 #include <adwaita.h>
+#include <stdbool.h>
 #include <string.h>
 static void settle(void) {
 	gint64 deadline = g_get_monotonic_time() + 250 * G_TIME_SPAN_MILLISECOND;
@@ -56,6 +57,15 @@ static inline GBytes* arrow_shape(GtkWidget* window, GtkWidget* row) {
 	gsk_render_node_unref(node);
 	g_object_unref(paintable);
 	return g_bytes_new_take(alpha, size);
+}
+
+static inline void no_nested_expanders(GtkWidget* widget, bool inside) {
+	bool expander = ADW_IS_EXPANDER_ROW(widget);
+	g_assert_false(expander && inside);
+	for (GtkWidget* child = gtk_widget_get_first_child(widget); child;
+	     child = gtk_widget_get_next_sibling(child)) {
+		no_nested_expanders(child, inside || expander);
+	}
 }
 
 static inline GtkWidget* find_widget(GtkWidget* root, GType type) {
