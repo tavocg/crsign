@@ -47,7 +47,9 @@ static void choose_files(GtkButton* button, gpointer data);
 static void choose_original(GtkButton* button, gpointer data);
 static void item_free(gpointer data) {
 	validation_item* item = data;
-	g_clear_object(&item->dialog);
+	if (item->dialog) {
+		g_object_unref(item->dialog);
+	}
 	g_object_unref(item->file);
 	if (item->content) {
 		g_object_unref(item->content);
