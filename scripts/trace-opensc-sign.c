@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 /* Linux-only opt-in observer; build separately with the driver's headers.
- * Interpose only signing stages. Never inspect PINs, APDUs or payloads. */
+ * Never inspect PINs or payloads. Only command categories/status are logged. */
 #define _GNU_SOURCE
 #include <dlfcn.h>
 #include <libopensc/opensc.h>
@@ -10,6 +10,7 @@
 #include <string.h>
 
 static __thread unsigned signing;
+static __thread unsigned authenticating;
 
 typedef struct {
 	const char* operation;
@@ -70,6 +71,68 @@ static void end(const char* operation, int result) {
 		end(#operation, SC_ERROR_INTERNAL);                                    \
 		return SC_ERROR_INTERNAL;                                              \
 	}
+
+int sc_pkcs15_verify_pin(
+    struct sc_pkcs15_card*   card,
+    struct sc_pkcs15_object* pin,
+    const u8*                value,
+    size_t                   length
+) {
+	typedef int (*function)(
+	    struct sc_pkcs15_card*,
+	    struct sc_pkcs15_object*,
+	    const u8*,
+	    size_t
+	);
+	RESOLVE(sc_pkcs15_verify_pin, function);
+	++authenticating;
+	begin("sc_pkcs15_verify_pin");
+	int result = real(card, pin, value, length);
+	end("sc_pkcs15_verify_pin", result);
+	--authenticating;
+	return result;
+}
+
+int sc_transmit_apdu(struct sc_card* card, struct sc_apdu* apdu) {
+	typedef int (*function)(struct sc_card*, struct sc_apdu*);
+	RESOLVE(sc_transmit_apdu, function);
+	const char* command = NULL;
+	if (apdu && (signing || authenticating)) {
+		switch (apdu->ins) {
+		case 0x20:
+			command = apdu->datalen ? "VERIFY(data)" : "VERIFY(status)";
+			break;
+		case 0xa4:
+			command = "SELECT";
+			break;
+		case 0x22:
+			command = "MSE";
+			break;
+		case 0x2a:
+			command = apdu->p1 == 0x90 && apdu->p2 == 0xa0   ? "PSO(hash)"
+			          : apdu->p1 == 0x9e && apdu->p2 == 0x9a ? "PSO(signature)"
+			                                                 : "PSO(other)";
+			break;
+		default:
+			break;
+		}
+	}
+	if (command) {
+		fprintf(stderr, "opensc-sign: command=%s phase=begin\n", command);
+	}
+	int result = real(card, apdu);
+	if (command) {
+		fprintf(
+		    stderr,
+		    "opensc-sign: command=%s phase=end result=%d status=0x%02x%02x\n",
+		    command,
+		    result,
+		    apdu->sw1,
+		    apdu->sw2
+		);
+	}
+	return result;
+}
 
 int sc_pkcs15_compute_signature(
     struct sc_pkcs15_card*         card,

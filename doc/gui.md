@@ -359,7 +359,8 @@ de `CKR_USER_NOT_LOGGED_IN` al preparar o ejecutar la firma.
 
 Para investigar dentro de una compilación local de OpenSC en Linux, puede
 compilarse por separado el observador de etapas con los encabezados de esa misma
-compilación. No forma parte del build normal ni cambia el driver instalado:
+compilación. No forma parte del build normal ni cambia el driver instalado.
+Ejecuta estos comandos desde la raíz del repositorio crsign:
 
 ```sh
 nix develop --command cc -std=gnu99 -Wall -Wextra -Werror -shared -fPIC \
@@ -373,7 +374,9 @@ LD_PRELOAD="$PWD/build/trace-opensc-sign.so" \
 Cierra la instancia previa antes de lanzarlo. Las líneas `opensc-sign` muestran
 entrada y resultado de `sc_pkcs15_compute_signature`, selección de archivo,
 `sc_set_security_env` y `sc_compute_signature`. Solo distinguen selección de
-raíz, aplicación u otro archivo; no imprimen identificadores, claves, PIN,
-APDU, contenido ni firmas. La ausencia de líneas no demuestra ausencia de
+raíz, aplicación u otro archivo. Durante el login y la firma también registran
+las categorías `SELECT`, `VERIFY(data/status)`, `MSE` y `PSO`, con su retorno y
+palabra de estado. No imprimen identificadores, claves, PIN, cuerpos de APDU,
+contenido ni firmas. La ausencia de líneas no demuestra ausencia de
 llamadas: una biblioteca enlazada sin interposición puede impedir observarlas.
 Retira `LD_PRELOAD` al terminar el diagnóstico.
