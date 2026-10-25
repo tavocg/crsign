@@ -122,7 +122,14 @@ def main():
                 log = directory / ('install.log' if action == '/i' else 'uninstall.log')
                 executable = 'msiexec' if args.wine else convert(system / 'System32/msiexec.exe')
                 command = [*prefix, executable, action, convert(package), '/qn', '/norestart',
-                           '/l*v', convert(log), 'INSTALLFOLDER=' + install_path]
+                           '/l*v', convert(log)]
+                if args.wine:
+                    command.append('INSTALLFOLDER=' + install_path)
+                else:
+                    # MSI properties quote the value, not the entire NAME=value
+                    # argument. list2cmdline's whole-argument quoting makes
+                    # msiexec display its help dialog, even with /qn.
+                    command = subprocess.list2cmdline(command) + ' INSTALLFOLDER="' + install_path + '"'
                 try:
                     result = subprocess.run(command, env=env, timeout=600)
                 except subprocess.TimeoutExpired:
