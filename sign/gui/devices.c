@@ -154,12 +154,17 @@ static char* hex_id(const unsigned char* bytes, size_t size) {
 }
 /* Use the same standard libadwaita list for navigable and expandable rows. */
 static GtkListBox* row_group(GtkBox* parent) {
+	GtkListBox* existing = g_object_get_data(G_OBJECT(parent), "object-list");
+	if (existing) {
+		return existing;
+	}
 	GtkWidget* list = gtk_list_box_new();
 	gtk_list_box_set_selection_mode(GTK_LIST_BOX(list), GTK_SELECTION_NONE);
 	gtk_widget_add_css_class(list, "boxed-list");
 	gtk_widget_set_margin_top(list, 6);
 	gtk_widget_set_margin_bottom(list, 6);
 	gtk_box_append(parent, list);
+	g_object_set_data(G_OBJECT(parent), "object-list", list);
 	return GTK_LIST_BOX(list);
 }
 static void key_details(
@@ -496,6 +501,7 @@ static void render_slot(
 }
 /* Only the device list is constructed during a background scan update. */
 typedef struct {
+	AdwActionRow*          reader;
 	libssig_device_module* module;
 	sign_device_inventory* inventory;
 	GPtrArray*             slots;
@@ -726,6 +732,7 @@ static void render(SignDevices* self, sign_device_inventory* inventory) {
 				}
 				g_hash_table_insert(groups, g_strdup(group_id), row);
 				device_page* page = g_new0(device_page, 1);
+				page->reader = reader;
 				page->module = module;
 				page->inventory = sign_device_inventory_ref(inventory);
 				page->slots = g_ptr_array_new();
@@ -743,6 +750,36 @@ static void render(SignDevices* self, sign_device_inventory* inventory) {
 			keys += slot->key_count;
 			device_page* page = g_object_get_data(G_OBJECT(row), "device-page");
 			g_ptr_array_add(page->slots, slot);
+		}
+		GHashTableIter iter;
+		gpointer       group;
+		g_hash_table_iter_init(&iter, groups);
+		while (g_hash_table_iter_next(&iter, NULL, &group)) {
+			device_page* page = g_object_get_data(
+			    G_OBJECT(group),
+			    "device-page"
+			);
+			size_t cert_count = 0, key_count = 0;
+			for (guint i = 0; i < page->slots->len; ++i) {
+				libssig_device_slot* slot = g_ptr_array_index(page->slots, i);
+				cert_count += slot->certificates.count;
+				key_count += slot->key_count;
+			}
+			char* counts = g_strdup_printf(
+			    _("Slots: %zu · Certificates: %zu · Keys: %zu"),
+			    (size_t)page->slots->len,
+			    cert_count,
+			    key_count
+			);
+			char* name = g_utf8_make_valid(
+			    module->name ? module->name : _("PKCS#11 module"),
+			    -1
+			);
+			char* subtitle = g_strdup_printf("%s · %s", name, counts);
+			adw_action_row_set_subtitle(page->reader, subtitle);
+			g_free(subtitle);
+			g_free(name);
+			g_free(counts);
 		}
 		g_hash_table_unref(groups);
 	}

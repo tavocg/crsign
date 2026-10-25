@@ -1430,3 +1430,6 @@ msgstr "Representación gráfica"
 
 msgid "Invalid signature or altered content"
 msgstr "Firma inválida o contenido modificado"
+
+msgid "Slots: %zu · Certificates: %zu · Keys: %zu"
+msgstr "Ranuras: %zu · Certificados: %zu · Claves: %zu"

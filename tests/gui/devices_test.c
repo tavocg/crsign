@@ -180,6 +180,12 @@ int main(int argc, char** argv) {
 	GtkWidget*    content = named(view, "devices-content");
 	AdwActionRow* reader = ADW_ACTION_ROW(named(content, "devices-reader"));
 	g_assert_nonnull(reader);
+	g_assert_nonnull(strstr(adw_action_row_get_subtitle(reader), "Slots: 2"));
+	g_assert_nonnull(
+	    strstr(adw_action_row_get_subtitle(reader), "Certificates:")
+	);
+	g_assert_nonnull(strstr(adw_action_row_get_subtitle(reader), "Keys:"));
+
 	g_assert_null(find_widget(content, ADW_TYPE_EXPANDER_ROW));
 	AdwNavigationSplitView* split = ADW_NAVIGATION_SPLIT_VIEW(
 	    named(view, "devices-split")
@@ -222,6 +228,10 @@ int main(int argc, char** argv) {
 	GtkWidget* slot = named(view, "devices-slot");
 	g_assert_true(ADW_IS_ACTION_ROW(slot));
 	g_assert_false(ADW_IS_EXPANDER_ROW(slot));
+	GtkListBox* slots = GTK_LIST_BOX(gtk_widget_get_parent(slot));
+	g_assert_nonnull(gtk_list_box_get_row_at_index(slots, 1));
+	g_assert_null(gtk_list_box_get_row_at_index(slots, 2));
+
 	g_signal_emit_by_name(slot, "activated");
 	settle();
 	AdwDialog* dialog = adw_application_window_get_visible_dialog(
@@ -253,6 +263,11 @@ int main(int argc, char** argv) {
 	    named(GTK_WIDGET(dialog), "devices-key")
 	);
 	g_assert_nonnull(key);
+	g_assert_true(
+	    gtk_widget_get_parent(GTK_WIDGET(key)) ==
+	    gtk_widget_get_parent(certificate)
+	);
+
 	g_assert_cmpstr(adw_expander_row_get_subtitle(key), ==, "Public key");
 	g_assert_false(adw_expander_row_get_expanded(key));
 	g_assert_false(contains(GTK_WIDGET(dialog), "Signing attribute"));
