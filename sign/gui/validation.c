@@ -2,6 +2,7 @@
 #include <openssl/x509.h>
 #include <openssl/x509_vfy.h>
 #include <sign/config.h>
+#include <sign/file_state.h>
 #include <sign/gui/certificate.h>
 #include <sign/gui/details.h>
 #include <sign/gui/dialog.h>
@@ -20,7 +21,7 @@ typedef struct {
 	GtkLabel *       title, *status;
 	GtkWidget *      details, *original, *icon, *spinner, *page, *remove;
 	AdwDialog*       dialog;
-	bool             details_opened;
+	bool             details_opened, discarded;
 	item_state       state;
 	sign_flow_result result;
 	sign_flow*       template;
@@ -503,6 +504,14 @@ static void finished(GObject* source, GAsyncResult* result, gpointer data) {
 	validation_item* item = g_task_get_task_data(task);
 	g_task_propagate_boolean(task, NULL);
 	self->active = NULL;
+	if (item->discarded) {
+		item_free(item);
+		if (!self->closing) {
+			start_next(self);
+			summary_update(self);
+		}
+		return;
+	}
 	if (self->closing) {
 		sign_flow_result_clear(&item->result);
 		g_clear_error(&item->error);
@@ -666,6 +675,31 @@ static void open_details(GtkListBox* list, GtkListBoxRow* row, gpointer data) {
 	summary_update(self);
 	sign_dialog_present(item->dialog, GTK_WIDGET(self));
 }
+static void discard_document(SignValidation* self, guint index) {
+	validation_item* item = g_ptr_array_index(self->items, index);
+	if (item->dialog && item->details_opened) {
+		adw_dialog_force_close(item->dialog);
+	}
+	g_queue_remove(&self->queue, item);
+	gtk_list_box_remove(self->list, GTK_WIDGET(item->row));
+	g_ptr_array_steal_index(self->items, index);
+	if (self->active == item) {
+		/* The worker owns this detached snapshot until its completion callback;
+		 * the replacement can already occupy the same position in the queue. */
+		item->discarded = true;
+	} else {
+		item_free(item);
+	}
+}
+void sign_validation_prune(SignValidation* self) {
+	for (guint i = self->items->len; i > 0; --i) {
+		validation_item* item = g_ptr_array_index(self->items, i - 1);
+		if (file_is_missing(item->file)) {
+			discard_document(self, i - 1);
+		}
+	}
+	summary_update(self);
+}
 static void remove_document(GtkButton* button, gpointer data) {
 	SignValidation*  self = data;
 	validation_item* item = g_object_get_data(
@@ -675,9 +709,11 @@ static void remove_document(GtkButton* button, gpointer data) {
 	if (item->state == RUNNING || self->dialogs) {
 		return;
 	}
-	g_queue_remove(&self->queue, item);
-	gtk_list_box_remove(self->list, GTK_WIDGET(item->row));
-	g_ptr_array_remove(self->items, item);
+	guint index;
+	if (g_ptr_array_find(self->items, item, &index)) {
+		discard_document(self, index);
+	}
+
 	summary_update(self);
 }
 static void add_files(
@@ -688,6 +724,7 @@ static void add_files(
 	if (self->closing) {
 		return;
 	}
+	sign_validation_prune(self);
 	gtk_widget_set_visible(GTK_WIDGET(self->notice), FALSE);
 	for (guint i = 0; i < g_list_model_get_n_items(files); ++i) {
 		GFile* file = g_list_model_get_item(files, i);
@@ -696,6 +733,18 @@ static void add_files(
 				g_object_unref(file);
 			}
 			continue;
+		}
+		if (file_is_missing(file)) {
+			g_object_unref(file);
+			continue;
+		}
+		guint position = self->items->len;
+		for (guint j = self->items->len; j > 0; --j) {
+			validation_item* previous = g_ptr_array_index(self->items, j - 1);
+			if (g_file_equal(previous->file, file)) {
+				position = j - 1;
+				discard_document(self, j - 1);
+			}
 		}
 		validation_item* item = g_new0(validation_item, 1);
 		item->file = file;
@@ -766,8 +815,8 @@ static void add_files(
 		    self
 		);
 		gtk_box_append(GTK_BOX(row_box), item->remove);
-		gtk_list_box_append(self->list, GTK_WIDGET(item->row));
-		g_ptr_array_add(self->items, item);
+		gtk_list_box_insert(self->list, GTK_WIDGET(item->row), position);
+		g_ptr_array_insert(self->items, position, item);
 		g_queue_push_tail(&self->queue, item);
 	}
 	start_next(self);

@@ -102,7 +102,7 @@ int main(int argc, char** argv) {
 	wait_done(self);
 	g_source_remove(timer);
 	g_assert_cmpuint(ticks, >, 0);
-	g_assert_cmpuint(sign_validation_count(self), ==, 6);
+	g_assert_cmpuint(sign_validation_count(self), ==, 4);
 	g_assert_false(sign_validation_result(self, 0)->ok);
 	const sign_flow_document_result* valid = sign_validation_result(self, 1);
 	g_assert_true(valid->ok);
@@ -115,15 +115,15 @@ int main(int argc, char** argv) {
 	}
 	g_assert_false(sign_validation_result(self, 2)->ok);
 	g_assert_cmpint(
-	    sign_validation_result(self, 3)->verification_status,
+	    sign_validation_result(self, 2)->verification_status,
 	    ==,
 	    LIBSSIG_ERROR_CONTENT_REQUIRED
 	);
-	const sign_flow_document_result* unknown = sign_validation_result(self, 4);
+	const sign_flow_document_result* unknown = sign_validation_result(self, 3);
 	g_assert_false(unknown->ok);
 	g_assert_true(unknown->verification.signature_valid);
 	g_assert_false(unknown->verification.trusted);
-	g_assert_true(sign_validation_result(self, 5)->ok);
+	g_assert_true(sign_validation_result(self, 1)->ok);
 	g_assert_false(contains(view, "CN=Flow signer"));
 	GtkListBox*    list = GTK_LIST_BOX(named(view, "validation-results"));
 	GtkListBoxRow* row = gtk_list_box_get_row_at_index(list, 1);
@@ -170,7 +170,7 @@ int main(int argc, char** argv) {
 	snapshot(window, argv[2], "validation-queue.png");
 	g_assert_null(strstr(
 	    gtk_label_get_text(GTK_LABEL(named(
-	        GTK_WIDGET(gtk_list_box_get_row_at_index(list, 4)),
+	        GTK_WIDGET(gtk_list_box_get_row_at_index(list, 3)),
 	        "validation-status"
 	    ))),
 	    "Firmado:"
@@ -221,24 +221,24 @@ int main(int argc, char** argv) {
 	settle();
 	dismiss_dialog_background(window);
 
-	sign_validation_set_content(self, 3, files[0]);
+	sign_validation_set_content(self, 2, files[0]);
 	wait_done(self);
-	g_assert_true(sign_validation_result(self, 3)->ok);
-	g_assert_true(sign_validation_result(self, 3)->verification.detached);
+	g_assert_true(sign_validation_result(self, 2)->ok);
+	g_assert_true(sign_validation_result(self, 2)->verification.detached);
 	GFile* wrong = fixture(root, "wrong.bin");
-	sign_validation_set_content(self, 3, wrong);
+	sign_validation_set_content(self, 2, wrong);
 	wait_done(self);
-	g_assert_false(sign_validation_result(self, 3)->ok);
-	sign_validation_set_content(self, 3, files[0]);
+	g_assert_false(sign_validation_result(self, 2)->ok);
+	sign_validation_set_content(self, 2, files[0]);
 	wait_done(self);
-	g_assert_true(sign_validation_result(self, 3)->ok);
-	GtkWidget* remove = named(
+	g_assert_true(sign_validation_result(self, 2)->ok);
+	GtkWidget* remove_button = named(
 	    GTK_WIDGET(gtk_list_box_get_row_at_index(list, 2)),
 	    "validation-remove-document"
 	);
-	g_assert_nonnull(remove);
-	g_signal_emit_by_name(remove, "clicked");
-	g_assert_cmpuint(sign_validation_count(self), ==, 5);
+	g_assert_nonnull(remove_button);
+	g_signal_emit_by_name(remove_button, "clicked");
+	g_assert_cmpuint(sign_validation_count(self), ==, 3);
 	g_assert_true(gtk_widget_get_sensitive(named(view, "validation-clear")));
 	g_signal_emit_by_name(named(view, "validation-clear"), "clicked");
 	g_assert_cmpuint(sign_validation_count(self), ==, 0);
@@ -289,8 +289,41 @@ int main(int argc, char** argv) {
 	g_assert_true(sign_validation_result(self, 0)->verification.detached);
 	g_assert_true(sign_validation_result(self, 0)->verification.trusted);
 	g_signal_emit_by_name(named(view, "validation-clear"), "clicked");
+	/* Re-adding a changed path replaces its previous validation result. */
+	char* changed_path = g_build_filename(root, "changed.p7m", NULL);
+	char* original_path = g_file_get_path(files[1]);
+	char* bytes = NULL;
+	gsize length = 0;
+	g_assert_true(g_file_get_contents(original_path, &bytes, &length, NULL));
+	g_assert_true(g_file_set_contents(changed_path, bytes, length, NULL));
+	GFile*      changed = g_file_new_for_path(changed_path);
+	GListStore* replacements = g_list_store_new(G_TYPE_FILE);
+	g_list_store_append(replacements, changed);
+	sign_validation_add_files(self, G_LIST_MODEL(replacements));
+	/* Replacing the active item must safely discard the older worker result. */
+	sign_validation_add_files(self, G_LIST_MODEL(replacements));
+	wait_done(self);
+	g_assert_cmpuint(sign_validation_count(self), ==, 1);
+	g_assert_true(sign_validation_result(self, 0)->ok);
+	g_assert_true(
+	    g_file_set_contents(changed_path, "broken signature", -1, NULL)
+	);
+	sign_validation_add_files(self, G_LIST_MODEL(replacements));
+	wait_done(self);
+	g_assert_cmpuint(sign_validation_count(self), ==, 1);
+	g_assert_false(sign_validation_result(self, 0)->ok);
+	g_assert_cmpint(g_remove(changed_path), ==, 0);
+	sign_validation_add_files(self, G_LIST_MODEL(replacements));
+	wait_done(self);
+	g_assert_cmpuint(sign_validation_count(self), ==, 0);
+	g_object_unref(replacements);
+	g_object_unref(changed);
+	g_free(changed_path);
+	g_free(original_path);
+	g_free(bytes);
 	/* Closing with work pending cancels the queue and releases the page once
 	 * its current worker returns; the callback must not access destroyed UI. */
+	sign_validation_add_files(self, G_LIST_MODEL(extra));
 	sign_validation_add_files(self, G_LIST_MODEL(extra));
 	gpointer weak = view;
 	g_object_add_weak_pointer(G_OBJECT(view), &weak);

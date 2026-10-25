@@ -10,9 +10,12 @@ typedef struct {
 	gint64      signed_at; /* UTC microseconds since the Unix epoch. */
 	bool        favorite;
 } sign_history_entry;
-char*                     history_path(void);
-sign_history*             history_load(GError**);
-void                      history_free(sign_history*);
+char*         history_path(void);
+sign_history* history_load(GError**);
+void          history_free(sign_history*);
+/* Filter missing entries from this loaded view, keeping saved history intact.
+ */
+void                      history_prune_missing(sign_history*);
 size_t                    history_count(const sign_history*);
 const sign_history_entry* history_get(const sign_history*, size_t);
 /* Merge under a process/thread lock and atomically replace the JSON. A failed

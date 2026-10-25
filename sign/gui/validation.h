@@ -25,4 +25,5 @@ void sign_validation_set_content(
 /* Copies a verification flow before starting work, preserving trust and
  * detached content. */
 bool sign_validation_add_flow(SignValidation*, const sign_flow*, GError**);
+void sign_validation_prune(SignValidation* self);
 #endif

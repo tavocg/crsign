@@ -1017,7 +1017,7 @@ int main(int argc, char** argv) {
 		g_usleep(1000);
 	}
 	g_assert_false(sign_validation_is_busy(validation));
-	g_assert_cmpuint(sign_validation_count(validation), ==, 4);
+	g_assert_cmpuint(sign_validation_count(validation), ==, 2);
 	g_signal_emit_by_name(named(GTK_WIDGET(self), "sign-clear"), "clicked");
 	g_assert_cmpuint(sign_signing_count(self), ==, 0);
 	g_assert_cmpstr(
@@ -1025,6 +1025,21 @@ int main(int argc, char** argv) {
 	    ==,
 	    "Total: 0"
 	);
+	/* Re-adding an edited path replaces the queued document and cached preview.
+	 */
+	char* changing = g_build_filename(argv[1], "changing.bin", NULL);
+	g_assert_true(g_file_set_contents(changing, "first", -1, NULL));
+	add(self, changing);
+	g_assert_cmpuint(sign_signing_count(self), ==, 1);
+	g_assert_true(g_file_set_contents(changing, "updated", -1, NULL));
+	add(self, changing);
+	g_assert_cmpuint(sign_signing_count(self), ==, 1);
+	GFile* disappeared = g_file_new_for_path(changing);
+	g_assert_true(g_file_delete(disappeared, NULL, NULL));
+	g_object_unref(disappeared);
+	add(self, changing);
+	g_assert_cmpuint(sign_signing_count(self), ==, 0);
+	g_free(changing);
 	/* Clearing during preview prevents a stale callback restoring a document.
 	 */
 	GListStore* pending = g_list_store_new(G_TYPE_FILE);

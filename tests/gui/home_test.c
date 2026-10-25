@@ -434,6 +434,11 @@ int main(int argc, char** argv) {
 	sign_history* history = history_load(NULL);
 	g_assert_true(history_get(history, 0)->favorite);
 	history_free(history);
+	char* vanished = g_build_filename(argv[1], "vanished.pdf", NULL);
+	g_assert_true(g_file_set_contents(vanished, "document", -1, NULL));
+	g_assert_true(history_record(vanished, NULL));
+	g_assert_cmpint(g_remove(vanished), ==, 0);
+	g_free(vanished);
 	sign_home_reload(self);
 	sign_home_set_grid(self, false);
 	settle();

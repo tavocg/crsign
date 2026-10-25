@@ -103,6 +103,11 @@ static void section_selected(
 			return;
 		}
 	}
+	if (index == 2) {
+		sign_validation_prune(
+		    SIGN_VALIDATION(gtk_stack_get_child_by_name(self->pages, "verify"))
+		);
+	}
 	gtk_stack_set_visible_child_name(self->pages, sections[index].id);
 	/* Device polling runs continuously. Selecting the section only reveals the
 	 * current snapshot; an explicit Refresh rebuilds it. */

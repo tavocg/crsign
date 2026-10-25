@@ -673,18 +673,7 @@ void sign_home_reload(SignHome* self) {
 		g_clear_error(&error);
 		return;
 	}
-	bool same = self->history &&
-	            history_count(history) == history_count(self->history);
-	for (size_t n = 0; same && n < history_count(history); ++n) {
-		const sign_history_entry* a = history_get(history, n);
-		const sign_history_entry* b = history_get(self->history, n);
-		same = a->signed_at == b->signed_at && a->favorite == b->favorite &&
-		       !strcmp(a->path, b->path);
-	}
-	if (same) {
-		history_free(history);
-		return;
-	}
+	history_prune_missing(history);
 	bool previous = sign_home_has_documents(self);
 	history_free(self->history);
 	self->history = history;

@@ -3,6 +3,7 @@
 #include <math.h>
 #include <sign/appearance.h>
 #include <sign/config.h>
+#include <sign/file_state.h>
 #include <sign/gui/device_access.h>
 #include <sign/gui/error.h>
 #include <sign/gui/file_actions.h>
@@ -854,16 +855,8 @@ static void clear_clicked(GtkButton* button, gpointer data) {
 	(void)button;
 	sign_signing_clear(data);
 }
-static void remove_item(GtkButton* button, gpointer data) {
-	SignSigning* self = data;
-	if (self->busy) {
-		return;
-	}
-	signing_item* item = g_object_get_data(G_OBJECT(button), "signing-item");
-	guint         index;
-	if (!g_ptr_array_find(self->items, item, &index)) {
-		return;
-	}
+static void discard_document(SignSigning* self, guint index) {
+	signing_item* item = g_ptr_array_index(self->items, index);
 	if (self->current == item) {
 		self->current = NULL;
 		++self->revision;
@@ -876,6 +869,27 @@ static void remove_item(GtkButton* button, gpointer data) {
 	g_ptr_array_remove_index(self->items, index);
 	refresh_output_warnings(self);
 	sign_signing_show_queue(self);
+}
+static void remove_item(GtkButton* button, gpointer data) {
+	SignSigning*  self = data;
+	signing_item* item = g_object_get_data(G_OBJECT(button), "signing-item");
+	guint         index;
+	if (!self->busy && g_ptr_array_find(self->items, item, &index)) {
+		discard_document(self, index);
+	}
+}
+static void prune_documents(SignSigning* self) {
+	if (self->busy || self->closing) {
+		return;
+	}
+	for (guint i = self->items->len; i > 0; --i) {
+		signing_item* item = g_ptr_array_index(self->items, i - 1);
+		GFile*        file = g_file_new_for_path(item->path);
+		if (file_is_missing(file)) {
+			discard_document(self, i - 1);
+		}
+		g_object_unref(file);
+	}
 }
 static void graphical_clicked(GtkButton* button, gpointer data) {
 	signing_item* item = g_object_get_data(G_OBJECT(button), "signing-item");
@@ -921,6 +935,7 @@ void sign_signing_add_files(SignSigning* self, GListModel* files) {
 	if (self->busy || self->closing) {
 		return;
 	}
+	prune_documents(self);
 	guint added = 0;
 	for (guint n = 0; n < g_list_model_get_n_items(files); ++n) {
 		GFile* file = g_list_model_get_item(files, n);
@@ -930,24 +945,26 @@ void sign_signing_add_files(SignSigning* self, GListModel* files) {
 			}
 			continue;
 		}
+		if (file_is_missing(file)) {
+			g_object_unref(file);
+			continue;
+		}
 		char* path = g_file_get_path(file);
 		g_object_unref(file);
 		if (!path) {
 			message(self, _("Only local files can be signed"));
 			continue;
 		}
-		bool duplicate = false;
-		for (guint i = 0; i < self->items->len; ++i) {
-			if (!strcmp(
-			        path,
-			        ((signing_item*)g_ptr_array_index(self->items, i))->path
-			    )) {
-				duplicate = true;
+		for (guint i = self->items->len; i > 0; --i) {
+			signing_item* previous = g_ptr_array_index(self->items, i - 1);
+			GFile*        old = g_file_new_for_path(previous->path);
+			GFile*        fresh = g_file_new_for_path(path);
+			bool          same = g_file_equal(old, fresh);
+			g_object_unref(old);
+			g_object_unref(fresh);
+			if (same) {
+				discard_document(self, i - 1);
 			}
-		}
-		if (duplicate) {
-			g_free(path);
-			continue;
 		}
 		if (self->items->len >= SIGN_FLOW_MAX_DOCUMENTS) {
 			g_free(path);
@@ -1199,6 +1216,7 @@ void sign_signing_reload_profiles(SignSigning* self) {
 	if (self->busy) {
 		return;
 	}
+	prune_documents(self);
 	char*             previous = g_strdup(profile(self));
 	GError*           error = NULL;
 	sign_preferences* preferences = preferences_load(&error);

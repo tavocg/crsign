@@ -252,6 +252,8 @@ int main(int argc, char** argv) {
 	g_assert_cmpstr(gtk_stack_get_visible_child_name(stack), ==, "sign");
 	g_assert_false(gtk_widget_get_visible(named(window, "home-navigation")));
 	char* seed = g_build_filename(data_directory, "initial-signed.pdf", NULL);
+	g_assert_cmpint(g_mkdir_with_parents(data_directory, 0700), ==, 0);
+	g_assert_true(g_file_set_contents(seed, "signed fixture", -1, NULL));
 	g_assert_true(history_record(seed, NULL));
 	g_free(seed);
 	sign_home_reload(SIGN_HOME(gtk_stack_get_child_by_name(stack, "home")));
@@ -387,6 +389,7 @@ int main(int argc, char** argv) {
 	gtk_window_destroy(GTK_WINDOW(window));
 	settle();
 	char* output = g_build_filename(data_directory, "signed.pdf", NULL);
+	g_assert_true(g_file_set_contents(output, "signed fixture", -1, NULL));
 	g_assert_true(history_record(output, NULL));
 	GtkWidget* reopened = sign_window_new(GTK_APPLICATION(app));
 	GtkStack* reopened_stack = GTK_STACK(find_widget(reopened, GTK_TYPE_STACK));

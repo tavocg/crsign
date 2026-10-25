@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+#include <sign/file_state.h>
 #include <sign/history.h>
 #include <sign/user_data.h>
 #include <string.h>
@@ -36,6 +37,21 @@ void history_free(sign_history* history) {
 	}
 	g_array_unref(history->entries);
 	g_free(history);
+}
+void history_prune_missing(sign_history* history) {
+	for (guint n = history->entries->len; n > 0; --n) {
+		sign_history_entry* entry = &g_array_index(
+		    history->entries,
+		    sign_history_entry,
+		    n - 1
+		);
+		GFile* file = g_file_new_for_path(entry->path);
+		if (file_is_missing(file)) {
+			g_free((char*)entry->path);
+			g_array_remove_index(history->entries, n - 1);
+		}
+		g_object_unref(file);
+	}
 }
 size_t history_count(const sign_history* h) {
 	return h ? h->entries->len : 0;
