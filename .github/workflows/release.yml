@@ -49,7 +49,7 @@ jobs:
         run: |
           test "$(uname -m)" = '${{ matrix.arch }}'
           echo "RELEASE_VERSION=$(python3 scripts/release-version.py --tag "$RELEASE_REF" --build "$RELEASE_BUILD")" >> "$GITHUB_ENV"
-          docker build -f packaging/release/linux-build.Dockerfile -t crsign-release-build .
+          docker build --build-arg BUILD_UID="$(id -u)" -f packaging/release/linux-build.Dockerfile -t crsign-release-build .
       - name: Build, test and bundle AppImage
         run: |
           docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -e RELEASE_VERSION \
