@@ -1324,3 +1324,19 @@ msgstr ""
 #: sign/io.c:275 sign/io.c:279
 msgid "signed"
 msgstr ""
+
+#: sign/gui/validation.c
+msgid "Common name"
+msgstr ""
+
+#: sign/gui/validation.c
+msgid "Given name"
+msgstr ""
+
+#: sign/gui/validation.c
+msgid "Surname"
+msgstr ""
+
+#: sign/gui/validation.c
+msgid "Pseudonym"
+msgstr ""

@@ -23,6 +23,12 @@ target_compile_options(gui_device_access_test PRIVATE -Wall -Wextra -Wpedantic -
 add_test(NAME gui_device_access COMMAND $<TARGET_FILE:gui_device_access_test>)
 set_tests_properties(gui_device_access PROPERTIES TIMEOUT 10)
 
+add_executable(gui_certificate_test certificate_test.c ../../sign/gui/certificate.c)
+target_include_directories(gui_certificate_test PRIVATE "${PROJECT_SOURCE_DIR}")
+target_link_libraries(gui_certificate_test PRIVATE PkgConfig::GLIB OpenSSL::Crypto)
+target_compile_options(gui_certificate_test PRIVATE -Wall -Wextra -Wpedantic -Werror)
+add_test(NAME gui_certificate COMMAND $<TARGET_FILE:gui_certificate_test>)
+
 set(GUI_TEST_SOURCES
     ../../sign/gui/home.c ../../sign/gui/file_actions.c ../../sign/gui/window.c ../../sign/gui/about.c ../../sign/gui/validation.c
     ../../sign/gui/devices.c ../../sign/gui/inventory.c ../../sign/gui/certificate.c

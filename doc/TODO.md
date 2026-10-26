@@ -1,4 +1,4 @@
-- [ ] Buscar la mejor manera de representar las firmas, actualmente aparecen
+- [x] Buscar la mejor manera de representar las firmas, actualmente aparecen
       campos como CN=..., pero sería mejor que eso vaya en su propio campo y
       mostrar el título diferente, idealmente por ejemplo el nombre de la
       persona nada más, pero, hay que investigar si eso es estándar.

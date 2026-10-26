@@ -170,6 +170,25 @@ static void certificate_details(
 	char* issuer = sign_certificate_name(X509_get_issuer_name(cert));
 	char* from = sign_certificate_time(X509_get0_notBefore(cert));
 	char* until = sign_certificate_time(X509_get0_notAfter(cert));
+	const struct {
+		int         nid;
+		const char* title;
+	} attributes[] = {
+	    {NID_commonName, _("Common name")},
+	    {NID_givenName, _("Given name")},
+	    {NID_surname, _("Surname")},
+	    {NID_pseudonym, _("Pseudonym")},
+	};
+	for (size_t i = 0; i < G_N_ELEMENTS(attributes); ++i) {
+		char* value = sign_certificate_attribute(
+		    X509_get_subject_name(cert),
+		    attributes[i].nid
+		);
+		if (value) {
+			detail(details, attributes[i].title, value);
+		}
+		g_free(value);
+	}
 	detail(details, _("Certificate subject"), subject);
 	detail(details, _("Certificate issuer"), issuer);
 	detail(details, _("Valid from"), from);
@@ -389,8 +408,10 @@ static void render(validation_item* item) {
 		X509*                cert = cursor
 		                                ? d2i_X509(NULL, &cursor, (long)signer->cert_der_len)
 		                                : NULL;
-		char* name = cert ? sign_certificate_name(X509_get_subject_name(cert))
-		                  : NULL;
+		char*                name = cert ? sign_certificate_display_name(
+                                X509_get_subject_name(cert)
+                            )
+		                                 : NULL;
 		if (name) {
 			adw_preferences_row_set_title(ADW_PREFERENCES_ROW(row), name);
 		}

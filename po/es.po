@@ -1454,3 +1454,19 @@ msgstr "Válidos: %u/%u"
 
 msgid "Clear queue"
 msgstr "Vaciar cola"
+
+#: sign/gui/validation.c
+msgid "Common name"
+msgstr "Nombre común"
+
+#: sign/gui/validation.c
+msgid "Given name"
+msgstr "Nombre de pila"
+
+#: sign/gui/validation.c
+msgid "Surname"
+msgstr "Apellidos"
+
+#: sign/gui/validation.c
+msgid "Pseudonym"
+msgstr "Seudónimo"

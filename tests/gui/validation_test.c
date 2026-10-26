@@ -199,10 +199,17 @@ int main(int argc, char** argv) {
 	g_assert_false(contains(page, "Archivo"));
 	AdwExpanderRow* signer = ADW_EXPANDER_ROW(named(page, "validation-signer"));
 	g_assert_nonnull(signer);
+	g_assert_cmpstr(
+	    adw_preferences_row_get_title(ADW_PREFERENCES_ROW(signer)),
+	    ==,
+	    "Flow signer"
+	);
 	g_assert_false(adw_expander_row_get_expanded(signer));
 	g_assert_false(contains(page, "Huella SHA-256"));
 	GBytes* collapsed_arrow = arrow_shape(window, GTK_WIDGET(signer));
 	adw_expander_row_set_expanded(signer, TRUE);
+	g_assert_true(contains(page, "CN=Flow signer"));
+	g_assert_true(contains(page, "Nombre común"));
 	GBytes* expanded_arrow = arrow_shape(window, GTK_WIDGET(signer));
 	g_assert_false(g_bytes_equal(collapsed_arrow, expanded_arrow));
 	adw_expander_row_set_expanded(signer, FALSE);

@@ -385,3 +385,18 @@ palabra de estado. No imprimen identificadores, claves, PIN, cuerpos de APDU,
 contenido ni firmas. La ausencia de líneas no demuestra ausencia de
 llamadas: una biblioteca enlazada sin interposición puede impedir observarlas.
 Retira `LD_PRELOAD` al terminar el diagnóstico.
+
+## Nombre de los firmantes
+
+En Validar, el título de cada firma muestra `commonName` (CN) del certificado.
+Si falta, usa `pseudonym`, después `givenName` y `surname`, y finalmente el
+sujeto completo. Si no hay un nombre disponible, muestra «Firmante n».
+Los atributos se decodifican directamente desde ASN.1; no se interpreta la
+cadena del sujeto ni se eliminan sufijos como «(FIRMA)».
+
+Este criterio sigue los atributos de presentación descritos en
+[RFC 3739, §3.1.2](https://www.rfc-editor.org/rfc/rfc3739.html#section-3.1.2).
+El nombre mostrado puede ser un seudónimo o seguir el formato de la autoridad
+certificadora. No es un identificador único ni determina la validez de la firma.
+Al desplegar la firma se conservan los campos del nombre, el sujeto completo,
+el emisor y la huella SHA-256 para distinguir certificados con nombres iguales.
