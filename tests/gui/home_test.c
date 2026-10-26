@@ -535,14 +535,34 @@ int main(int argc, char** argv) {
 	    ==,
 	    "document.open"
 	);
-	g_assert_true(
-	    gtk_widget_activate_action(result, "document.location", NULL)
-	);
+	GtkWidget* search_context = context_open(window, result);
+	if (search_context) {
+		GtkWidget* location_action = find_widget(
+		    search_context,
+		    g_type_from_name("GtkModelButton")
+		);
+		g_assert_nonnull(location_action);
+		g_assert_true(gtk_widget_activate(location_action));
+	} else {
+		g_assert_true(
+		    gtk_widget_activate_action(result, "document.location", NULL)
+		);
+	}
 	deadline = g_get_monotonic_time() + 5 * G_TIME_SPAN_SECOND;
 	while (manager.calls < 4 && g_get_monotonic_time() < deadline) {
 		settle();
 	}
 	g_assert_cmpuint(manager.calls, ==, 4);
+	settle();
+	g_assert_false(gtk_widget_get_visible(popover));
+	gtk_menu_button_popup(GTK_MENU_BUTTON(sign_home_search_button(self)));
+	settle();
+	g_assert_true(gtk_widget_get_visible(popover));
+	results = named(popover, "history-search-results");
+	result = GTK_WIDGET(
+	    gtk_list_box_get_row_at_index(GTK_LIST_BOX(results), 0)
+	);
+
 	guint               search_opens = 0;
 	GSimpleActionGroup* search_actions = g_simple_action_group_new();
 	GSimpleAction*      search_open = g_simple_action_new("open", NULL);

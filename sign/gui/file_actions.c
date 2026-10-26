@@ -11,6 +11,41 @@ typedef struct {
 	GtkWidget*            popover;
 	GSimpleAction*        favorite_action;
 } file_actions;
+/* A document menu may live inside the search popover. Dismiss the whole
+ * popup chain after menu activation unwinds, so nested grabs are released in
+ * order without destroying an action's source widget during dispatch. */
+static gboolean dismiss_popovers(gpointer data) {
+	GPtrArray* popovers = data;
+	for (guint i = 0; i < popovers->len; ++i) {
+		GtkPopover* popover = g_ptr_array_index(popovers, i);
+		if (gtk_widget_get_root(GTK_WIDGET(popover))) {
+			gtk_popover_popdown(popover);
+		}
+	}
+	return G_SOURCE_REMOVE;
+}
+static void dismiss_document_popovers(file_actions* binding) {
+	GPtrArray* popovers = g_ptr_array_new_with_free_func(g_object_unref);
+	if (binding->popover) {
+		g_ptr_array_add(popovers, g_object_ref(binding->popover));
+	}
+	for (GtkWidget* parent = gtk_widget_get_parent(binding->widget); parent;
+	     parent = gtk_widget_get_parent(parent)) {
+		if (GTK_IS_POPOVER(parent)) {
+			g_ptr_array_add(popovers, g_object_ref(parent));
+		}
+	}
+	if (popovers->len) {
+		g_idle_add_full(
+		    G_PRIORITY_HIGH_IDLE,
+		    dismiss_popovers,
+		    popovers,
+		    (GDestroyNotify)g_ptr_array_unref
+		);
+	} else {
+		g_ptr_array_unref(popovers);
+	}
+}
 typedef struct {
 	GtkWindow* parent;
 	GFile*     file;
@@ -127,6 +162,7 @@ static void open_file(
 	if (GTK_IS_WINDOW(root)) {
 		request->parent = g_object_ref(GTK_WINDOW(root));
 	}
+	dismiss_document_popovers(binding);
 	GtkFileLauncher* launcher = gtk_file_launcher_new(request->file);
 	gtk_file_launcher_launch(
 	    launcher,
@@ -151,6 +187,7 @@ static void location(
 	if (GTK_IS_WINDOW(root)) {
 		request->parent = g_object_ref(GTK_WINDOW(root));
 	}
+	dismiss_document_popovers(binding);
 	GtkFileLauncher* launcher = gtk_file_launcher_new(request->file);
 	gtk_file_launcher_open_containing_folder(
 	    launcher,
@@ -170,6 +207,7 @@ static void validate_file(
 	(void)parameter;
 	file_actions* binding = data;
 	char*         uri = g_file_get_uri(binding->file);
+	dismiss_document_popovers(binding);
 	gtk_widget_activate_action(binding->widget, "win.validate-file", "s", uri);
 	g_free(uri);
 }

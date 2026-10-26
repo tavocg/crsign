@@ -458,6 +458,31 @@ int main(int argc, char** argv) {
 	    reopened_stack,
 	    0
 	);
+	GtkMenuButton* search_button = GTK_MENU_BUTTON(
+	    sign_home_search_button(home)
+	);
+	gtk_menu_button_popup(search_button);
+	settle();
+	GtkWidget* search_popup = GTK_WIDGET(
+	    gtk_menu_button_get_popover(search_button)
+	);
+	GtkListBox* search_results = GTK_LIST_BOX(
+	    named(search_popup, "history-search-results")
+	);
+	validate_context(
+	    GTK_WIDGET(gtk_list_box_get_row_at_index(search_results, 0)),
+	    reopened,
+	    reopened_stack,
+	    0
+	);
+	settle();
+	g_assert_false(gtk_widget_get_visible(search_popup));
+	gtk_menu_button_popup(search_button);
+	settle();
+	g_assert_true(gtk_widget_get_visible(search_popup));
+	gtk_menu_button_popdown(search_button);
+	settle();
+	g_assert_false(gtk_widget_get_visible(search_popup));
 	char* emptied = history_path();
 	g_assert_cmpint(g_unlink(emptied), ==, 0);
 	g_free(emptied);
