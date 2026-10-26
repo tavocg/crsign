@@ -56,7 +56,13 @@ int main(int argc, char** argv) {
 	GtkWidget* window = adw_application_window_new(GTK_APPLICATION(app));
 	gtk_window_set_default_size(GTK_WINDOW(window), 760, 650);
 	GtkWidget* view = sign_validation_new();
-	adw_application_window_set_content(ADW_APPLICATION_WINDOW(window), view);
+	GtkWidget* layout = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+	gtk_box_append(
+	    GTK_BOX(layout),
+	    sign_validation_header_clear(SIGN_VALIDATION(view))
+	);
+	gtk_box_append(GTK_BOX(layout), view);
+	adw_application_window_set_content(ADW_APPLICATION_WINDOW(window), layout);
 	gtk_window_present(GTK_WINDOW(window));
 	settle();
 	SignValidation* self = SIGN_VALIDATION(view);
@@ -93,7 +99,9 @@ int main(int argc, char** argv) {
 	g_signal_emit_by_name(target, "drop", &value, 0.0, 0.0, &accepted);
 	g_assert_true(accepted);
 	g_assert_true(sign_validation_is_busy(self));
-	g_assert_false(gtk_widget_get_sensitive(named(view, "validation-clear")));
+	g_assert_false(
+	    gtk_widget_get_sensitive(sign_validation_header_clear(self))
+	);
 	GListStore* extra = g_list_store_new(G_TYPE_FILE);
 	GFile*      untrusted = fixture(root, "untrusted.p7m");
 	g_list_store_append(extra, untrusted);
@@ -103,6 +111,11 @@ int main(int argc, char** argv) {
 	g_source_remove(timer);
 	g_assert_cmpuint(ticks, >, 0);
 	g_assert_cmpuint(sign_validation_count(self), ==, 4);
+	g_assert_cmpstr(
+	    gtk_label_get_text(GTK_LABEL(named(view, "validation-summary"))),
+	    ==,
+	    "Válidos: 1/4"
+	);
 	g_assert_false(sign_validation_result(self, 0)->ok);
 	const sign_flow_document_result* valid = sign_validation_result(self, 1);
 	g_assert_true(valid->ok);
@@ -239,8 +252,8 @@ int main(int argc, char** argv) {
 	g_assert_nonnull(remove_button);
 	g_signal_emit_by_name(remove_button, "clicked");
 	g_assert_cmpuint(sign_validation_count(self), ==, 3);
-	g_assert_true(gtk_widget_get_sensitive(named(view, "validation-clear")));
-	g_signal_emit_by_name(named(view, "validation-clear"), "clicked");
+	g_assert_true(gtk_widget_get_sensitive(sign_validation_header_clear(self)));
+	g_signal_emit_by_name(sign_validation_header_clear(self), "clicked");
 	g_assert_cmpuint(sign_validation_count(self), ==, 0);
 	g_assert_null(adw_application_window_get_visible_dialog(
 	    ADW_APPLICATION_WINDOW(window)
@@ -257,12 +270,12 @@ int main(int argc, char** argv) {
 	wait_done(self);
 	g_assert_cmpuint(sign_validation_count(self), ==, 2);
 	g_assert_true(sign_validation_result(self, 1)->ok);
-	g_signal_emit_by_name(named(view, "validation-clear"), "clicked");
+	g_signal_emit_by_name(sign_validation_header_clear(self), "clicked");
 	sign_validation_add_files(self, G_LIST_MODEL(extra));
 	wait_done(self);
 	g_assert_cmpuint(sign_validation_count(self), ==, 2);
 	g_assert_true(sign_validation_result(self, 1)->ok);
-	g_signal_emit_by_name(named(view, "validation-clear"), "clicked");
+	g_signal_emit_by_name(sign_validation_header_clear(self), "clicked");
 	/* Flow intake owns its options and supplies detached content immediately.
 	 */
 	char*          detached = g_file_get_path(files[3]);
@@ -288,7 +301,7 @@ int main(int argc, char** argv) {
 	g_assert_true(sign_validation_result(self, 0)->ok);
 	g_assert_true(sign_validation_result(self, 0)->verification.detached);
 	g_assert_true(sign_validation_result(self, 0)->verification.trusted);
-	g_signal_emit_by_name(named(view, "validation-clear"), "clicked");
+	g_signal_emit_by_name(sign_validation_header_clear(self), "clicked");
 	/* Re-adding a changed path replaces its previous validation result. */
 	char* changed_path = g_build_filename(root, "changed.p7m", NULL);
 	char* original_path = g_file_get_path(files[1]);

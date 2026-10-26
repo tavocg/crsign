@@ -7,6 +7,9 @@
 G_DECLARE_FINAL_TYPE(SignSigning, sign_signing, SIGN, SIGNING, GtkBox)
 GtkWidget*  sign_signing_new(void);
 GtkWidget*  sign_signing_profile_selector(SignSigning* self);
+GtkWidget*  sign_signing_header_back(SignSigning* self);
+GtkWidget*  sign_signing_header_menu(SignSigning* self);
+const char* sign_signing_title(SignSigning* self);
 void        sign_signing_reload_profiles(SignSigning* self);
 void        sign_signing_add_files(SignSigning* self, GListModel* files);
 size_t      sign_signing_count(SignSigning* self);
@@ -42,4 +45,5 @@ void       sign_signing_clear(SignSigning* self);
 /* signing-completed emits a borrowed verification flow after full success.
  * Copy it during the signal to retain it; documents-signed also covers partial
  * success. */
+GtkWidget* sign_signing_header_clear(SignSigning* self);
 #endif

@@ -365,14 +365,29 @@ int main(int argc, char** argv) {
 	    GTK_ALIGN_START
 	);
 	g_assert_cmpstr(
-	    gtk_button_get_label(GTK_BUTTON(named(view, "devices-refresh"))),
+	    gtk_widget_get_tooltip_text(
+	        sign_devices_header_refresh(SIGN_DEVICES(view))
+	    ),
 	    ==,
 	    "Refresh"
 	);
 	snapshot(window, argv[2], "devices-empty.png");
 	phase(argv[1], "0");
 	wait_text(view, "USB fixture <&>", true);
-	g_signal_emit_by_name(named(view, "devices-refresh"), "clicked");
+	g_signal_emit_by_name(
+	    sign_devices_header_refresh(SIGN_DEVICES(view)),
+	    "clicked"
+	);
+	g_assert_cmpstr(
+	    gtk_stack_get_visible_child_name(
+	        GTK_STACK(named(view, "devices-state"))
+	    ),
+	    ==,
+	    "loading"
+	);
+	g_assert_false(
+	    gtk_widget_get_visible(sign_devices_header_refresh(SIGN_DEVICES(view)))
+	);
 	wait_text(view, "USB fixture <&>", true);
 	gpointer weak = view;
 	g_object_add_weak_pointer(G_OBJECT(view), &weak);

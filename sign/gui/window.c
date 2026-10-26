@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include <sign/gui/about.h>
 #include <sign/gui/devices.h>
+#include <sign/gui/dialog.h>
 #include <sign/gui/error.h>
 #include <sign/gui/home.h>
 #include <sign/gui/i18n.h>
@@ -20,8 +21,6 @@ static const struct {
     {"sign", N_("Sign"), "document-edit-symbolic"},
     {"verify", N_("Validate"), "object-select-symbolic"},
     {"devices", N_("Devices"), "drive-removable-media-symbolic"},
-    {"settings", N_("Settings"), "emblem-system-symbolic"},
-    {"about", N_("About"), "help-about-symbolic"},
 };
 
 struct _SignWindow {
@@ -29,9 +28,11 @@ struct _SignWindow {
 	AdwOverlaySplitView* split_view;
 	GtkStack*            pages;
 	GtkLabel*            title;
-	GtkWidget *profile_selector, *view_toggle, *home_row, *devices_menu,
-	    *details_back;
-	SignHome* home;
+	GtkWidget *          sign_back, *sign_menu, *sign_clear, *validation_clear,
+	    *view_toggle, *home_row, *devices_menu, *devices_refresh, *details_back;
+	SignHome*     home;
+	SignSettings* settings;
+	AdwDialog *   settings_dialog, *about_dialog;
 };
 
 G_DEFINE_TYPE(SignWindow, sign_window, ADW_TYPE_APPLICATION_WINDOW)
@@ -55,6 +56,14 @@ static void devices_busy_changed(
 
 static void device_navigation(SignDevices* devices, gpointer data) {
 	SignWindow* self = data;
+	bool        active = !g_strcmp0(
+        gtk_stack_get_visible_child_name(self->pages),
+        "devices"
+    );
+	gtk_widget_set_visible(
+	    self->devices_refresh,
+	    active && !sign_devices_is_busy(devices)
+	);
 	if (g_strcmp0(gtk_stack_get_visible_child_name(self->pages), "devices")) {
 		return;
 	}
@@ -68,6 +77,42 @@ static void device_back(GtkButton* button, gpointer data) {
 	SignWindow* self = data;
 	sign_devices_back(
 	    SIGN_DEVICES(gtk_stack_get_child_by_name(self->pages, "devices"))
+	);
+}
+static void device_refresh_changed(
+    SignDevices* devices,
+    GParamSpec*  pspec,
+    gpointer     data
+) {
+	(void)pspec;
+	device_navigation(devices, data);
+}
+static void signing_navigation(SignSigning* signing, gpointer data) {
+	SignWindow* self = data;
+	bool        active = !g_strcmp0(
+        gtk_stack_get_visible_child_name(self->pages),
+        "sign"
+    );
+	bool reader = active && sign_signing_is_reader(signing);
+	gtk_widget_set_visible(self->sign_back, reader);
+	gtk_widget_set_visible(self->sign_menu, reader);
+	gtk_widget_set_visible(
+	    self->sign_clear,
+	    active && !reader && sign_signing_count(signing) > 0
+	);
+	if (active) {
+		gtk_label_set_text(self->title, sign_signing_title(signing));
+	}
+}
+static void validation_navigation(SignValidation* validation, gpointer data) {
+	SignWindow* self = data;
+	bool        active = !g_strcmp0(
+        gtk_stack_get_visible_child_name(self->pages),
+        "verify"
+    );
+	gtk_widget_set_visible(
+	    self->validation_clear,
+	    active && sign_validation_count(validation) > 0
 	);
 }
 static void section_selected(
@@ -89,9 +134,9 @@ static void section_selected(
 	    !strcmp(sections[index].id, "sign")) {
 		/* Apply valid pending preferences before either worker reads its
 		 * configuration. Invalid drafts remain unsaved. */
-		sign_settings_flush(
-		    SIGN_SETTINGS(gtk_stack_get_child_by_name(self->pages, "settings"))
-		);
+		if (self->settings) {
+			sign_settings_flush(self->settings);
+		}
 	}
 	if (index == 0) {
 		sign_home_reload(self->home);
@@ -113,14 +158,28 @@ static void section_selected(
 	 * current snapshot; an explicit Refresh rebuilds it. */
 	gtk_widget_set_visible(self->view_toggle, index == 0);
 	gtk_widget_set_visible(self->devices_menu, index == 3);
+	gtk_widget_set_visible(
+	    self->devices_refresh,
+	    index == 3 && !sign_devices_is_busy(SIGN_DEVICES(
+	                      gtk_stack_get_child_by_name(self->pages, "devices")
+	                  ))
+	);
 	bool signing = !strcmp(sections[index].id, "sign");
-	gtk_widget_set_visible(self->profile_selector, signing);
+
 	if (signing) {
 		sign_signing_reload_profiles(
 		    SIGN_SIGNING(gtk_stack_get_child_by_name(self->pages, "sign"))
 		);
 	}
 	gtk_label_set_label(self->title, _(sections[index].title));
+	signing_navigation(
+	    SIGN_SIGNING(gtk_stack_get_child_by_name(self->pages, "sign")),
+	    self
+	);
+	validation_navigation(
+	    SIGN_VALIDATION(gtk_stack_get_child_by_name(self->pages, "verify")),
+	    self
+	);
 	gtk_widget_set_visible(self->details_back, FALSE);
 	if (index == 3) {
 		device_navigation(
@@ -133,6 +192,77 @@ static void section_selected(
 	}
 }
 
+static AdwDialog* settings_dialog_new(
+    GtkWidget*  content,
+    const char* title,
+    const char* name
+) {
+	AdwDialog* dialog = g_object_ref_sink(adw_dialog_new());
+	gtk_widget_set_name(GTK_WIDGET(dialog), name);
+	adw_dialog_set_title(dialog, title);
+	adw_dialog_set_content_width(dialog, 720);
+	adw_dialog_set_content_height(dialog, 720);
+	GtkWidget* toolbar = adw_toolbar_view_new();
+	adw_toolbar_view_add_top_bar(
+	    ADW_TOOLBAR_VIEW(toolbar),
+	    adw_header_bar_new()
+	);
+	adw_toolbar_view_set_content(ADW_TOOLBAR_VIEW(toolbar), content);
+	adw_dialog_set_child(dialog, toolbar);
+	return dialog;
+}
+static void settings_closed(AdwDialog* dialog, gpointer data) {
+	(void)dialog;
+	SignWindow* self = data;
+	sign_settings_flush(self->settings);
+	sign_signing_reload_profiles(
+	    SIGN_SIGNING(gtk_stack_get_child_by_name(self->pages, "sign"))
+	);
+}
+static void open_settings(
+    GSimpleAction* action,
+    GVariant*      parameter,
+    gpointer       data
+) {
+	(void)action;
+	(void)parameter;
+	SignWindow* self = data;
+	if (!self->settings_dialog) {
+		self->settings = SIGN_SETTINGS(sign_settings_new());
+		self->settings_dialog = settings_dialog_new(
+		    GTK_WIDGET(self->settings),
+		    _("Settings"),
+		    "settings-dialog"
+		);
+		g_signal_connect_object(
+		    self->settings_dialog,
+		    "closed",
+		    G_CALLBACK(settings_closed),
+		    self,
+		    0
+		);
+	}
+	sign_dialog_present(self->settings_dialog, GTK_WIDGET(self));
+}
+static void open_about(
+    GSimpleAction* action,
+    GVariant*      parameter,
+    gpointer       data
+) {
+	(void)action;
+	(void)parameter;
+	SignWindow* self = data;
+	if (!self->about_dialog) {
+		self->about_dialog = settings_dialog_new(
+		    sign_about_new(),
+		    _("About"),
+		    "about-dialog"
+		);
+		adw_dialog_set_content_width(self->about_dialog, 520);
+		adw_dialog_set_content_height(self->about_dialog, 620);
+	}
+	sign_dialog_present(self->about_dialog, GTK_WIDGET(self));
+}
 static GtkWidget* create_sidebar(SignWindow* self) {
 	GtkWidget* toolbar = adw_toolbar_view_new();
 	GtkWidget* header = adw_header_bar_new();
@@ -143,6 +273,33 @@ static GtkWidget* create_sidebar(SignWindow* self) {
 	    ADW_HEADER_BAR(header),
 	    sign_home_search_button(self->home)
 	);
+	GtkWidget* menu = gtk_menu_button_new();
+	gtk_widget_set_name(menu, "application-menu");
+	gtk_menu_button_set_icon_name(GTK_MENU_BUTTON(menu), "open-menu-symbolic");
+	gtk_widget_set_tooltip_text(menu, _("Menu"));
+	GSimpleActionGroup* actions = g_simple_action_group_new();
+	const GActionEntry  entries[] = {
+        {.name = "settings", .activate = open_settings},
+        {.name = "about", .activate = open_about}
+    };
+	g_action_map_add_action_entries(
+	    G_ACTION_MAP(actions),
+	    entries,
+	    G_N_ELEMENTS(entries),
+	    self
+	);
+	gtk_widget_insert_action_group(
+	    GTK_WIDGET(self),
+	    "menu",
+	    G_ACTION_GROUP(actions)
+	);
+	g_object_unref(actions);
+	GMenu* model = g_menu_new();
+	g_menu_append(model, _("Settings"), "menu.settings");
+	g_menu_append(model, _("About"), "menu.about");
+	gtk_menu_button_set_menu_model(GTK_MENU_BUTTON(menu), G_MENU_MODEL(model));
+	g_object_unref(model);
+	adw_header_bar_pack_end(ADW_HEADER_BAR(header), menu);
 	adw_toolbar_view_add_top_bar(ADW_TOOLBAR_VIEW(toolbar), header);
 
 	GtkWidget* scroll = gtk_scrolled_window_new();
@@ -378,14 +535,22 @@ static GtkWidget* create_content(SignWindow* self) {
 			    self->home,
 			    0
 			);
-			self->profile_selector = sign_signing_profile_selector(
-			    SIGN_SIGNING(signing)
+			self->sign_back = sign_signing_header_back(SIGN_SIGNING(signing));
+			self->sign_menu = sign_signing_header_menu(SIGN_SIGNING(signing));
+			self->sign_clear = sign_signing_header_clear(SIGN_SIGNING(signing));
+			adw_header_bar_pack_end(ADW_HEADER_BAR(header), self->sign_clear);
+			gtk_widget_set_visible(self->sign_clear, FALSE);
+			adw_header_bar_pack_start(ADW_HEADER_BAR(header), self->sign_back);
+			adw_header_bar_pack_end(ADW_HEADER_BAR(header), self->sign_menu);
+			gtk_widget_set_visible(self->sign_back, FALSE);
+			gtk_widget_set_visible(self->sign_menu, FALSE);
+			g_signal_connect_object(
+			    signing,
+			    "navigation-changed",
+			    G_CALLBACK(signing_navigation),
+			    self,
+			    0
 			);
-			adw_header_bar_pack_start(
-			    ADW_HEADER_BAR(header),
-			    self->profile_selector
-			);
-			gtk_widget_set_visible(self->profile_selector, FALSE);
 			gtk_stack_add_titled(
 			    self->pages,
 			    signing,
@@ -395,9 +560,25 @@ static GtkWidget* create_content(SignWindow* self) {
 			continue;
 		}
 		if (!strcmp(sections[i].id, "verify")) {
+			GtkWidget* validation = sign_validation_new();
+			self->validation_clear = sign_validation_header_clear(
+			    SIGN_VALIDATION(validation)
+			);
+			adw_header_bar_pack_end(
+			    ADW_HEADER_BAR(header),
+			    self->validation_clear
+			);
+			gtk_widget_set_visible(self->validation_clear, FALSE);
+			g_signal_connect_object(
+			    validation,
+			    "queue-changed",
+			    G_CALLBACK(validation_navigation),
+			    self,
+			    0
+			);
 			gtk_stack_add_titled(
 			    self->pages,
-			    sign_validation_new(),
+			    validation,
 			    sections[i].id,
 			    _(sections[i].title)
 			);
@@ -405,6 +586,21 @@ static GtkWidget* create_content(SignWindow* self) {
 		}
 		if (!strcmp(sections[i].id, "devices")) {
 			GtkWidget* devices = sign_devices_new();
+			self->devices_refresh = sign_devices_header_refresh(
+			    SIGN_DEVICES(devices)
+			);
+			adw_header_bar_pack_end(
+			    ADW_HEADER_BAR(header),
+			    self->devices_refresh
+			);
+			gtk_widget_set_visible(self->devices_refresh, FALSE);
+			g_signal_connect_object(
+			    devices,
+			    "notify::busy",
+			    G_CALLBACK(device_refresh_changed),
+			    self,
+			    0
+			);
 			g_signal_connect_object(
 			    devices,
 			    "navigation-changed",
@@ -428,29 +624,9 @@ static GtkWidget* create_content(SignWindow* self) {
 			);
 			continue;
 		}
-		if (!strcmp(sections[i].id, "settings")) {
-			gtk_stack_add_titled(
-			    self->pages,
-			    sign_settings_new(),
-			    sections[i].id,
-			    _(sections[i].title)
-			);
-			continue;
-		}
-		if (!strcmp(sections[i].id, "about")) {
-			gtk_stack_add_titled(
-			    self->pages,
-			    sign_about_new(),
-			    sections[i].id,
-			    _(sections[i].title)
-			);
-			continue;
-		}
 		GtkWidget* page = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 		gtk_widget_set_halign(page, GTK_ALIGN_CENTER);
 		gtk_widget_set_valign(page, GTK_ALIGN_CENTER);
-		gtk_widget_set_margin_start(page, 24);
-		gtk_widget_set_margin_end(page, 24);
 		GtkWidget* label = gtk_label_new(_(sections[i].title));
 		gtk_widget_add_css_class(label, "title-1");
 		gtk_box_append(GTK_BOX(page), label);
@@ -549,7 +725,27 @@ static void sign_window_init(SignWindow* self) {
 	);
 }
 
+static void sign_window_dispose(GObject* object) {
+	SignWindow* self = SIGN_WINDOW(object);
+	if (self->settings) {
+		sign_settings_flush(self->settings);
+	}
+	if (self->settings_dialog) {
+		g_signal_handlers_disconnect_by_data(self->settings_dialog, self);
+		adw_dialog_force_close(self->settings_dialog);
+		g_object_unref(self->settings_dialog);
+		self->settings_dialog = NULL;
+		self->settings = NULL;
+	}
+	if (self->about_dialog) {
+		adw_dialog_force_close(self->about_dialog);
+		g_object_unref(self->about_dialog);
+		self->about_dialog = NULL;
+	}
+	G_OBJECT_CLASS(sign_window_parent_class)->dispose(object);
+}
 static void sign_window_class_init(SignWindowClass* klass) {
+	G_OBJECT_CLASS(klass)->dispose = sign_window_dispose;
 	(void)klass;
 }
 

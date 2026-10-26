@@ -12,4 +12,5 @@ GtkWidget*  sign_devices_header_menu(SignDevices*);
 const char* sign_devices_title(SignDevices* self);
 bool        sign_devices_in_details(SignDevices* self);
 void        sign_devices_back(SignDevices* self);
+GtkWidget*  sign_devices_header_refresh(SignDevices* self);
 #endif

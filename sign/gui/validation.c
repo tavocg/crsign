@@ -10,6 +10,7 @@
 #include <sign/gui/file_actions.h>
 #include <sign/gui/file_drop.h>
 #include <sign/gui/i18n.h>
+#include <sign/gui/icons.h>
 #include <sign/gui/validation.h>
 #include <stdlib.h>
 #include <string.h>
@@ -79,23 +80,14 @@ const sign_flow_document_result* sign_validation_result(
 	           : NULL;
 }
 static void summary_update(SignValidation* self) {
-	guint valid = 0, failed = 0, pending = 0;
+	guint valid = 0;
 	for (guint i = 0; i < self->items->len; ++i) {
 		validation_item* item = g_ptr_array_index(self->items, i);
-		if (item->state != FINISHED) {
-			++pending;
-		} else if (item->ok) {
+		if (item->state == FINISHED && item->ok) {
 			++valid;
-		} else {
-			++failed;
 		}
 	}
-	char* text = g_strdup_printf(
-	    _("Valid: %u · Failed: %u · Pending: %u"),
-	    valid,
-	    failed,
-	    pending
-	);
+	char* text = g_strdup_printf(_("Valid: %u/%u"), valid, self->items->len);
 	gtk_label_set_text(self->summary, text);
 	g_free(text);
 	bool has_items = self->items->len != 0;
@@ -114,6 +106,7 @@ static void summary_update(SignValidation* self) {
 	    self->clear,
 	    !sign_validation_is_busy(self) && !self->dialogs
 	);
+	g_signal_emit_by_name(self, "queue-changed");
 }
 static GtkWidget* detail_list(void) {
 	GtkWidget* list = gtk_list_box_new();
@@ -1047,6 +1040,10 @@ static void sign_validation_dispose(GObject* object) {
 		g_source_remove(self->retry);
 		self->retry = 0;
 	}
+	if (self->clear) {
+		g_object_unref(self->clear);
+		self->clear = NULL;
+	}
 	G_OBJECT_CLASS(sign_validation_parent_class)->dispose(object);
 }
 static void sign_validation_finalize(GObject* object) {
@@ -1057,6 +1054,17 @@ static void sign_validation_finalize(GObject* object) {
 	G_OBJECT_CLASS(sign_validation_parent_class)->finalize(object);
 }
 static void sign_validation_class_init(SignValidationClass* klass) {
+	g_signal_new(
+	    "queue-changed",
+	    G_TYPE_FROM_CLASS(klass),
+	    G_SIGNAL_RUN_LAST,
+	    0,
+	    NULL,
+	    NULL,
+	    NULL,
+	    G_TYPE_NONE,
+	    0
+	);
 	GTK_WIDGET_CLASS(klass)->root = sign_validation_root;
 	GTK_WIDGET_CLASS(klass)->unroot = sign_validation_unroot;
 	G_OBJECT_CLASS(klass)->dispose = sign_validation_dispose;
@@ -1115,17 +1123,24 @@ static void sign_validation_init(SignValidation* self) {
 	);
 	self->controls = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
 	self->summary = GTK_LABEL(gtk_label_new(NULL));
+	gtk_widget_set_name(GTK_WIDGET(self->summary), "validation-summary");
 	gtk_widget_add_css_class(GTK_WIDGET(self->summary), "dim-label");
 	gtk_label_set_wrap(self->summary, TRUE);
 	gtk_label_set_xalign(self->summary, 0);
 	gtk_widget_set_hexpand(GTK_WIDGET(self->summary), TRUE);
 	gtk_box_append(GTK_BOX(self->controls), GTK_WIDGET(self->summary));
-	self->clear = gtk_button_new_with_label(_("Clear results"));
+	self->clear = g_object_ref_sink(sign_clear_button_new());
+	gtk_widget_add_css_class(self->clear, "flat");
+	gtk_widget_set_tooltip_text(self->clear, _("Clear results"));
+	gtk_accessible_update_property(
+	    GTK_ACCESSIBLE(self->clear),
+	    GTK_ACCESSIBLE_PROPERTY_LABEL,
+	    _("Clear results"),
+	    -1
+	);
 	gtk_widget_set_name(self->clear, "validation-clear");
 	gtk_widget_set_halign(self->clear, GTK_ALIGN_END);
-	gtk_box_append(GTK_BOX(self->controls), self->clear);
 	g_signal_connect(self->clear, "clicked", G_CALLBACK(clear_results), self);
-	gtk_box_append(GTK_BOX(sidebar), self->controls);
 	self->scroll = gtk_scrolled_window_new();
 	gtk_scrolled_window_set_policy(
 	    GTK_SCROLLED_WINDOW(self->scroll),
@@ -1144,10 +1159,11 @@ static void sign_validation_init(SignValidation* self) {
 	    self
 	);
 	gtk_widget_add_css_class(GTK_WIDGET(self->list), "boxed-list");
-	gtk_scrolled_window_set_child(
-	    GTK_SCROLLED_WINDOW(self->scroll),
-	    GTK_WIDGET(self->list)
-	);
+	GtkWidget* documents = gtk_box_new(GTK_ORIENTATION_VERTICAL, 12);
+	gtk_widget_set_valign(documents, GTK_ALIGN_START);
+	gtk_box_append(GTK_BOX(documents), GTK_WIDGET(self->list));
+	gtk_box_append(GTK_BOX(documents), self->controls);
+	gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(self->scroll), documents);
 	gtk_box_append(GTK_BOX(sidebar), self->scroll);
 	gtk_widget_set_vexpand(sidebar, TRUE);
 	gtk_box_append(GTK_BOX(self), sidebar);
@@ -1163,4 +1179,8 @@ static void sign_validation_init(SignValidation* self) {
 }
 GtkWidget* sign_validation_new(void) {
 	return g_object_new(SIGN_TYPE_VALIDATION, NULL);
+}
+
+GtkWidget* sign_validation_header_clear(SignValidation* self) {
+	return self->clear;
 }

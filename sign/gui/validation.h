@@ -26,4 +26,5 @@ void sign_validation_set_content(
  * detached content. */
 bool sign_validation_add_flow(SignValidation*, const sign_flow*, GError**);
 void sign_validation_prune(SignValidation* self);
+GtkWidget* sign_validation_header_clear(SignValidation* self);
 #endif

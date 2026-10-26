@@ -76,6 +76,7 @@ if(NOT HEADLESS)
             --sourcedir "${PROJECT_SOURCE_DIR}" --generate-source --c-name sign_gui
             --target "${SIGN_GUI_RESOURCES}"
         DEPENDS sign/gui/resources.gresource.xml packaging/icon-rounded.svg sign/gui/style.css
+            sign/gui/icons/crsign-clear-symbolic.svg
         VERBATIM)
     add_library(sign_gui_resources OBJECT "${SIGN_GUI_RESOURCES}")
     target_link_libraries(sign_gui_resources PRIVATE PkgConfig::GIO)

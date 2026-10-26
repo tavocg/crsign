@@ -203,10 +203,7 @@ static void validate_context(
 		g_usleep(1000);
 	}
 	g_assert_false(sign_validation_is_busy(validation));
-	g_signal_emit_by_name(
-	    named(GTK_WIDGET(validation), "validation-clear"),
-	    "clicked"
-	);
+	g_signal_emit_by_name(sign_validation_header_clear(validation), "clicked");
 	GtkListBox* navigation = GTK_LIST_BOX(named(window, "navigation"));
 	gtk_list_box_select_row(
 	    navigation,
@@ -239,6 +236,10 @@ int main(int argc, char** argv) {
 	g_assert_true(g_application_register(G_APPLICATION(app), NULL, &error));
 	g_assert_no_error(error);
 	GtkWidget* window = sign_window_new(GTK_APPLICATION(app));
+	g_assert_true(gtk_icon_theme_has_icon(
+	    gtk_icon_theme_get_for_display(gtk_widget_get_display(window)),
+	    "crsign-clear-symbolic"
+	));
 	gtk_window_present(GTK_WINDOW(window));
 	settle();
 	AdwOverlaySplitView* split = ADW_OVERLAY_SPLIT_VIEW(
@@ -259,6 +260,7 @@ int main(int argc, char** argv) {
 	sign_home_reload(SIGN_HOME(gtk_stack_get_child_by_name(stack, "home")));
 	g_assert_true(gtk_widget_get_visible(named(window, "home-navigation")));
 	g_assert_nonnull(navigation);
+	g_assert_null(gtk_list_box_get_row_at_index(navigation, 4));
 	g_assert_nonnull(toggle);
 	g_assert_cmpstr(
 	    gtk_button_get_icon_name(GTK_BUTTON(toggle)),
@@ -268,10 +270,9 @@ int main(int argc, char** argv) {
 	g_assert_false(adw_overlay_split_view_get_collapsed(split));
 	g_assert_true(adw_overlay_split_view_get_show_sidebar(split));
 	g_assert_false(gtk_widget_get_visible(GTK_WIDGET(toggle)));
-	const char* ids[] =
-	    {"home", "sign", "verify", "devices", "settings", "about"};
+	const char* ids[] = {"home", "sign", "verify", "devices"};
 
-	for (int i = 0; i < 6; ++i) {
+	for (guint i = 0; i < G_N_ELEMENTS(ids); ++i) {
 		gtk_list_box_select_row(
 		    navigation,
 		    gtk_list_box_get_row_at_index(navigation, i)
@@ -280,31 +281,35 @@ int main(int argc, char** argv) {
 		GtkWidget* page = gtk_stack_get_visible_child(stack);
 		if (i == 1) {
 			g_assert_true(SIGN_IS_SIGNING(page));
-			g_assert_true(
-			    gtk_widget_get_visible(named(window, "sign-profile"))
+			GtkDropDown* selector = GTK_DROP_DOWN(
+			    named(window, "sign-profile")
 			);
+			g_assert_cmpint(
+			    gtk_widget_get_visible(GTK_WIDGET(selector)),
+			    ==,
+			    g_list_model_get_n_items(gtk_drop_down_get_model(selector)) > 1
+			);
+			g_assert_nonnull(gtk_widget_get_ancestor(
+			    sign_signing_header_clear(SIGN_SIGNING(page)),
+			    ADW_TYPE_HEADER_BAR
+			));
+
+			g_assert_true(
+			    gtk_widget_get_parent(named(window, "sign-profile")) ==
+			    gtk_widget_get_parent(named(window, "sign-run"))
+			);
+			g_assert_false(gtk_widget_is_ancestor(
+			    named(window, "sign-profile"),
+			    named(window, "section-title")
+			));
 		} else if (i == 2) {
 			g_assert_true(SIGN_IS_VALIDATION(page));
+			g_assert_nonnull(gtk_widget_get_ancestor(
+			    sign_validation_header_clear(SIGN_VALIDATION(page)),
+			    ADW_TYPE_HEADER_BAR
+			));
 		} else if (i == 3) {
 			g_assert_true(SIGN_IS_DEVICES(page));
-		} else if (i == 4) {
-			g_assert_true(SIGN_IS_SETTINGS(page));
-		} else if (i == 5) {
-			g_assert_cmpstr(
-			    gtk_label_get_text(GTK_LABEL(named(page, "about-version"))),
-			    ==,
-			    "CR Sign v" SIGN_GUI_VERSION
-			);
-			g_assert_nonnull(
-			    gtk_image_get_paintable(GTK_IMAGE(named(page, "about-icon")))
-			);
-			g_assert_cmpstr(
-			    gtk_link_button_get_uri(
-			        GTK_LINK_BUTTON(find_widget(page, GTK_TYPE_LINK_BUTTON))
-			    ),
-			    ==,
-			    "https://github.com/tavocg/crsign/blob/main/LICENSE"
-			);
 		} else {
 			g_assert_true(SIGN_IS_HOME(page));
 			g_assert_nonnull(named(page, "home-recents"));
@@ -316,12 +321,29 @@ int main(int argc, char** argv) {
 	    navigation,
 	    gtk_list_box_get_row_at_index(navigation, 0)
 	);
-	settings_test(window, settings_directory);
-	gtk_list_box_select_row(
-	    navigation,
-	    gtk_list_box_get_row_at_index(navigation, 4)
+	g_assert_true(gtk_widget_activate_action(window, "menu.settings", NULL));
+	settle();
+	settings_test(
+	    GTK_WIDGET(adw_application_window_get_visible_dialog(
+	        ADW_APPLICATION_WINDOW(window)
+	    )),
+	    settings_directory
 	);
-	GtkWidget* settings_view = find_widget(window, SIGN_TYPE_SETTINGS);
+	AdwDialog* visible_settings = adw_application_window_get_visible_dialog(
+	    ADW_APPLICATION_WINDOW(window)
+	);
+	if (visible_settings) {
+		adw_dialog_force_close(visible_settings);
+		settle();
+	}
+	g_assert_true(gtk_widget_activate_action(window, "menu.settings", NULL));
+	settle();
+	GtkWidget* settings_view = find_widget(
+	    GTK_WIDGET(adw_application_window_get_visible_dialog(
+	        ADW_APPLICATION_WINDOW(window)
+	    )),
+	    SIGN_TYPE_SETTINGS
+	);
 	gtk_widget_grab_focus(named(settings_view, "settings-scope"));
 	snapshot(window, directory, "settings.png");
 	adw_combo_row_set_selected(
@@ -334,15 +356,32 @@ int main(int argc, char** argv) {
 	    navigation,
 	    gtk_list_box_get_row_at_index(navigation, 0)
 	);
-	gtk_list_box_select_row(
-	    navigation,
-	    gtk_list_box_get_row_at_index(navigation, 5)
+	AdwDialog* visible_about = adw_application_window_get_visible_dialog(
+	    ADW_APPLICATION_WINDOW(window)
 	);
+	if (visible_about) {
+		adw_dialog_force_close(visible_about);
+		settle();
+	}
+	g_assert_true(gtk_widget_activate_action(window, "menu.about", NULL));
+	settle();
 	snapshot(window, directory, "about.png");
 	gtk_list_box_select_row(
 	    navigation,
 	    gtk_list_box_get_row_at_index(navigation, 0)
 	);
+	AdwDialog* about = adw_application_window_get_visible_dialog(
+	    ADW_APPLICATION_WINDOW(window)
+	);
+	g_assert_nonnull(about);
+	g_assert_cmpstr(
+	    gtk_label_get_text(
+	        GTK_LABEL(named(GTK_WIDGET(about), "about-version"))
+	    ),
+	    ==,
+	    "CR Sign v" SIGN_GUI_VERSION
+	);
+	dismiss_dialog_background(window);
 	snapshot(window, directory, "wide.png");
 	gtk_window_set_default_size(GTK_WINDOW(window), 400, 700);
 	settle();
@@ -367,12 +406,12 @@ int main(int argc, char** argv) {
 		gtk_toggle_button_set_active(toggle, TRUE);
 		gtk_list_box_select_row(
 		    navigation,
-		    gtk_list_box_get_row_at_index(navigation, i % 6)
+		    gtk_list_box_get_row_at_index(navigation, i % 4)
 		);
 		g_assert_cmpstr(
 		    gtk_stack_get_visible_child_name(stack),
 		    ==,
-		    ids[i % 6]
+		    ids[i % 4]
 		);
 		g_assert_false(adw_overlay_split_view_get_show_sidebar(split));
 		g_assert_false(gtk_toggle_button_get_active(toggle));

@@ -1433,3 +1433,21 @@ msgstr "Firma inválida o contenido modificado"
 
 msgid "Slots: %zu · Certificates: %zu · Keys: %zu"
 msgstr "Ranuras: %zu · Certificados: %zu · Claves: %zu"
+
+msgid "Continue without graphical signature?"
+msgstr "¿Continuar sin representación gráfica?"
+
+msgid "You optionally can draw where you want the graphical details on the document, or choose a custom image"
+msgstr "Puedes dibujar dónde quieres los detalles gráficos en el documento o elegir una imagen personalizada."
+
+msgid "Draw signature"
+msgstr "Dibujar firma"
+
+msgid "Restore default image"
+msgstr "Restaurar imagen predeterminada"
+
+msgid "Queue: %u"
+msgstr "Cola: %u"
+
+msgid "Valid: %u/%u"
+msgstr "Válidos: %u/%u"

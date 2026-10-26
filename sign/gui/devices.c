@@ -21,6 +21,7 @@ struct _SignDevices {
 	GtkLabel*     status;
 	sign_details  navigation;
 	GtkStack*     detail_pages;
+	GtkStack*     states;
 	GtkWidget*    empty_details;
 	GtkWidget*    selected_reader;
 	char*         selected_device;
@@ -611,7 +612,7 @@ static void clear_content(SignDevices* self) {
 }
 static void render(SignDevices* self, sign_device_inventory* inventory) {
 	clear_content(self);
-	size_t readers = 0, slots = 0, certificates = 0, keys = 0;
+	size_t readers = 0;
 	for (size_t m = 0; m < inventory->devices.count; ++m) {
 		libssig_device_module* module = &inventory->devices.items[m];
 		if (module->status != LIBSSIG_OK) {
@@ -745,9 +746,6 @@ static void render(SignDevices* self, sign_device_inventory* inventory) {
 			}
 			g_free(description);
 			g_free(group_id);
-			++slots;
-			certificates += slot->certificates.count;
-			keys += slot->key_count;
 			device_page* page = g_object_get_data(G_OBJECT(row), "device-page");
 			g_ptr_array_add(page->slots, slot);
 		}
@@ -805,17 +803,8 @@ static void render(SignDevices* self, sign_device_inventory* inventory) {
 			populate_device(selected);
 		}
 	}
-	char* summary = readers ? g_strdup_printf(
-	                              _("Readers: %zu · Slots: %zu · Certificates: "
-	                                "%zu · Keys: %zu"),
-	                              readers,
-	                              slots,
-	                              certificates,
-	                              keys
-	                          )
-	                        : g_strdup(_("No readers found"));
-	gtk_label_set_text(self->status, summary);
-	g_free(summary);
+	gtk_label_set_text(self->status, readers ? "" : _("No readers found"));
+	gtk_widget_set_visible(GTK_WIDGET(self->status), readers == 0);
 	for (guint n = 0; n < inventory->issues->len; ++n) {
 		GtkWidget* label = gtk_label_new(
 		    g_ptr_array_index(inventory->issues, n)
@@ -827,7 +816,14 @@ static void render(SignDevices* self, sign_device_inventory* inventory) {
 }
 static void set_busy(SignDevices* self, bool busy) {
 	self->busy = busy;
+	gtk_stack_set_visible_child_name(
+	    self->states,
+	    busy ? "loading" : "devices"
+	);
 	gtk_widget_set_sensitive(self->refresh, !busy);
+	if (busy) {
+		gtk_widget_set_visible(GTK_WIDGET(self->status), TRUE);
+	}
 	gtk_widget_set_visible(self->spinner, busy);
 	if (busy) {
 		gtk_spinner_start(GTK_SPINNER(self->spinner));
@@ -858,6 +854,7 @@ static gboolean apply_update(gpointer data) {
 			clear_content(self);
 			char* text = gui_error_message(update->error, GUI_ERROR_DEVICES);
 			gtk_label_set_text(self->status, text);
+			gtk_widget_set_visible(GTK_WIDGET(self->status), TRUE);
 			g_free(text);
 		}
 	}
@@ -1084,6 +1081,10 @@ static void devices_dispose(GObject* object) {
 		g_object_unref(self->header_menu);
 		self->header_menu = NULL;
 	}
+	if (self->refresh) {
+		g_object_unref(self->refresh);
+		self->refresh = NULL;
+	}
 	G_OBJECT_CLASS(sign_devices_parent_class)->dispose(object);
 }
 static void devices_get_property(
@@ -1202,8 +1203,18 @@ static void sign_devices_init(SignDevices* self) {
 	self->spinner = gtk_spinner_new();
 	gtk_widget_set_halign(self->spinner, GTK_ALIGN_CENTER);
 	gtk_widget_set_visible(self->spinner, FALSE);
-	gtk_box_append(GTK_BOX(bar), self->spinner);
-	self->refresh = gtk_button_new_with_label(_("Refresh"));
+
+	self->refresh = g_object_ref_sink(
+	    gtk_button_new_from_icon_name("view-refresh-symbolic")
+	);
+	gtk_widget_add_css_class(self->refresh, "flat");
+	gtk_widget_set_tooltip_text(self->refresh, _("Refresh"));
+	gtk_accessible_update_property(
+	    GTK_ACCESSIBLE(self->refresh),
+	    GTK_ACCESSIBLE_PROPERTY_LABEL,
+	    _("Refresh"),
+	    -1
+	);
 	gtk_widget_set_name(self->refresh, "devices-refresh");
 	gtk_widget_set_halign(self->refresh, GTK_ALIGN_END);
 	g_signal_connect(
@@ -1212,18 +1223,29 @@ static void sign_devices_init(SignDevices* self) {
 	    G_CALLBACK(refresh_clicked),
 	    self
 	);
-	gtk_box_append(GTK_BOX(bar), self->refresh);
 	gtk_box_append(GTK_BOX(sidebar), scroll);
-	gtk_box_append(
-	    GTK_BOX(self),
+	self->states = GTK_STACK(gtk_stack_new());
+	gtk_widget_set_name(GTK_WIDGET(self->states), "devices-state");
+	gtk_widget_set_vexpand(GTK_WIDGET(self->states), TRUE);
+	gtk_box_append(GTK_BOX(self), GTK_WIDGET(self->states));
+	gtk_stack_add_named(
+	    self->states,
 	    sign_details_new(
 	        &self->navigation,
 	        sidebar,
 	        GTK_WIDGET(self->detail_pages),
 	        _("Devices"),
 	        "devices-split"
-	    )
+	    ),
+	    "devices"
 	);
+	GtkWidget* loading = gtk_box_new(GTK_ORIENTATION_VERTICAL, 12);
+	gtk_widget_set_halign(loading, GTK_ALIGN_CENTER);
+	gtk_widget_set_valign(loading, GTK_ALIGN_CENTER);
+	gtk_box_append(GTK_BOX(loading), self->spinner);
+	gtk_box_append(GTK_BOX(loading), gtk_label_new(_("Scanning devices…")));
+	gtk_stack_add_named(self->states, loading, "loading");
+
 	g_signal_connect_object(
 	    self->navigation.split,
 	    "notify::show-content",
@@ -1245,4 +1267,8 @@ GtkWidget* sign_devices_new(void) {
 
 GtkWidget* sign_devices_header_menu(SignDevices* self) {
 	return self->header_menu;
+}
+
+GtkWidget* sign_devices_header_refresh(SignDevices* self) {
+	return self->refresh;
 }

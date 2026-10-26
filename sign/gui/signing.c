@@ -5,10 +5,12 @@
 #include <sign/config.h>
 #include <sign/file_state.h>
 #include <sign/gui/device_access.h>
+#include <sign/gui/dialog.h>
 #include <sign/gui/error.h>
 #include <sign/gui/file_actions.h>
 #include <sign/gui/file_drop.h>
 #include <sign/gui/i18n.h>
+#include <sign/gui/icons.h>
 #include <sign/gui/pdf_reader.h>
 #include <sign/gui/pdf_view.h>
 #include <sign/gui/signing.h>
@@ -39,7 +41,8 @@ struct _SignSigning {
 	SignPdfReader* reader;
 	GtkWidget *continue_button, *sign_button, *warning, *add, *back, *spinner;
 	GtkWidget *output_options, *conflict_dialog;
-	GtkLabel * notice, *filename, *page_count, *total;
+	GtkLabel * notice, *image_label, *page_count, *total;
+	char*      document_title;
 	GtkWidget* clear;
 	GtkSpinButton*   page;
 	signing_item*    current;
@@ -241,7 +244,7 @@ static bool refresh_output_warnings(SignSigning* self) {
 	return hard;
 }
 static void controls(SignSigning* self) {
-	char* total = g_strdup_printf(_("Total: %u"), self->items->len);
+	char* total = g_strdup_printf(_("Queue: %u"), self->items->len);
 	gtk_label_set_text(self->total, total);
 	g_free(total);
 	gtk_widget_set_sensitive(self->clear, !self->busy);
@@ -262,6 +265,10 @@ static void controls(SignSigning* self) {
 	gtk_widget_set_visible(GTK_WIDGET(self->modes), self->items->len > 0);
 	gtk_widget_set_sensitive(self->add, !self->busy);
 	gtk_widget_set_sensitive(GTK_WIDGET(self->profiles), !self->busy);
+	gtk_widget_set_visible(
+	    GTK_WIDGET(self->profiles),
+	    !reader && self->profile_ids->len > 1
+	);
 	gtk_widget_set_sensitive(
 	    self->list ? GTK_WIDGET(self->list) : GTK_WIDGET(self),
 	    !self->busy
@@ -278,18 +285,17 @@ static void controls(SignSigning* self) {
 	    self->image_button,
 	    !self->loading && !self->busy && self->surface
 	);
-	gtk_widget_set_visible(
-	    self->default_button,
-	    self->current && self->current->image_set &&
-	        g_strcmp0(self->current->image, self->current->profile_image) != 0
-	);
+	bool custom = self->current && self->current->image;
+	gtk_widget_set_visible(self->default_button, custom);
+	char* image_name = custom
+	                       ? g_filename_display_basename(self->current->image)
+	                       : g_strdup(_("Choose signature image"));
+	gtk_label_set_text(self->image_label, image_name);
+	gtk_widget_set_tooltip_text(self->image_button, image_name);
+	g_free(image_name);
 	gtk_widget_set_sensitive(
 	    self->default_button,
 	    !self->loading && !self->busy && self->surface
-	);
-	gtk_widget_set_visible(
-	    self->image_menu,
-	    self->current && self->current->image
 	);
 	gtk_widget_set_sensitive(
 	    self->image_menu,
@@ -316,15 +322,10 @@ static void controls(SignSigning* self) {
 	    !self->loading && !self->busy
 	);
 	gtk_button_set_label(
-	    GTK_BUTTON(self->continue_button),
-	    self->current && self->current->appearance.page_number
-	        ? _("Continue")
-	        : _("Continue without graphical signature")
-	);
-	gtk_button_set_label(
 	    GTK_BUTTON(self->sign_button),
 	    self->busy ? _("Signing…") : _("Sign")
 	);
+	g_signal_emit_by_name(self, "navigation-changed");
 	gtk_widget_set_visible(self->spinner, self->loading || self->busy);
 	if (self->loading || self->busy) {
 		gtk_spinner_start(GTK_SPINNER(self->spinner));
@@ -743,8 +744,8 @@ void sign_signing_open_document(SignSigning* self, size_t index) {
 		self->stamp = NULL;
 	}
 	char* name = g_filename_display_basename(item->path);
-	gtk_label_set_text(self->filename, name);
-	g_free(name);
+	g_free(self->document_title);
+	self->document_title = name;
 	gtk_stack_set_visible_child_name(self->modes, "reader");
 	load_preview(
 	    self,
@@ -801,13 +802,65 @@ static void page_changed(GtkSpinButton* spin, gpointer data) {
 		);
 	}
 }
-static void continue_clicked(GtkButton* button, gpointer data) {
+static void back_clicked(GtkButton* button, gpointer data) {
 	(void)button;
 	sign_signing_show_queue(data);
+}
+static void continue_response(
+    AdwAlertDialog* dialog,
+    const char*     response,
+    gpointer        data
+) {
+	(void)dialog;
+	if (!strcmp(response, "yes")) {
+		sign_signing_show_queue(data);
+	}
+}
+static void continue_clicked(GtkButton* button, gpointer data) {
+	(void)button;
+	SignSigning* self = data;
+	if (self->loading || self->busy) {
+		return;
+	}
+	if (self->items->len == 1 && self->current &&
+	    !self->current->appearance.page_number) {
+		AdwDialog* dialog = adw_alert_dialog_new(
+		    _("Continue without graphical signature?"),
+		    _("You optionally can draw where you want the graphical details on "
+		      "the document, or choose a custom image")
+		);
+		gtk_widget_set_name(GTK_WIDGET(dialog), "sign-continue-dialog");
+		adw_alert_dialog_add_responses(
+		    ADW_ALERT_DIALOG(dialog),
+		    "draw",
+		    _("Draw signature"),
+		    "yes",
+		    _("Yes"),
+		    NULL
+		);
+		adw_alert_dialog_set_close_response(ADW_ALERT_DIALOG(dialog), "draw");
+		adw_alert_dialog_set_default_response(ADW_ALERT_DIALOG(dialog), "draw");
+		adw_alert_dialog_set_response_appearance(
+		    ADW_ALERT_DIALOG(dialog),
+		    "yes",
+		    ADW_RESPONSE_SUGGESTED
+		);
+		g_signal_connect_object(
+		    dialog,
+		    "response",
+		    G_CALLBACK(continue_response),
+		    self,
+		    0
+		);
+		sign_dialog_present(dialog, GTK_WIDGET(self));
+		return;
+	}
+	sign_signing_show_queue(self);
 }
 static void reset_image(GtkButton* button, gpointer data) {
 	(void)button;
 	SignSigning* self = data;
+	gtk_menu_button_popdown(GTK_MENU_BUTTON(self->image_menu));
 	if (self->current) {
 		self->current->image_set = false;
 		load_preview(
@@ -1141,7 +1194,8 @@ static void image_selected(
 }
 static void choose_image(GtkButton* button, gpointer data) {
 	(void)button;
-	SignSigning*   self = data;
+	SignSigning* self = data;
+	gtk_menu_button_popdown(GTK_MENU_BUTTON(self->image_menu));
 	GtkFileDialog* dialog = gtk_file_dialog_new();
 	gtk_file_dialog_set_title(dialog, _("Choose signature image"));
 	GtkFileFilter* filter = gtk_file_filter_new();
@@ -1253,9 +1307,24 @@ void sign_signing_reload_profiles(SignSigning* self) {
 	g_object_unref(list);
 	preferences_free(preferences);
 	g_free(previous);
+	controls(self);
 }
 GtkWidget* sign_signing_profile_selector(SignSigning* self) {
 	return GTK_WIDGET(self->profiles);
+}
+GtkWidget* sign_signing_header_clear(SignSigning* self) {
+	return self->clear;
+}
+GtkWidget* sign_signing_header_back(SignSigning* self) {
+	return self->back;
+}
+GtkWidget* sign_signing_header_menu(SignSigning* self) {
+	return self->image_menu;
+}
+const char* sign_signing_title(SignSigning* self) {
+	return sign_signing_is_reader(self) && self->document_title
+	           ? self->document_title
+	           : _("Sign");
 }
 static void profile_setup(
     GtkSignalListItemFactory* factory,
@@ -2263,6 +2332,18 @@ static void signing_dispose(GObject* object) {
 		g_object_unref(self->preview);
 		self->preview = NULL;
 	}
+	if (self->clear) {
+		g_object_unref(self->clear);
+		self->clear = NULL;
+	}
+	if (self->back) {
+		g_object_unref(self->back);
+		self->back = NULL;
+	}
+	if (self->image_menu) {
+		g_object_unref(self->image_menu);
+		self->image_menu = NULL;
+	}
 	if (self->profiles) {
 		g_object_unref(self->profiles);
 		self->profiles = NULL;
@@ -2272,6 +2353,7 @@ static void signing_dispose(GObject* object) {
 static void signing_finalize(GObject* object) {
 	SignSigning* self = SIGN_SIGNING(object);
 	g_ptr_array_unref(self->items);
+	g_free(self->document_title);
 	g_ptr_array_unref(self->profile_ids);
 	g_object_unref(self->lifetime);
 	if (self->surface) {
@@ -2283,6 +2365,17 @@ static void signing_finalize(GObject* object) {
 	G_OBJECT_CLASS(sign_signing_parent_class)->finalize(object);
 }
 static void sign_signing_class_init(SignSigningClass* klass) {
+	g_signal_new(
+	    "navigation-changed",
+	    G_TYPE_FROM_CLASS(klass),
+	    G_SIGNAL_RUN_LAST,
+	    0,
+	    NULL,
+	    NULL,
+	    NULL,
+	    G_TYPE_NONE,
+	    0
+	);
 	signing_completed = g_signal_new(
 	    "signing-completed",
 	    G_TYPE_FROM_CLASS(klass),
@@ -2359,10 +2452,6 @@ static void sign_signing_init(SignSigning* self) {
 	gtk_widget_set_margin_end(GTK_WIDGET(self), 18);
 	gtk_widget_set_margin_top(GTK_WIDGET(self), 18);
 	gtk_widget_set_margin_bottom(GTK_WIDGET(self), 18);
-	self->filename = GTK_LABEL(gtk_label_new(NULL));
-	gtk_label_set_ellipsize(self->filename, PANGO_ELLIPSIZE_MIDDLE);
-	gtk_label_set_xalign(self->filename, 0);
-	gtk_widget_set_hexpand(GTK_WIDGET(self->filename), TRUE);
 	self->spinner = gtk_spinner_new();
 	self->notice = GTK_LABEL(gtk_label_new(NULL));
 	gtk_widget_set_name(GTK_WIDGET(self->notice), "sign-notice");
@@ -2414,11 +2503,17 @@ static void sign_signing_init(SignSigning* self) {
 	gtk_label_set_xalign(self->total, 0);
 	gtk_widget_set_hexpand(GTK_WIDGET(self->total), TRUE);
 	gtk_box_append(GTK_BOX(queue_controls), GTK_WIDGET(self->total));
-	self->clear = gtk_button_new_with_label(_("Clear all"));
+	self->clear = g_object_ref_sink(sign_clear_button_new());
+	gtk_widget_add_css_class(self->clear, "flat");
+	gtk_widget_set_tooltip_text(self->clear, _("Clear all"));
+	gtk_accessible_update_property(
+	    GTK_ACCESSIBLE(self->clear),
+	    GTK_ACCESSIBLE_PROPERTY_LABEL,
+	    _("Clear all"),
+	    -1
+	);
 	gtk_widget_set_name(self->clear, "sign-clear");
 	g_signal_connect(self->clear, "clicked", G_CALLBACK(clear_clicked), self);
-	gtk_box_append(GTK_BOX(queue_controls), self->clear);
-	gtk_box_append(GTK_BOX(queue), queue_controls);
 	GtkWidget* scroll = gtk_scrolled_window_new();
 	gtk_widget_set_vexpand(scroll, TRUE);
 	gtk_scrolled_window_set_policy(
@@ -2437,10 +2532,11 @@ static void sign_signing_init(SignSigning* self) {
 	    G_CALLBACK(row_activated),
 	    self
 	);
-	gtk_scrolled_window_set_child(
-	    GTK_SCROLLED_WINDOW(scroll),
-	    GTK_WIDGET(self->list)
-	);
+	GtkWidget* documents = gtk_box_new(GTK_ORIENTATION_VERTICAL, 12);
+	gtk_widget_set_valign(documents, GTK_ALIGN_START);
+	gtk_box_append(GTK_BOX(documents), GTK_WIDGET(self->list));
+	gtk_box_append(GTK_BOX(documents), queue_controls);
+	gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(scroll), documents);
 	gtk_box_append(GTK_BOX(queue), scroll);
 	GtkWidget* footer = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
 	GtkWidget* actions = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
@@ -2458,6 +2554,7 @@ static void sign_signing_init(SignSigning* self) {
 	    G_CALLBACK(sign_clicked),
 	    self
 	);
+	gtk_box_append(GTK_BOX(actions), GTK_WIDGET(self->profiles));
 	gtk_box_append(GTK_BOX(actions), self->sign_button);
 	self->output_options = gtk_menu_button_new();
 	gtk_widget_set_name(self->output_options, "sign-output-options");
@@ -2506,16 +2603,28 @@ static void sign_signing_init(SignSigning* self) {
 	gtk_box_append(GTK_BOX(queue), footer);
 	gtk_stack_add_named(self->modes, queue, "queue");
 	GtkWidget* reader = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
-	GtkWidget* reader_tools = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
-	self->back = icon_button(
+	self->back = g_object_ref_sink(icon_button(
 	    "go-previous-symbolic",
 	    _("Document queue"),
-	    G_CALLBACK(continue_clicked),
+	    G_CALLBACK(back_clicked),
 	    self
+	));
+	gtk_widget_set_name(self->back, "sign-header-back");
+	self->image_menu = g_object_ref_sink(gtk_menu_button_new());
+	gtk_widget_set_name(self->image_menu, "sign-image-options");
+	gtk_menu_button_set_icon_name(
+	    GTK_MENU_BUTTON(self->image_menu),
+	    "insert-image-symbolic"
 	);
-	gtk_box_append(GTK_BOX(reader_tools), self->back);
-	gtk_box_append(GTK_BOX(reader_tools), GTK_WIDGET(self->filename));
-	gtk_box_append(GTK_BOX(reader_tools), self->spinner);
+	gtk_widget_add_css_class(self->image_menu, "flat");
+	gtk_widget_set_tooltip_text(self->image_menu, _("Signature image options"));
+	GtkWidget* image_popover = gtk_popover_new();
+	GtkWidget* image_options = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
+	gtk_widget_add_css_class(image_options, "sign-output-choices");
+	gtk_widget_set_margin_start(image_options, 6);
+	gtk_widget_set_margin_end(image_options, 6);
+	gtk_widget_set_margin_top(image_options, 6);
+	gtk_widget_set_margin_bottom(image_options, 6);
 	self->image_button = icon_button(
 	    "image-x-generic-symbolic",
 	    _("Choose signature image"),
@@ -2523,33 +2632,35 @@ static void sign_signing_init(SignSigning* self) {
 	    self
 	);
 	gtk_widget_set_name(self->image_button, "sign-image");
-	gtk_box_append(GTK_BOX(reader_tools), self->image_button);
-	self->image_menu = gtk_menu_button_new();
-	gtk_widget_set_name(self->image_menu, "sign-image-options");
-	gtk_menu_button_set_icon_name(
-	    GTK_MENU_BUTTON(self->image_menu),
-	    "view-more-symbolic"
+	GtkWidget* image_action = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
+	gtk_box_append(
+	    GTK_BOX(image_action),
+	    gtk_image_new_from_icon_name("image-x-generic-symbolic")
 	);
-	gtk_widget_add_css_class(self->image_menu, "flat");
-	gtk_widget_set_tooltip_text(self->image_menu, _("Signature image options"));
-	gtk_box_append(GTK_BOX(reader_tools), self->image_menu);
+	self->image_label = GTK_LABEL(gtk_label_new(_("Choose signature image")));
+	gtk_label_set_xalign(self->image_label, 0);
+	gtk_label_set_ellipsize(self->image_label, PANGO_ELLIPSIZE_END);
+	gtk_label_set_max_width_chars(self->image_label, 30);
+	gtk_box_append(GTK_BOX(image_action), GTK_WIDGET(self->image_label));
+	gtk_button_set_child(GTK_BUTTON(self->image_button), image_action);
 	self->default_button = icon_button(
-	    "edit-undo-symbolic",
-	    _("Use profile signature image"),
+	    "go-previous-symbolic",
+	    _("Restore default image"),
 	    G_CALLBACK(reset_image),
 	    self
 	);
 	gtk_widget_set_name(self->default_button, "sign-profile-image");
-	gtk_box_append(GTK_BOX(reader_tools), self->default_button);
-	gtk_box_append(GTK_BOX(reader), reader_tools);
+	GtkWidget* restore = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 12);
+	gtk_box_append(
+	    GTK_BOX(restore),
+	    gtk_image_new_from_icon_name("go-previous-symbolic")
+	);
+	gtk_box_append(GTK_BOX(restore), gtk_label_new(_("Restore default image")));
+	gtk_button_set_child(GTK_BUTTON(self->default_button), restore);
 	self->information = gtk_check_button_new_with_label(
 	    _("Add signing information")
 	);
 	gtk_widget_set_name(self->information, "sign-information");
-	gtk_widget_set_margin_start(self->information, 12);
-	gtk_widget_set_margin_end(self->information, 12);
-	gtk_widget_set_margin_top(self->information, 12);
-	gtk_widget_set_margin_bottom(self->information, 12);
 	gtk_check_button_set_active(GTK_CHECK_BUTTON(self->information), TRUE);
 	g_signal_connect(
 	    self->information,
@@ -2557,8 +2668,10 @@ static void sign_signing_init(SignSigning* self) {
 	    G_CALLBACK(information_toggled),
 	    self
 	);
-	GtkWidget* image_popover = gtk_popover_new();
-	gtk_popover_set_child(GTK_POPOVER(image_popover), self->information);
+	gtk_box_append(GTK_BOX(image_options), self->image_button);
+	gtk_box_append(GTK_BOX(image_options), self->default_button);
+	gtk_box_append(GTK_BOX(image_options), self->information);
+	gtk_popover_set_child(GTK_POPOVER(image_popover), image_options);
 	gtk_menu_button_set_popover(
 	    GTK_MENU_BUTTON(self->image_menu),
 	    image_popover
@@ -2599,11 +2712,12 @@ static void sign_signing_init(SignSigning* self) {
 	gtk_box_append(GTK_BOX(bottom), GTK_WIDGET(self->page));
 	self->page_count = GTK_LABEL(gtk_label_new(NULL));
 	gtk_box_append(GTK_BOX(bottom), GTK_WIDGET(self->page_count));
-	self->continue_button = gtk_button_new_with_label(
-	    _("Continue without graphical signature")
-	);
+	gtk_box_append(GTK_BOX(bottom), self->spinner);
+	self->continue_button = gtk_button_new_with_label(_("Continue"));
 	gtk_widget_set_name(self->continue_button, "sign-continue");
-	gtk_widget_set_hexpand(self->continue_button, TRUE);
+	gtk_widget_set_halign(self->continue_button, GTK_ALIGN_END);
+	gtk_widget_set_hexpand(GTK_WIDGET(self->page_count), TRUE);
+	gtk_label_set_xalign(self->page_count, 0);
 	gtk_widget_add_css_class(self->continue_button, "suggested-action");
 	gtk_label_set_wrap(
 	    GTK_LABEL(gtk_button_get_child(GTK_BUTTON(self->continue_button))),

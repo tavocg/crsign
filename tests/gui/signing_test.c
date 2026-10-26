@@ -8,6 +8,20 @@
 #include <sign/gui/signing.h>
 #include <sign/gui/validation.h>
 
+static GtkWidget* button_label(GtkWidget* root, const char* label) {
+	if (GTK_IS_BUTTON(root) &&
+	    !g_strcmp0(gtk_button_get_label(GTK_BUTTON(root)), label)) {
+		return root;
+	}
+	for (GtkWidget* child = gtk_widget_get_first_child(root); child;
+	     child = gtk_widget_get_next_sibling(child)) {
+		GtkWidget* found = button_label(child, label);
+		if (found) {
+			return found;
+		}
+	}
+	return NULL;
+}
 static GtkWidget* window_named(AdwApplication* app, const char* name) {
 	for (GList* n = gtk_application_get_windows(GTK_APPLICATION(app)); n;
 	     n = n->next) {
@@ -570,7 +584,11 @@ int main(int argc, char** argv) {
 	gtk_window_set_title(GTK_WINDOW(window), "CRSign Signing Test");
 	GtkWidget*   box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 	SignSigning* self = SIGN_SIGNING(sign_signing_new());
-	gtk_box_append(GTK_BOX(box), sign_signing_profile_selector(self));
+	GtkWidget*   header = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+	gtk_box_append(GTK_BOX(header), sign_signing_header_back(self));
+	gtk_box_append(GTK_BOX(header), sign_signing_header_menu(self));
+	gtk_box_append(GTK_BOX(header), sign_signing_header_clear(self));
+	gtk_box_append(GTK_BOX(box), header);
 	gtk_box_append(GTK_BOX(box), GTK_WIDGET(self));
 	adw_application_window_set_content(ADW_APPLICATION_WINDOW(window), box);
 	gtk_window_present(GTK_WINDOW(window));
@@ -644,6 +662,43 @@ int main(int argc, char** argv) {
 	g_object_unref(dropped);
 	wait_done(self);
 	g_assert_true(sign_signing_is_reader(self));
+	g_assert_cmpstr(sign_signing_title(self), ==, "page.pdf");
+	GtkWidget* continue_button = named(GTK_WIDGET(self), "sign-continue");
+	g_assert_cmpstr(
+	    gtk_button_get_label(GTK_BUTTON(continue_button)),
+	    ==,
+	    "Continuar"
+	);
+	g_assert_false(gtk_widget_get_hexpand(continue_button));
+	g_signal_emit_by_name(continue_button, "clicked");
+	settle();
+	AdwDialog* confirmation = adw_application_window_get_visible_dialog(
+	    ADW_APPLICATION_WINDOW(window)
+	);
+	g_assert_true(ADW_IS_ALERT_DIALOG(confirmation));
+	g_assert_true(
+	    adw_alert_dialog_has_response(ADW_ALERT_DIALOG(confirmation), "draw")
+	);
+	g_assert_true(
+	    adw_alert_dialog_has_response(ADW_ALERT_DIALOG(confirmation), "yes")
+	);
+	GtkWidget* draw = button_label(GTK_WIDGET(confirmation), "Dibujar firma");
+	g_assert_nonnull(draw);
+	g_signal_emit_by_name(draw, "clicked");
+	settle();
+	g_assert_true(sign_signing_is_reader(self));
+	g_signal_emit_by_name(continue_button, "clicked");
+	settle();
+	confirmation = adw_application_window_get_visible_dialog(
+	    ADW_APPLICATION_WINDOW(window)
+	);
+	GtkWidget* yes = button_label(GTK_WIDGET(confirmation), "Sí");
+	g_assert_nonnull(yes);
+	g_signal_emit_by_name(yes, "clicked");
+	settle();
+	g_assert_false(sign_signing_is_reader(self));
+	sign_signing_open_document(self, 0);
+	wait_done(self);
 	GtkWidget* pdf_reader = find_widget(GTK_WIDGET(self), SIGN_TYPE_PDF_READER);
 	GListModel* reader_controllers = gtk_widget_observe_controllers(pdf_reader);
 	for (guint i = 0; i < g_list_model_get_n_items(reader_controllers); ++i) {
@@ -652,9 +707,9 @@ int main(int argc, char** argv) {
 		g_object_unref(controller);
 	}
 	g_object_unref(reader_controllers);
-	g_assert_false(
-	    gtk_widget_get_visible(named(GTK_WIDGET(self), "sign-profile-image"))
-	);
+	g_assert_false(gtk_widget_get_visible(
+	    named(sign_signing_header_menu(self), "sign-profile-image")
+	));
 	settle();
 	zoom_input(window, self);
 	mouse_place(window, self, false);
@@ -663,14 +718,17 @@ int main(int argc, char** argv) {
 	sign_signing_remove_appearance(self);
 	sign_signing_set_image(self, image);
 	wait_done(self);
-	g_assert_true(
-	    gtk_widget_get_visible(named(GTK_WIDGET(self), "sign-profile-image"))
-	);
+	g_assert_true(gtk_widget_get_visible(
+	    named(sign_signing_header_menu(self), "sign-profile-image")
+	));
 	g_assert_true(sign_signing_place(self, 30, 40, 0, 0, &error));
 	g_assert_no_error(error);
 	const libssig_pdf_appearance* a = sign_signing_appearance(self, 0);
 	g_assert_cmpfloat(a->width, ==, 144);
-	GtkWidget* information = named(GTK_WIDGET(self), "sign-information");
+	GtkWidget* information = named(
+	    sign_signing_header_menu(self),
+	    "sign-information"
+	);
 	g_assert_true(gtk_widget_get_visible(information));
 	g_assert_true(gtk_check_button_get_active(GTK_CHECK_BUTTON(information)));
 	g_assert_cmpfloat(fabs(a->height - 123.84), <, .01);
@@ -824,9 +882,10 @@ int main(int argc, char** argv) {
 	    "insert-image-symbolic"
 	);
 	g_assert_cmpstr(
-	    gtk_button_get_icon_name(
-	        GTK_BUTTON(named(GTK_WIDGET(self), "sign-image"))
-	    ),
+	    gtk_image_get_icon_name(GTK_IMAGE(find_widget(
+	        named(sign_signing_header_menu(self), "sign-image"),
+	        GTK_TYPE_IMAGE
+	    ))),
 	    ==,
 	    "image-x-generic-symbolic"
 	);
@@ -929,7 +988,7 @@ int main(int argc, char** argv) {
 	g_assert_cmpstr(
 	    gtk_label_get_text(GTK_LABEL(named(GTK_WIDGET(self), "sign-total"))),
 	    ==,
-	    "Total: 2"
+	    "Cola: 2"
 	);
 	GtkWidget* remove_document = named(
 	    GTK_WIDGET(self),
@@ -952,9 +1011,7 @@ int main(int argc, char** argv) {
 	snapshot(window, argv[2], "sign-queue.png");
 	guint timer = g_timeout_add(10, answer_pin, app);
 	sign_signing_run(self);
-	g_assert_false(
-	    gtk_widget_get_sensitive(named(GTK_WIDGET(self), "sign-clear"))
-	);
+	g_assert_false(gtk_widget_get_sensitive(sign_signing_header_clear(self)));
 	wait_done(self);
 	g_source_remove(timer);
 	g_assert_cmpuint(handoffs, ==, 1);
@@ -1018,13 +1075,27 @@ int main(int argc, char** argv) {
 	}
 	g_assert_false(sign_validation_is_busy(validation));
 	g_assert_cmpuint(sign_validation_count(validation), ==, 2);
-	g_signal_emit_by_name(named(GTK_WIDGET(self), "sign-clear"), "clicked");
+	g_signal_emit_by_name(sign_signing_header_clear(self), "clicked");
 	g_assert_cmpuint(sign_signing_count(self), ==, 0);
 	g_assert_cmpstr(
 	    gtk_label_get_text(GTK_LABEL(named(GTK_WIDGET(self), "sign-total"))),
 	    ==,
-	    "Total: 0"
+	    "Cola: 0"
 	);
+	/* Multiple queued documents never prompt when leaving an unplaced PDF. */
+	add(self, pdf);
+	add(self, payload);
+	sign_signing_open_document(self, 0);
+	wait_done(self);
+	g_assert_cmpuint(sign_signing_count(self), ==, 2);
+	g_assert_cmpuint(sign_signing_appearance(self, 0)->page_number, ==, 0);
+	g_signal_emit_by_name(named(GTK_WIDGET(self), "sign-continue"), "clicked");
+	settle();
+	g_assert_false(sign_signing_is_reader(self));
+	g_assert_null(adw_application_window_get_visible_dialog(
+	    ADW_APPLICATION_WINDOW(window)
+	));
+	sign_signing_clear(self);
 	/* Re-adding an edited path replaces the queued document and cached preview.
 	 */
 	char* changing = g_build_filename(argv[1], "changing.bin", NULL);
