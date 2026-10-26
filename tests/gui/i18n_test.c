@@ -43,9 +43,9 @@ int main(int argc, char** argv) {
 		g_assert_cmpstr(_("Validate"), ==, "Validar");
 		g_assert_cmpstr(_("Devices"), ==, "Dispositivos");
 		g_assert_cmpstr(
-		    _("No readers found"),
+		    _("No devices found"),
 		    ==,
-		    "No se encontraron lectores"
+		    "No se encontraron dispositivos"
 		);
 		g_assert_cmpstr(_("Settings"), ==, "Ajustes");
 		g_assert_cmpstr(_("About"), ==, "Acerca de");
