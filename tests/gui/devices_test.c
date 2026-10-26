@@ -146,6 +146,13 @@ int main(int argc, char** argv) {
 	g_log_set_always_fatal(fatal | G_LOG_LEVEL_WARNING | G_LOG_LEVEL_CRITICAL);
 	trust_test();
 	adw_init();
+	/* Keep snapshots and shutdown independent of unfinished GTK animations. */
+	g_object_set(
+	    gtk_settings_get_default(),
+	    "gtk-enable-animations",
+	    FALSE,
+	    NULL
+	);
 	adw_style_manager_set_color_scheme(
 	    adw_style_manager_get_default(),
 	    ADW_COLOR_SCHEME_FORCE_DARK
@@ -219,6 +226,9 @@ int main(int argc, char** argv) {
 	g_signal_emit_by_name(reader, "activated");
 	settle();
 	g_assert_true(adw_navigation_split_view_get_show_content(split));
+	g_assert_false(
+	    gtk_widget_get_visible(sign_devices_header_refresh(SIGN_DEVICES(view)))
+	);
 	snapshot(window, argv[2], "devices-expanded.png");
 	g_assert_cmpstr(
 	    gtk_label_get_text(GTK_LABEL(named(window, "section-title"))),
@@ -314,6 +324,9 @@ int main(int argc, char** argv) {
 
 	snapshot(window, argv[2], "devices-details-narrow.png");
 	g_signal_emit_by_name(back, "clicked");
+	g_assert_true(
+	    gtk_widget_get_visible(sign_devices_header_refresh(SIGN_DEVICES(view)))
+	);
 	settle();
 	g_assert_false(adw_navigation_split_view_get_show_content(split));
 	g_assert_cmpstr(

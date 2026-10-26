@@ -62,7 +62,8 @@ static void device_navigation(SignDevices* devices, gpointer data) {
     );
 	gtk_widget_set_visible(
 	    self->devices_refresh,
-	    active && !sign_devices_is_busy(devices)
+	    active && !sign_devices_is_busy(devices) &&
+	        !sign_devices_in_details(devices)
 	);
 	if (g_strcmp0(gtk_stack_get_visible_child_name(self->pages), "devices")) {
 		return;
@@ -160,9 +161,13 @@ static void section_selected(
 	gtk_widget_set_visible(self->devices_menu, index == 3);
 	gtk_widget_set_visible(
 	    self->devices_refresh,
-	    index == 3 && !sign_devices_is_busy(SIGN_DEVICES(
-	                      gtk_stack_get_child_by_name(self->pages, "devices")
-	                  ))
+	    index == 3 &&
+	        !sign_devices_is_busy(SIGN_DEVICES(
+	            gtk_stack_get_child_by_name(self->pages, "devices")
+	        )) &&
+	        !sign_devices_in_details(SIGN_DEVICES(
+	            gtk_stack_get_child_by_name(self->pages, "devices")
+	        ))
 	);
 	bool signing = !strcmp(sections[index].id, "sign");
 
