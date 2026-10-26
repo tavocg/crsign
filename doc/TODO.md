@@ -2,6 +2,8 @@
       campos como CN=..., pero sería mejor que eso vaya en su propio campo y
       mostrar el título diferente, idealmente por ejemplo el nombre de la
       persona nada más, pero, hay que investigar si eso es estándar.
+- [ ] Comprender funcionalidad de "extender" la firma, ver si es congruente
+      implementarlo y en cuyo caso buscar la mejor manera de integrarlo.
 - [ ] Pulir comportamiento con varios lectores/tarjetas (también dar a escoger
       cuando hayan varios certificados en una tarjeta).
 - [ ] La firma del appimage y del msi por alguna razón tarda demasiado, cuando
