@@ -594,7 +594,7 @@ static GtkWidget* create_content(SignWindow* self) {
 			self->devices_refresh = sign_devices_header_refresh(
 			    SIGN_DEVICES(devices)
 			);
-			adw_header_bar_pack_end(
+			adw_header_bar_pack_start(
 			    ADW_HEADER_BAR(header),
 			    self->devices_refresh
 			);
@@ -616,10 +616,7 @@ static GtkWidget* create_content(SignWindow* self) {
 			self->devices_menu = sign_devices_header_menu(
 			    SIGN_DEVICES(devices)
 			);
-			adw_header_bar_pack_start(
-			    ADW_HEADER_BAR(header),
-			    self->devices_menu
-			);
+			adw_header_bar_pack_end(ADW_HEADER_BAR(header), self->devices_menu);
 			gtk_widget_set_visible(self->devices_menu, FALSE);
 			gtk_stack_add_titled(
 			    self->pages,

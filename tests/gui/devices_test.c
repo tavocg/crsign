@@ -209,7 +209,7 @@ int main(int argc, char** argv) {
 	);
 	wait_text(view, "USB fixture <&>", true);
 	snapshot(window, argv[2], "devices-collapsed.png");
-	graphene_rect_t options, title;
+	graphene_rect_t options, title, refresh;
 	g_assert_true(gtk_widget_compute_bounds(
 	    named(window, "devices-options"),
 	    window,
@@ -220,7 +220,13 @@ int main(int argc, char** argv) {
 	    window,
 	    &title
 	));
-	g_assert_cmpfloat(options.origin.x + options.size.width, <, title.origin.x);
+	g_assert_cmpfloat(options.origin.x, >, title.origin.x + title.size.width);
+	g_assert_true(gtk_widget_compute_bounds(
+	    named(window, "devices-refresh"),
+	    window,
+	    &refresh
+	));
+	g_assert_cmpfloat(refresh.origin.x + refresh.size.width, <, title.origin.x);
 
 	reader = ADW_ACTION_ROW(named(content, "devices-reader"));
 	g_signal_emit_by_name(reader, "activated");
@@ -370,7 +376,38 @@ int main(int argc, char** argv) {
 	phase(argv[1], "1");
 	wait_text(view, "Certificate <&>", false);
 	phase(argv[1], "3");
-	wait_text(view, "No readers found", true);
+	gint64 empty_deadline = g_get_monotonic_time() + 10 * G_TIME_SPAN_SECOND;
+	while (g_strcmp0(
+	           gtk_stack_get_visible_child_name(
+	               GTK_STACK(named(view, "devices-state"))
+	           ),
+	           "empty"
+	       ) &&
+	       g_get_monotonic_time() < empty_deadline) {
+		while (g_main_context_iteration(NULL, FALSE)) {
+		}
+		g_usleep(1000);
+	}
+	g_assert_cmpstr(
+	    gtk_stack_get_visible_child_name(
+	        GTK_STACK(named(view, "devices-state"))
+	    ),
+	    ==,
+	    "empty"
+	);
+	g_assert_true(
+	    contains(named(view, "devices-empty"), "Check for missing drivers")
+	);
+	g_assert_cmpint(
+	    gtk_widget_get_halign(named(view, "devices-empty")),
+	    ==,
+	    GTK_ALIGN_CENTER
+	);
+	g_assert_cmpint(
+	    gtk_widget_get_valign(named(view, "devices-empty")),
+	    ==,
+	    GTK_ALIGN_CENTER
+	);
 	g_assert_false(adw_navigation_split_view_get_show_content(split));
 	g_assert_cmpint(
 	    gtk_widget_get_valign(named(view, "devices-body")),

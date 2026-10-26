@@ -683,7 +683,7 @@ msgid "Readers: %zu · Slots: %zu · Certificates: %zu · Keys: %zu"
 msgstr ""
 
 #: sign/gui/devices.c:632
-msgid "No readers found"
+msgid "No devices found"
 msgstr ""
 
 #: sign/gui/devices.c:670 sign/gui/devices.c:998
@@ -1339,4 +1339,8 @@ msgstr ""
 
 #: sign/gui/validation.c
 msgid "Pseudonym"
+msgstr ""
+
+#: sign/gui/devices.c
+msgid "Check for missing drivers"
 msgstr ""

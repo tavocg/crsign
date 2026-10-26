@@ -803,8 +803,12 @@ static void render(SignDevices* self, sign_device_inventory* inventory) {
 			populate_device(selected);
 		}
 	}
-	gtk_label_set_text(self->status, readers ? "" : _("No readers found"));
+	gtk_label_set_text(self->status, readers ? "" : _("No devices found"));
 	gtk_widget_set_visible(GTK_WIDGET(self->status), readers == 0);
+	gtk_stack_set_visible_child_name(
+	    self->states,
+	    !readers && !inventory->issues->len ? "empty" : "devices"
+	);
 	for (guint n = 0; n < inventory->issues->len; ++n) {
 		GtkWidget* label = gtk_label_new(
 		    g_ptr_array_index(inventory->issues, n)
@@ -1239,6 +1243,26 @@ static void sign_devices_init(SignDevices* self) {
 	    ),
 	    "devices"
 	);
+	GtkWidget* empty = gtk_box_new(GTK_ORIENTATION_VERTICAL, 12);
+	gtk_widget_set_name(empty, "devices-empty");
+	gtk_widget_set_halign(empty, GTK_ALIGN_CENTER);
+	gtk_widget_set_valign(empty, GTK_ALIGN_CENTER);
+	GtkWidget* icon = gtk_image_new_from_icon_name(
+	    "drive-removable-media-symbolic"
+	);
+	gtk_image_set_pixel_size(GTK_IMAGE(icon), 48);
+	gtk_box_append(GTK_BOX(empty), icon);
+	GtkWidget* title = gtk_label_new(_("No devices found"));
+	gtk_label_set_wrap(GTK_LABEL(title), TRUE);
+	gtk_label_set_justify(GTK_LABEL(title), GTK_JUSTIFY_CENTER);
+	gtk_widget_add_css_class(title, "title-2");
+	gtk_box_append(GTK_BOX(empty), title);
+	GtkWidget* hint = gtk_label_new(_("Check for missing drivers"));
+	gtk_label_set_wrap(GTK_LABEL(hint), TRUE);
+	gtk_label_set_justify(GTK_LABEL(hint), GTK_JUSTIFY_CENTER);
+	gtk_widget_add_css_class(hint, "dim-label");
+	gtk_box_append(GTK_BOX(empty), hint);
+	gtk_stack_add_named(self->states, empty, "empty");
 	GtkWidget* loading = gtk_box_new(GTK_ORIENTATION_VERTICAL, 12);
 	gtk_widget_set_halign(loading, GTK_ALIGN_CENTER);
 	gtk_widget_set_valign(loading, GTK_ALIGN_CENTER);
