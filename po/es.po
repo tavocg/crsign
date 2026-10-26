@@ -1451,3 +1451,6 @@ msgstr "Cola: %u"
 
 msgid "Valid: %u/%u"
 msgstr "Válidos: %u/%u"
+
+msgid "Clear queue"
+msgstr "Vaciar cola"

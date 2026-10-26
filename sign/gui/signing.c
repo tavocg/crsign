@@ -2505,11 +2505,11 @@ static void sign_signing_init(SignSigning* self) {
 	gtk_box_append(GTK_BOX(queue_controls), GTK_WIDGET(self->total));
 	self->clear = g_object_ref_sink(sign_clear_button_new());
 	gtk_widget_add_css_class(self->clear, "flat");
-	gtk_widget_set_tooltip_text(self->clear, _("Clear all"));
+	gtk_widget_set_tooltip_text(self->clear, _("Clear queue"));
 	gtk_accessible_update_property(
 	    GTK_ACCESSIBLE(self->clear),
 	    GTK_ACCESSIBLE_PROPERTY_LABEL,
-	    _("Clear all"),
+	    _("Clear queue"),
 	    -1
 	);
 	gtk_widget_set_name(self->clear, "sign-clear");
